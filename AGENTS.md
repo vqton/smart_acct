@@ -28,7 +28,7 @@ npm run codegraph:status # codegraph index stats
 ## App entrypoint
 
 - `src/main.ts` — NestJS bootstrap (Swagger + ValidationPipe + CORS).
-- `src/app.module.ts` — root module, imports `PrismaModule`, `GlModule`, `TaxModule`.
+- `src/app.module.ts` — root module, imports `PrismaModule`, `GlModule`, `TaxModule`, `CoaModule`.
 - DDD structure: `domain/`, `application/`, `infrastructure/`, `presentation/`.
 
 ## Skill selection
@@ -74,14 +74,16 @@ The graph lives in `.codegraph/` (gitignored db). Auto-rebuilt via `postinstall`
 - **Money value object:** `src/domain/shared/money.ts` wraps `Decimal` for precise arithmetic.
 - **Docker Compose:** `docker-compose.yml` + `Dockerfile` + `.env.example`.
 - **Old Express code removed:** All Express 5 handlers, middleware, old application services, old infrastructure (mariadb/in-memory), old tests, and `main-express.ts` deleted.
-- **20 test files, 152 tests** — all passing.
+- **COA Module (Enterprise Chart of Accounts):** Full domain model (AccountClass, AccountType, AccountMapping, AccountExtension), 4 aggregate roots with domain events, specification pattern validators (PostingAccountSpec, ActiveStatusSpec, EffectiveDateSpec, hierarchy cycle detection), Prisma schema with 7 new tables + audit trail tables, 4 Prisma repositories, CoaService, 4 REST controllers (classes, types, mappings, extensions), 29 new tests. All 181 tests passing.
 
 ### Pending
 - Full Money integration across domain entities (currently at repo boundary).
 - Auth module (RBAC).
 - Actual DB migration (prisma migrate dev).
 - Production seed data script.
+- COA import/export (Excel/CSV/JSON) bulk APIs.
+- COA seed data with VAS-standard account classes and types.
 - CONTEXT.md handoff doc.
 
 ### Stats
-- 20 test files, 152 tests, all passing. `tsc --noEmit` clean.
+- 26 test files, 181 tests, all passing. `tsc --noEmit` clean.

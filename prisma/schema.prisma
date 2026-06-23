@@ -123,6 +123,11 @@ model Account {
 
   journalLines  JournalEntryLine[]
   budgetLines   BudgetLine[]
+  extensions    AccountExtension[]
+  mappings      AccountMapping[]
+  hierarchyChanges AccountHierarchyChange[]
+  codeChanges   AccountCodeChange[]
+  statusChanges AccountStatusChange[]
 
   @@index([code])
   @@index([parentId])
@@ -817,4 +822,1523 @@ model TaxDeterminationRule {
   @@index([taxTypeId])
   @@index([effectiveFrom, effectiveTo])
   @@map("tax_determination_rules")
+}
+
+// ─── COA Module ───────────────────────────────────────────────────────────────
+
+enum AccountClassType {
+  asset
+  liability
+  equity
+  revenue
+  expense
+  cost_of_goods_sold
+  other_income
+  other_expense
+  manufacturing
+}
+
+enum AccountTypeCategory {
+  current_asset
+  non_current_asset
+  current_liability
+  non_current_liability
+  equity
+  revenue
+  operating_expense
+  manufacturing_cost
+  cost_of_goods_sold
+  other_income
+  other_expense
+  off_balance_sheet
+}
+
+enum AccountSubType {
+  cash
+  bank
+  receivable
+  inventory
+  fixed_asset
+  intangible_asset
+  investment
+  payable
+  tax_payable
+  loan
+  equity_capital
+  retained_earnings
+  revenue
+  cost_of_sales
+  salary
+  depreciation
+  tax_expense
+  other
+}
+
+enum AccountMappingStandard {
+  ifrs
+  vas
+  cash_flow
+  tax
+  statutory
+  management
+}
+
+enum AccountMappingType {
+  direct
+  aggregation
+  percentage
+  formula
+  manual
+}
+
+enum DimensionRequirement {
+  optional
+  recommended
+  required
+  prohibited
+}
+
+enum AccountEffectiveStatus {
+  draft
+  active
+  suspended
+  closed
+  archived
+}
+
+enum AccountControlLevel {
+  none
+  warning
+  strict
+}
+
+model AccountClass {
+  id          String         @id @default(uuid())
+  code        String         @unique @db.VarChar(1)
+  name        String         @db.VarChar(255)
+  nameEn      String?        @db.VarChar(255)
+  classType   AccountClassType
+  description String?        @db.Text
+  displayOrder Int           @default(0)
+  isActive    Boolean        @default(true)
+  version     Int            @default(1)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  accountTypes AccountType[]
+
+  @@index([code])
+  @@index([classType])
+  @@map("coa_account_classes")
+}
+
+model AccountType {
+  id            String            @id @default(uuid())
+  classId       String
+  class         AccountClass      @relation(fields: [classId], references: [id])
+  code          String            @unique @db.VarChar(10)
+  name          String            @db.VarChar(255)
+  nameEn        String?           @db.VarChar(255)
+  category      AccountTypeCategory
+  subType       AccountSubType?
+  nature        AccountNature
+  description   String?           @db.Text
+  isActive      Boolean           @default(true)
+  displayOrder  Int               @default(0)
+  version       Int               @default(1)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  extensions    AccountExtension[]
+  childTypes    AccountType[]     @relation("AccountTypeHierarchy")
+  parentTypeId  String?
+  parentType    AccountType?      @relation("AccountTypeHierarchy", fields: [parentTypeId], references: [id])
+
+  @@index([classId])
+  @@index([code])
+  @@index([category])
+  @@index([subType])
+  @@map("coa_account_types")
+}
+
+/// Extends the Account model with COA-specific fields
+model AccountExtension {
+  id                String              @id @default(uuid())
+  accountId         String              @unique
+  account           Account             @relation(fields: [accountId], references: [id])
+
+  // Classification
+  typeId            String?
+  type              AccountType?        @relation(fields: [typeId], references: [id])
+
+  // Status lifecycle
+  effectiveStatus   AccountEffectiveStatus @default(active)
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  statusReason      String?             @db.Text
+
+  // Posting permissions
+  allowAutoPosting  Boolean             @default(true)
+  requireApproval   Boolean             @default(false)
+
+  // Budget control
+  budgetControlLevel AccountControlLevel @default(none)
+  budgetCheckMessage String?            @db.Text
+
+  // Default dimensions
+  defaultCostCenterId  String?
+  defaultDepartmentId  String?
+  defaultProjectId     String?
+  defaultBranchId      String?
+
+  // Dimension rules
+  costCenterRequired   DimensionRequirement @default(optional)
+  departmentRequired   DimensionRequirement @default(optional)
+  projectRequired      DimensionRequirement @default(optional)
+  branchRequired       DimensionRequirement @default(optional)
+  profitCenterRequired DimensionRequirement @default(optional)
+
+  // Sub-ledger links
+  isCashAccount        Boolean          @default(false)
+  isBankAccount        Boolean          @default(false)
+  isTaxAccount         Boolean          @default(false)
+  isInventoryAccount   Boolean          @default(false)
+  isReceivableAccount  Boolean          @default(false)
+  isPayableAccount     Boolean          @default(false)
+  isIntercompanyAccount Boolean         @default(false)
+
+  // Default tax
+  defaultTaxCodeId  String?            @db.VarChar(36)
+  defaultTaxRateId  String?            @db.VarChar(36)
+
+  // Cash flow
+  cashFlowCode      String?            @db.VarChar(10)
+
+  // Financial statement mapping
+  financialStatementCode String?       @db.VarChar(20)
+  financialStatementNote  String?      @db.Text
+
+  // Audit & metadata
+  createdById       String?
+  updatedById       String?
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([typeId])
+  @@index([effectiveStatus])
+  @@index([isCashAccount])
+  @@index([isBankAccount])
+  @@index([isTaxAccount])
+  @@index([isInventoryAccount])
+  @@map("coa_account_extensions")
+}
+
+model AccountMapping {
+  id              String                  @id @default(uuid())
+  accountId       String
+  account         Account                 @relation(fields: [accountId], references: [id])
+  mappingStandard AccountMappingStandard
+  mappingType     AccountMappingType
+  targetCode      String                  @db.VarChar(50)
+  targetName      String?                 @db.VarChar(255)
+  mappingRule     String?                 @db.Text
+  percentage      Decimal?                @db.Decimal(7, 4)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  isActive        Boolean                 @default(true)
+  description     String?                 @db.Text
+  version         Int                     @default(1)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([accountId, mappingStandard, targetCode])
+  @@index([accountId])
+  @@index([mappingStandard])
+  @@index([targetCode])
+  @@map("coa_account_mappings")
+}
+
+model AccountHierarchyChange {
+  id            String   @id @default(uuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id])
+  oldParentId   String?
+  newParentId   String?
+  changedById   String
+  changedAt     DateTime @default(now())
+  reason        String?  @db.Text
+
+  @@index([accountId])
+  @@index([changedAt])
+  @@map("coa_hierarchy_changes")
+}
+
+model AccountCodeChange {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  oldCode     String   @db.VarChar(20)
+  newCode     String   @db.VarChar(20)
+  changedById String
+  changedAt   DateTime @default(now())
+  reason      String?  @db.Text
+
+  @@index([accountId])
+  @@index([changedAt])
+  @@map("coa_code_changes")
+}
+
+model AccountStatusChange {
+  id            String                 @id @default(uuid())
+  accountId     String
+  account       Account                @relation(fields: [accountId], references: [id])
+  oldStatus     AccountEffectiveStatus
+  newStatus     AccountEffectiveStatus
+  changedById   String
+  changedAt     DateTime               @default(now())
+  reason        String?                @db.Text
+
+  @@index([accountId])
+  @@index([changedAt])
+  @@map("coa_status_changes")
+}
+
+// ─── Cash Management Module ─────────────────────────────────────────────────────
+
+enum CashBoxType {
+  cash_register
+  cash_drawer
+  safe_deposit
+  petty_cash
+  teller
+  atm
+  pos_terminal
+  vault
+  cash_office
+  other
+}
+
+enum CashBoxStatus {
+  active
+  inactive
+  suspended
+  closed
+  archived
+}
+
+enum CashSessionStatus {
+  pending
+  open
+  counting
+  closed
+  reconciled
+  disputed
+}
+
+enum CashDirection {
+  in
+  out
+}
+
+enum CashCountMethod {
+  manual
+  scanner
+  scale
+  hybrid
+}
+
+enum CashDifferenceType {
+  shortage
+  overage
+  counterfeit
+  dispute
+  adjustment
+}
+
+enum CashDifferenceStatus {
+  pending
+  investigated
+  approved
+  rejected
+  resolved
+  written_off
+}
+
+enum ReceiptStatus {
+  draft
+  issued
+  approved
+  posted
+  cancelled
+  reversed
+}
+
+enum PaymentStatus {
+  draft
+  submitted
+  approved
+  paid
+  posted
+  cancelled
+  rejected
+  reversed
+}
+
+enum PaymentMethod {
+  cash
+  cheque
+  bank_transfer
+  wire_transfer
+  intercompany_transfer
+  card
+  e_wallet
+  offset
+  other
+}
+
+enum ChequeType {
+  personal
+  corporate
+  cashier
+  certified
+  travellers
+  government
+}
+
+enum ChequeStatus {
+  unissued
+  issued
+  deposited
+  cleared
+  returned
+  cancelled
+  stopped
+  voided
+  reconciled
+}
+
+enum ChequeBookStatus {
+  active
+  used
+  full_used
+  cancelled
+  lost
+}
+
+enum BankAccountType {
+  current
+  savings
+  deposit
+  loan
+  treasury
+  suspense
+  payroll
+  tax
+  intercompany
+  virtual
+}
+
+enum BankAccountStatus {
+  active
+  inactive
+  suspended
+  closed
+  blocked
+}
+
+enum BankTransferType {
+  internal
+  intercompany
+  domestic
+  international
+  swift
+  wire
+  ach
+  sepa
+}
+
+enum BankTransferStatus {
+  draft
+  submitted
+  approved
+  sent
+  completed
+  failed
+  reversed
+  cancelled
+}
+
+enum BankReconciliationStatus {
+  open
+  in_progress
+  matched
+  difference_found
+  resolved
+  closed
+}
+
+enum StatementLineType {
+  debit
+  credit
+  fee
+  interest
+  chargeback
+  reversal
+  other
+}
+
+enum CashAdvanceStatus {
+  draft
+  approved
+  disbursed
+  settled
+  partially_settled
+  overdue
+  written_off
+  cancelled
+}
+
+enum PettyCashStatus {
+  active
+  suspended
+  replenishing
+  closed
+  audited
+}
+
+enum CashTransferStatus {
+  draft
+  approved
+  in_transit
+  completed
+  cancelled
+  disputed
+}
+
+enum CashForecastStatus {
+  draft
+  confirmed
+  locked
+  archived
+}
+
+enum CashForecastPeriodType {
+  daily
+  weekly
+  monthly
+  quarterly
+  custom
+}
+
+enum AttachmentType {
+  receipt
+  invoice
+  contract
+  supporting_document
+  image
+  pdf
+  other
+}
+
+// ─── Cash Office ────────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(uuid())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(255)
+  nameEn    String?  @db.VarChar(255)
+  taxCode   String?  @db.VarChar(20)
+  address   String?  @db.Text
+  phone     String?  @db.VarChar(20)
+  email     String?  @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  cashLocations     CashLocation[]
+  banks             Bank[]
+  bankAccounts      BankAccount[]
+  cashForecasts     CashForecast[]
+
+  @@index([code])
+  @@map("cm_companies")
+}
+
+model CashLocation {
+  id         String      @id @default(uuid())
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id])
+  code       String      @unique @db.VarChar(20)
+  name       String      @db.VarChar(255)
+  address    String?     @db.Text
+  isActive   Boolean     @default(true)
+  version    Int         @default(1)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  cashBoxes         CashBox[]
+  pettyCashFunds    PettyCash[]
+  cashTransfersFrom CashTransfer[]     @relation("TransferFromLocation")
+  cashTransfersTo   CashTransfer[]     @relation("TransferToLocation")
+
+  @@index([companyId])
+  @@index([code])
+  @@map("cm_cash_locations")
+}
+
+model CashBox {
+  id            String       @id @default(uuid())
+  locationId    String
+  location      CashLocation @relation(fields: [locationId], references: [id])
+  code          String       @unique @db.VarChar(20)
+  name          String       @db.VarChar(255)
+  boxType       CashBoxType
+  currencyCode  String       @default("VND") @db.VarChar(3)
+  minBalance    BigInt       @default(0)
+  maxBalance    BigInt?      @default(0)
+  currentBalance BigInt      @default(0)
+  allowNegative Boolean      @default(false)
+  status        CashBoxStatus @default(active)
+  description   String?      @db.Text
+  version       Int          @default(1)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  cashRegisters      CashRegister[]
+  cashSessions       CashSession[]
+  cashReceipts       CashReceipt[]
+  cashPayments       CashPayment[]
+  cashCounts         CashCount[]
+
+  @@index([locationId])
+  @@index([code])
+  @@index([boxType])
+  @@index([status])
+  @@map("cm_cash_boxes")
+}
+
+model CashRegister {
+  id              String      @id @default(uuid())
+  cashBoxId       String
+  cashBox         CashBox     @relation(fields: [cashBoxId], references: [id])
+  code            String      @unique @db.VarChar(20)
+  name            String      @db.VarChar(255)
+  serialNumber    String?     @db.VarChar(100)
+  isActive        Boolean     @default(true)
+  version         Int         @default(1)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  cashSessions CashSession[]
+
+  @@index([cashBoxId])
+  @@index([code])
+  @@map("cm_cash_registers")
+}
+
+model Cashier {
+  id          String      @id @default(uuid())
+  companyId   String
+  employeeId  String      @db.VarChar(36)
+  code        String      @unique @db.VarChar(20)
+  name        String      @db.VarChar(255)
+  isActive    Boolean     @default(true)
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  maxCashAmount  BigInt    @default(0)
+  maxDailyAmount BigInt    @default(0)
+  requireSupervisor Boolean @default(false)
+  version     Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  cashSessions       CashSession[]
+  cashReceipts       CashReceipt[]
+  cashPayments       CashPayment[]
+
+  @@index([companyId])
+  @@index([employeeId])
+  @@index([code])
+  @@map("cm_cashiers")
+}
+
+model CashSession {
+  id              String            @id @default(uuid())
+  sessionNumber   String            @unique @db.VarChar(50)
+  cashBoxId       String
+  cashBox         CashBox           @relation(fields: [cashBoxId], references: [id])
+  cashRegisterId  String?
+  cashRegister    CashRegister?     @relation(fields: [cashRegisterId], references: [id])
+  cashierId       String
+  cashier         Cashier           @relation(fields: [cashierId], references: [id])
+  status          CashSessionStatus @default(pending)
+  openedAt        DateTime
+  closedAt        DateTime?
+  openedBalance   BigInt            @default(0)
+  expectedBalance BigInt            @default(0)
+  countedBalance  BigInt            @default(0)
+  difference      BigInt            @default(0)
+  currencyCode    String            @default("VND") @db.VarChar(3)
+  notes           String?           @db.Text
+  version         Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  counts           CashCount[]
+  differences      CashDifference[]
+  receipts         CashReceipt[]
+  payments         CashPayment[]
+
+  @@index([cashBoxId])
+  @@index([cashRegisterId])
+  @@index([cashierId])
+  @@index([sessionNumber])
+  @@index([status])
+  @@index([openedAt, closedAt])
+  @@map("cm_cash_sessions")
+}
+
+model CashCount {
+  id            String           @id @default(uuid())
+  sessionId     String
+  session       CashSession      @relation(fields: [sessionId], references: [id])
+  cashBoxId     String
+  cashBox       CashBox          @relation(fields: [cashBoxId], references: [id])
+  countMethod   CashCountMethod  @default(manual)
+  countType     CashDirection    @default(in)
+  denomination  String?          @db.VarChar(50)
+  quantity      Int              @default(0)
+  unitValue     BigInt           @default(0)
+  totalValue    BigInt           @default(0)
+  currencyCode  String           @default("VND") @db.VarChar(3)
+  countedById   String
+  countedAt     DateTime         @default(now())
+  verifiedById  String?
+  verifiedAt    DateTime?
+  notes         String?          @db.Text
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([sessionId])
+  @@index([cashBoxId])
+  @@index([countedById])
+  @@map("cm_cash_counts")
+}
+
+model CashDifference {
+  id              String                @id @default(uuid())
+  sessionId       String
+  session         CashSession           @relation(fields: [sessionId], references: [id])
+  diffType        CashDifferenceType
+  expectedAmount  BigInt                @default(0)
+  actualAmount    BigInt                @default(0)
+  differenceAmount BigInt               @default(0)
+  currencyCode    String                @default("VND") @db.VarChar(3)
+  status          CashDifferenceStatus  @default(pending)
+  reason          String?               @db.Text
+  approvedById    String?
+  approvedAt      DateTime?
+  resolvedById    String?
+  resolvedAt      DateTime?
+  resolution      String?               @db.Text
+  version         Int                   @default(1)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  deletedAt       DateTime?
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([diffType])
+  @@map("cm_cash_differences")
+}
+
+// ─── Petty Cash ────────────────────────────────────────────────────────────────
+
+model PettyCash {
+  id              String          @id @default(uuid())
+  locationId      String
+  location        CashLocation    @relation(fields: [locationId], references: [id])
+  fundCode        String          @unique @db.VarChar(20)
+  fundName        String          @db.VarChar(255)
+  fundBalance     BigInt          @default(0)
+  maximumBalance  BigInt          @default(0)
+  minimumBalance  BigInt          @default(0)
+  replenishThreshold BigInt       @default(0)
+  currencyCode    String          @default("VND") @db.VarChar(3)
+  holderId        String?         @db.VarChar(36)
+  status          PettyCashStatus @default(active)
+  description     String?         @db.Text
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  replenishments PettyCashReplenishment[]
+
+  @@index([locationId])
+  @@index([fundCode])
+  @@index([status])
+  @@map("cm_petty_cash_funds")
+}
+
+model PettyCashReplenishment {
+  id              String          @id @default(uuid())
+  fundId          String
+  fund            PettyCash       @relation(fields: [fundId], references: [id])
+  replenishNumber String          @unique @db.VarChar(50)
+  amount          BigInt          @default(0)
+  replenishDate   DateTime
+  receivedById    String?         @db.VarChar(36)
+  reference       String?         @db.VarChar(100)
+  notes           String?         @db.Text
+  postedToGL      Boolean         @default(false)
+  glBatchId       String?
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@index([fundId])
+  @@index([replenishNumber])
+  @@map("cm_petty_cash_replenishments")
+}
+
+// ─── Cash Advance ──────────────────────────────────────────────────────────────
+
+model CashAdvance {
+  id               String             @id @default(uuid())
+  advanceNumber    String             @unique @db.VarChar(50)
+  companyId        String
+  employeeId       String             @db.VarChar(36)
+  employeeName     String             @db.VarChar(255)
+  amount           BigInt             @default(0)
+  settledAmount    BigInt             @default(0)
+  outstandingAmount BigInt            @default(0)
+  currencyCode     String             @default("VND") @db.VarChar(3)
+  advanceDate      DateTime
+  expectedSettleDate DateTime?
+  purpose          String             @db.Text
+  status           CashAdvanceStatus  @default(draft)
+  approvedById     String?
+  approvedAt       DateTime?
+  disbursedById    String?
+  disbursedAt      DateTime?
+  notes            String?            @db.Text
+  version          Int                @default(1)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+
+  settlements AdvanceSettlement[]
+
+  @@index([companyId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([advanceDate])
+  @@map("cm_cash_advances")
+}
+
+model AdvanceSettlement {
+  id                String             @id @default(uuid())
+  advanceId         String
+  advance           CashAdvance        @relation(fields: [advanceId], references: [id])
+  settlementNumber  String             @unique @db.VarChar(50)
+  settlementDate    DateTime
+  totalAmount       BigInt             @default(0)
+  returnAmount      BigInt             @default(0)
+  expenseAmount     BigInt             @default(0)
+  additionalAdvance BigInt             @default(0)
+  currencyCode      String             @default("VND") @db.VarChar(3)
+  receiptCount      Int                @default(0)
+  approvedById      String?
+  approvedAt        DateTime?
+  notes             String?            @db.Text
+  postedToGL        Boolean            @default(false)
+  glBatchId         String?
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
+
+  @@index([advanceId])
+  @@index([settlementNumber])
+  @@map("cm_advance_settlements")
+}
+
+// ─── Cash Transfer ─────────────────────────────────────────────────────────────
+
+model CashTransfer {
+  id                 String             @id @default(uuid())
+  transferNumber     String             @unique @db.VarChar(50)
+  fromLocationId     String
+  fromLocation       CashLocation       @relation("TransferFromLocation", fields: [fromLocationId], references: [id])
+  toLocationId       String
+  toLocation         CashLocation       @relation("TransferToLocation", fields: [toLocationId], references: [id])
+  fromCashBoxId      String?
+  toCashBoxId        String?
+  amount             BigInt             @default(0)
+  currencyCode       String             @default("VND") @db.VarChar(3)
+  transferDate       DateTime
+  expectedArrivalDate DateTime?
+  actualArrivalDate  DateTime?
+  status             CashTransferStatus @default(draft)
+  sentById           String?
+  receivedById       String?
+  reference          String?            @db.VarChar(100)
+  notes              String?            @db.Text
+  postedToGL         Boolean            @default(false)
+  glBatchId          String?
+  version            Int                @default(1)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([transferNumber])
+  @@index([status])
+  @@index([transferDate])
+  @@map("cm_cash_transfers")
+}
+
+// ─── Receipt Management ────────────────────────────────────────────────────────
+
+model CashReceipt {
+  id              String         @id @default(uuid())
+  receiptNumber   String         @unique @db.VarChar(50)
+  receiptDate     DateTime
+  cashBoxId       String
+  cashBox         CashBox        @relation(fields: [cashBoxId], references: [id])
+  sessionId       String?
+  session         CashSession?   @relation(fields: [sessionId], references: [id])
+  cashierId       String
+  cashier         Cashier        @relation(fields: [cashierId], references: [id])
+  amount          BigInt         @default(0)
+  currencyCode    String         @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal        @default(1.0) @db.Decimal(19, 6)
+  vndAmount       BigInt         @default(0)
+  paidBy          String?        @db.VarChar(255)
+  paidById        String?        @db.VarChar(36)
+  paymentMethod   PaymentMethod  @default(cash)
+  reference       String?        @db.VarChar(100)
+  description     String?        @db.Text
+  status          ReceiptStatus  @default(draft)
+  approvedById    String?
+  approvedAt      DateTime?
+  postedById      String?
+  postedAt        DateTime?
+  reversedById    String?
+  reversedAt      DateTime?
+  reversalReason  String?        @db.Text
+  glBatchId       String?
+  version         Int            @default(1)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  attachments CashReceiptAttachment[]
+
+  @@index([cashBoxId])
+  @@index([sessionId])
+  @@index([cashierId])
+  @@index([receiptNumber])
+  @@index([receiptDate])
+  @@index([status])
+  @@map("cm_cash_receipts")
+}
+
+model CashReceiptAttachment {
+  id              String         @id @default(uuid())
+  receiptId       String
+  receipt         CashReceipt    @relation(fields: [receiptId], references: [id])
+  fileName        String         @db.VarChar(255)
+  filePath        String         @db.VarChar(500)
+  fileSize        Int            @default(0)
+  mimeType        String?        @db.VarChar(100)
+  attachmentType  AttachmentType @default(other)
+  uploadedById    String
+  uploadedAt      DateTime       @default(now())
+  description     String?        @db.Text
+
+  @@index([receiptId])
+  @@map("cm_receipt_attachments")
+}
+
+// ─── Payment Management ────────────────────────────────────────────────────────
+
+model CashPayment {
+  id              String         @id @default(uuid())
+  paymentNumber   String         @unique @db.VarChar(50)
+  paymentDate     DateTime
+  cashBoxId       String
+  cashBox         CashBox        @relation(fields: [cashBoxId], references: [id])
+  sessionId       String?
+  session         CashSession?   @relation(fields: [sessionId], references: [id])
+  cashierId       String
+  cashier         Cashier        @relation(fields: [cashierId], references: [id])
+  payeeName       String         @db.VarChar(255)
+  payeeId         String?        @db.VarChar(36)
+  amount          BigInt         @default(0)
+  currencyCode    String         @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal        @default(1.0) @db.Decimal(19, 6)
+  vndAmount       BigInt         @default(0)
+  paymentMethod   PaymentMethod  @default(cash)
+  reference       String?        @db.VarChar(100)
+  description     String?        @db.Text
+  status          PaymentStatus  @default(draft)
+  approvedById    String?
+  approvedAt      DateTime?
+  paidById        String?
+  paidAt          DateTime?
+  postedById      String?
+  postedAt        DateTime?
+  reversedById    String?
+  reversedAt      DateTime?
+  reversalReason  String?        @db.Text
+  glBatchId       String?
+  version         Int            @default(1)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  attachments CashPaymentAttachment[]
+
+  @@index([cashBoxId])
+  @@index([sessionId])
+  @@index([cashierId])
+  @@index([paymentNumber])
+  @@index([paymentDate])
+  @@index([status])
+  @@map("cm_cash_payments")
+}
+
+model CashPaymentAttachment {
+  id              String         @id @default(uuid())
+  paymentId       String
+  payment         CashPayment    @relation(fields: [paymentId], references: [id])
+  fileName        String         @db.VarChar(255)
+  filePath        String         @db.VarChar(500)
+  fileSize        Int            @default(0)
+  mimeType        String?        @db.VarChar(100)
+  attachmentType  AttachmentType @default(other)
+  uploadedById    String
+  uploadedAt      DateTime       @default(now())
+  description     String?        @db.Text
+
+  @@index([paymentId])
+  @@map("cm_payment_attachments")
+}
+
+// ─── Bank Management ───────────────────────────────────────────────────────────
+
+model Bank {
+  id              String   @id @default(uuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id])
+  code            String   @unique @db.VarChar(20)
+  name            String   @db.VarChar(255)
+  nameEn          String?  @db.VarChar(255)
+  swiftCode       String?  @db.VarChar(11)
+  routingNumber   String?  @db.VarChar(20)
+  isActive        Boolean  @default(true)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  branches  BankBranch[]
+  accounts  BankAccount[]
+
+  @@index([companyId])
+  @@index([code])
+  @@index([swiftCode])
+  @@map("cm_banks")
+}
+
+model BankBranch {
+  id        String   @id @default(uuid())
+  bankId    String
+  bank      Bank     @relation(fields: [bankId], references: [id])
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(255)
+  address   String?  @db.Text
+  phone     String?  @db.VarChar(20)
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  accounts BankAccount[]
+
+  @@index([bankId])
+  @@index([code])
+  @@map("cm_bank_branches")
+}
+
+model BankAccount {
+  id              String           @id @default(uuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id])
+  bankId          String
+  bank            Bank             @relation(fields: [bankId], references: [id])
+  branchId        String?
+  branch          BankBranch?      @relation(fields: [branchId], references: [id])
+  accountNumber   String           @db.VarChar(50)
+  accountName     String           @db.VarChar(255)
+  accountType     BankAccountType  @default(current)
+  currencyCode    String           @default("VND") @db.VarChar(3)
+  status          BankAccountStatus @default(active)
+  currentBalance  BigInt           @default(0)
+  availableBalance BigInt          @default(0)
+  blockedBalance  BigInt           @default(0)
+  glAccountId     String?
+  isVirtual       Boolean          @default(false)
+  parentAccountId String?
+  openingDate     DateTime
+  closingDate     DateTime?
+  notes           String?          @db.Text
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  chequeBooks     ChequeBook[]
+  incomingTransfers BankTransfer[] @relation("BankTransferTo")
+  outgoingTransfers BankTransfer[] @relation("BankTransferFrom")
+  statements      BankStatement[]
+  reconciliations BankReconciliation[]
+
+  @@unique([bankId, accountNumber])
+  @@index([companyId])
+  @@index([bankId])
+  @@index([accountNumber])
+  @@index([status])
+  @@index([currencyCode])
+  @@map("cm_bank_accounts")
+}
+
+model ChequeBook {
+  id              String           @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BankAccount      @relation(fields: [bankAccountId], references: [id])
+  chequeBookNumber String          @unique @db.VarChar(50)
+  startNumber     Int              @default(1)
+  endNumber       Int              @default(100)
+  currentNumber   Int              @default(1)
+  status          ChequeBookStatus @default(active)
+  issuedDate      DateTime
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  cheques Cheque[]
+
+  @@index([bankAccountId])
+  @@index([chequeBookNumber])
+  @@map("cm_cheque_books")
+}
+
+model Cheque {
+  id              String       @id @default(uuid())
+  chequeBookId    String
+  chequeBook      ChequeBook   @relation(fields: [chequeBookId], references: [id])
+  chequeNumber    Int
+  chequeType      ChequeType   @default(corporate)
+  payeeName       String?      @db.VarChar(255)
+  payeeId         String?      @db.VarChar(36)
+  amount          BigInt       @default(0)
+  currencyCode    String       @default("VND") @db.VarChar(3)
+  issueDate       DateTime?
+  depositDate     DateTime?
+  clearingDate    DateTime?
+  returnedDate    DateTime?
+  voidDate        DateTime?
+  status          ChequeStatus @default(unissued)
+  reference       String?      @db.VarChar(100)
+  notes           String?      @db.Text
+  version         Int          @default(1)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@unique([chequeBookId, chequeNumber])
+  @@index([chequeBookId])
+  @@index([chequeNumber])
+  @@index([status])
+  @@map("cm_cheques")
+}
+
+model BankTransfer {
+  id                String             @id @default(uuid())
+  transferNumber    String             @unique @db.VarChar(50)
+  transferType      BankTransferType
+  fromAccountId     String
+  fromAccount       BankAccount        @relation("BankTransferFrom", fields: [fromAccountId], references: [id])
+  toAccountId       String
+  toAccount         BankAccount        @relation("BankTransferTo", fields: [toAccountId], references: [id])
+  amount            BigInt             @default(0)
+  currencyCode      String             @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal            @default(1.0) @db.Decimal(19, 6)
+  vndAmount         BigInt             @default(0)
+  transferDate      DateTime
+  valueDate         DateTime?
+  reference         String?            @db.VarChar(100)
+  swiftMessage      String?            @db.Text
+  beneficiaryName   String?            @db.VarChar(255)
+  beneficiaryBank   String?            @db.VarChar(255)
+  beneficiaryAccount String?           @db.VarChar(50)
+  intermediaryBank  String?            @db.VarChar(255)
+  fees              BigInt             @default(0)
+  status            BankTransferStatus @default(draft)
+  approvedById      String?
+  approvedAt        DateTime?
+  executedById      String?
+  executedAt        DateTime?
+  completedAt       DateTime?
+  failureReason     String?            @db.Text
+  notes             String?            @db.Text
+  postedToGL        Boolean            @default(false)
+  glBatchId         String?
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
+
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([transferNumber])
+  @@index([status])
+  @@index([transferDate])
+  @@map("cm_bank_transfers")
+}
+
+model BankStatement {
+  id              String                    @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BankAccount               @relation(fields: [bankAccountId], references: [id])
+  statementNumber String                    @db.VarChar(50)
+  periodStart     DateTime
+  periodEnd       DateTime
+  openingBalance  BigInt                    @default(0)
+  closingBalance  BigInt                    @default(0)
+  totalDebit      BigInt                    @default(0)
+  totalCredit     BigInt                    @default(0)
+  importedAt      DateTime?
+  importedBy      String?
+  source          String?                   @db.VarChar(50)
+  isReconciled    Boolean                   @default(false)
+  version         Int                       @default(1)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  deletedAt       DateTime?
+
+  lines             BankStatementLine[]
+  reconciliations   BankReconciliation[]
+
+  @@unique([bankAccountId, statementNumber])
+  @@index([bankAccountId])
+  @@index([periodStart, periodEnd])
+  @@map("cm_bank_statements")
+}
+
+model BankStatementLine {
+  id              String            @id @default(uuid())
+  statementId     String
+  statement       BankStatement     @relation(fields: [statementId], references: [id])
+  lineDate        DateTime
+  valueDate       DateTime?
+  description     String?           @db.Text
+  reference       String?           @db.VarChar(100)
+  chequeNumber    String?           @db.VarChar(50)
+  lineType        StatementLineType
+  amount          BigInt            @default(0)
+  currencyCode    String            @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal           @default(1.0) @db.Decimal(19, 6)
+  runningBalance  BigInt            @default(0)
+  isMatched       Boolean           @default(false)
+  matchedToId     String?           @db.VarChar(36)
+  matchedToType   String?           @db.VarChar(50)
+  matchedAt       DateTime?
+  notes           String?           @db.Text
+  version         Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([statementId])
+  @@index([lineDate])
+  @@index([isMatched])
+  @@map("cm_bank_statement_lines")
+}
+
+model BankReconciliation {
+  id                    String                      @id @default(uuid())
+  bankAccountId         String
+  bankAccount           BankAccount                 @relation(fields: [bankAccountId], references: [id])
+  bankStatementId       String
+  bankStatement         BankStatement               @relation(fields: [bankStatementId], references: [id])
+  reconciliationNumber  String                      @unique @db.VarChar(50)
+  reconciliationDate    DateTime
+  statementBalance      BigInt                      @default(0)
+  bookBalance           BigInt                      @default(0)
+  difference            BigInt                      @default(0)
+  status                BankReconciliationStatus    @default(open)
+  matchedCount          Int                         @default(0)
+  unmatchedCount        Int                         @default(0)
+  preparedById          String?
+  reviewedById          String?
+  approvedById          String?
+  approvedAt            DateTime?
+  notes                 String?                     @db.Text
+  version               Int                         @default(1)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  deletedAt             DateTime?
+
+  items BankReconciliationItem[]
+
+  @@index([bankAccountId])
+  @@index([bankStatementId])
+  @@index([reconciliationNumber])
+  @@index([status])
+  @@map("cm_bank_reconciliations")
+}
+
+model BankReconciliationItem {
+  id                String            @id @default(uuid())
+  reconciliationId  String
+  reconciliation    BankReconciliation @relation(fields: [reconciliationId], references: [id])
+  statementLineId   String?
+  sourceType        String            @db.VarChar(50)
+  sourceId          String            @db.VarChar(36)
+  sourceReference   String?           @db.VarChar(100)
+  amount            BigInt            @default(0)
+  matchType         String            @db.VarChar(20)
+  matchDate         DateTime
+  isClearItem       Boolean           @default(true)
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([reconciliationId])
+  @@index([statementLineId])
+  @@map("cm_bank_reconciliation_items")
+}
+
+// ─── Treasury ──────────────────────────────────────────────────────────────────
+
+model CashForecast {
+  id                String                 @id @default(uuid())
+  companyId         String
+  company           Company                @relation(fields: [companyId], references: [id])
+  forecastNumber    String                 @unique @db.VarChar(50)
+  forecastName      String                 @db.VarChar(255)
+  periodType        CashForecastPeriodType @default(daily)
+  periodStart       DateTime
+  periodEnd         DateTime
+  status            CashForecastStatus     @default(draft)
+  totalInflow       BigInt                 @default(0)
+  totalOutflow      BigInt                 @default(0)
+  netFlow           BigInt                 @default(0)
+  openingBalance    BigInt                 @default(0)
+  closingBalance    BigInt                 @default(0)
+  currencyCode      String                 @default("VND") @db.VarChar(3)
+  preparedById      String?
+  approvedById      String?
+  approvedAt        DateTime?
+  notes             String?                @db.Text
+  version           Int                    @default(1)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  deletedAt         DateTime?
+
+  lines CashForecastLine[]
+
+  @@index([companyId])
+  @@index([forecastNumber])
+  @@index([periodStart, periodEnd])
+  @@index([status])
+  @@map("cm_cash_forecasts")
+}
+
+model CashForecastLine {
+  id              String             @id @default(uuid())
+  forecastId      String
+  forecast        CashForecast       @relation(fields: [forecastId], references: [id])
+  lineDate        DateTime
+  description     String             @db.VarChar(255)
+  inflowAmount    BigInt             @default(0)
+  outflowAmount   BigInt             @default(0)
+  netAmount       BigInt             @default(0)
+  category        String?            @db.VarChar(50)
+  confidence      Decimal?           @db.Decimal(5, 2)
+  source          String?            @db.VarChar(100)
+  bankAccountId   String?
+  cashBoxId       String?
+
+  @@index([forecastId])
+  @@index([lineDate])
+  @@map("cm_cash_forecast_lines")
+}
+
+model LiquidityForecast {
+  id              String             @id @default(uuid())
+  companyId       String
+  forecastNumber  String             @unique @db.VarChar(50)
+  forecastName    String             @db.VarChar(255)
+  forecastDate    DateTime
+  periodDays      Int                @default(30)
+  totalInflow     BigInt             @default(0)
+  totalOutflow    BigInt             @default(0)
+  netLiquidity    BigInt             @default(0)
+  currentCash     BigInt             @default(0)
+  projectedCash   BigInt             @default(0)
+  minimumRequired BigInt             @default(0)
+  surplusDeficit  BigInt             @default(0)
+  currencyCode    String             @default("VND") @db.VarChar(3)
+  status          CashForecastStatus @default(draft)
+  preparedById    String?
+  approvedById    String?
+  approvedAt      DateTime?
+  notes           String?            @db.Text
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+
+  lines LiquidityForecastLine[]
+
+  @@index([companyId])
+  @@index([forecastNumber])
+  @@map("cm_liquidity_forecasts")
+}
+
+model LiquidityForecastLine {
+  id              String   @id @default(uuid())
+  forecastId      String
+  forecast        LiquidityForecast @relation(fields: [forecastId], references: [id])
+  dayOffset       Int      @default(0)
+  forecastDate    DateTime
+  inflowAmount    BigInt   @default(0)
+  outflowAmount   BigInt   @default(0)
+  netAmount       BigInt   @default(0)
+  cumulativeBalance BigInt @default(0)
+  category        String?  @db.VarChar(50)
+  confidence      Decimal? @db.Decimal(5, 2)
+
+  @@index([forecastId])
+  @@index([forecastDate])
+  @@map("cm_liquidity_forecast_lines")
+}
+
+// ─── Workflow Approval ─────────────────────────────────────────────────────────
+
+model ApprovalRequest {
+  id              String   @id @default(uuid())
+  entityType      String   @db.VarChar(50)
+  entityId        String   @db.VarChar(36)
+  requestNumber   String   @unique @db.VarChar(50)
+  currentLevel    Int      @default(1)
+  maxLevel        Int      @default(1)
+  status          String   @default("pending") @db.VarChar(20)
+  requestedById   String
+  requestedAt     DateTime @default(now())
+  completedAt     DateTime?
+  notes           String?  @db.Text
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  steps ApprovalStep[]
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([requestedById])
+  @@map("cm_approval_requests")
+}
+
+model ApprovalStep {
+  id              String    @id @default(uuid())
+  approvalId      String
+  approval        ApprovalRequest @relation(fields: [approvalId], references: [id])
+  level           Int       @default(1)
+  approverId      String    @db.VarChar(36)
+  approverName    String?   @db.VarChar(255)
+  status          String    @default("pending") @db.VarChar(20)
+  actionAt        DateTime?
+  comment         String?   @db.Text
+  escalatedAt     DateTime?
+  delegatedTo     String?   @db.VarChar(36)
+  createdAt       DateTime  @default(now())
+
+  @@index([approvalId])
+  @@index([approverId])
+  @@index([status])
+  @@map("cm_approval_steps")
+}
+
+// ─── Generic Attachments ──────────────────────────────────────────────────────
+
+model CashAttachment {
+  id              String         @id @default(uuid())
+  entityType      String         @db.VarChar(50)
+  entityId        String         @db.VarChar(36)
+  fileName        String         @db.VarChar(255)
+  filePath        String         @db.VarChar(500)
+  fileSize        Int            @default(0)
+  mimeType        String?        @db.VarChar(100)
+  attachmentType  AttachmentType @default(other)
+  uploadedById    String
+  uploadedAt      DateTime       @default(now())
+  description     String?        @db.Text
+  ocrData         String?        @db.Text
+
+  @@index([entityType, entityId])
+  @@index([uploadedById])
+  @@map("cm_attachments")
+}
+
+// ─── Master / Reference Data ───────────────────────────────────────────────────
+
+model Currency {
+  id              String   @id @default(uuid())
+  code            String   @unique @db.VarChar(3)
+  name            String   @db.VarChar(100)
+  nameEn          String?  @db.VarChar(100)
+  symbol          String?  @db.VarChar(10)
+  decimalPlaces   Int      @default(2)
+  isActive        Boolean  @default(true)
+  isFunctional    Boolean  @default(false)
+  isForeign       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([code])
+  @@map("cm_currencies")
+}
+
+model HolidayCalendar {
+  id          String   @id @default(uuid())
+  companyId   String
+  date        DateTime
+  name        String   @db.VarChar(255)
+  isRecurring Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, date])
+  @@index([companyId])
+  @@index([date])
+  @@map("cm_holiday_calendars")
 }
