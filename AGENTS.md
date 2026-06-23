@@ -74,7 +74,8 @@ The graph lives in `.codegraph/` (gitignored db). Auto-rebuilt via `postinstall`
 - **Money value object:** `src/domain/shared/money.ts` wraps `Decimal` for precise arithmetic.
 - **Docker Compose:** `docker-compose.yml` + `Dockerfile` + `.env.example`.
 - **Old Express code removed:** All Express 5 handlers, middleware, old application services, old infrastructure (mariadb/in-memory), old tests, and `main-express.ts` deleted.
-- **COA Module (Enterprise Chart of Accounts):** Full domain model (AccountClass, AccountType, AccountMapping, AccountExtension), 4 aggregate roots with domain events, specification pattern validators (PostingAccountSpec, ActiveStatusSpec, EffectiveDateSpec, hierarchy cycle detection), Prisma schema with 7 new tables + audit trail tables, 4 Prisma repositories, CoaService, 4 REST controllers (classes, types, mappings, extensions), 29 new tests. All 181 tests passing.
+- **COA Module (Enterprise Chart of Accounts):** Full domain model (AccountClass, AccountType, AccountMapping, AccountExtension), 4 aggregate roots with domain events, specification pattern validators (PostingAccountSpec, ActiveStatusSpec, EffectiveDateSpec, hierarchy cycle detection), Prisma schema with 7 new tables + audit trail tables, 4 Prisma repositories, CoaService, 4 REST controllers (classes, types, mappings, extensions), 29 new tests.
+- **Bank Module (Enterprise Bank Management):** Full domain model (35 enums, 30 identifiers, 20+ domain events, 12 VOs, 9 aggregates: BankGroup/Bank/Branch/Correspondent, BankAccount, BankTransaction, BankStatement, BankReconciliation, PaymentRequest/Batch/Recurring, CashPosition/Forecast/FX, ApprovalMatrix/Request), 15 business rule specifications, 20+ repository interfaces, 25 Prisma models (bnk_ prefix), 21 Prisma repository implementations, 3 application services (master, account, transaction), 1 REST controller (bank-master.controller.ts) with 50+ routes, DTOs with class-validator + Swagger, BankModule registered in AppModule. All 269 tests passing.
 
 ### Pending
 - Full Money integration across domain entities (currently at repo boundary).
@@ -83,7 +84,9 @@ The graph lives in `.codegraph/` (gitignored db). Auto-rebuilt via `postinstall`
 - Production seed data script.
 - COA import/export (Excel/CSV/JSON) bulk APIs.
 - COA seed data with VAS-standard account classes and types.
+- Bank module controller routes Swagger testing.
+- Bank module domain unit tests.
 - CONTEXT.md handoff doc.
 
 ### Stats
-- 26 test files, 181 tests, all passing. `tsc --noEmit` clean.
+- 37 test files, 269 tests, all passing. `tsc --noEmit` clean.

@@ -2342,3 +2342,1036 @@ model HolidayCalendar {
   @@index([date])
   @@map("cm_holiday_calendars")
 }
+
+// ─── Enterprise Bank Module ─────────────────────────────────────────────────────
+
+enum BnkAccountCategory {
+  current
+  savings
+  deposit
+  loan
+  treasury
+  investment
+  escrow
+  suspense
+  payroll
+  tax
+  intercompany
+  virtual
+  corporate
+  margin
+  collateral
+  trust
+}
+
+enum BnkAccountStatus {
+  pending
+  active
+  suspended
+  blocked
+  dormant
+  closed
+  archived
+}
+
+enum BnkBankGroupType {
+  domestic
+  foreign
+  joint_venture
+  government
+  central
+  investment
+  commercial
+  cooperative
+}
+
+enum BnkCorrespondentType {
+  nostro
+  vostro
+  intermediary
+  beneficiary
+}
+
+enum BnkTransactionStatus {
+  draft
+  pending
+  submitted
+  authorized
+  approved
+  executed
+  sent
+  completed
+  failed
+  reversed
+  cancelled
+  returned
+  charged_back
+}
+
+enum BnkTransactionNature {
+  incoming
+  outgoing
+  internal
+  intercompany
+  external
+}
+
+enum BnkTransactionMethod {
+  wire
+  ach
+  swift
+  sepa
+  domestic
+  internal_transfer
+  cheque
+  cash
+  card
+  direct_debit
+  direct_credit
+  standing_order
+  bulk_payment
+  e_wallet
+}
+
+enum BnkPaymentPriority {
+  low
+  normal
+  high
+  urgent
+  emergency
+}
+
+enum BnkChargeBearer {
+  sender
+  beneficiary
+  shared
+  all_charges
+}
+
+enum BnkStatementSource {
+  manual
+  mt940
+  mt942
+  camt_052
+  camt_053
+  camt_054
+  csv
+  excel
+  api
+  pdf
+  print
+}
+
+enum BnkReconciliationStatus {
+  open
+  in_progress
+  matched
+  difference_found
+  resolved
+  approved
+  closed
+  reversed
+}
+
+enum BnkReconciliationMatchType {
+  auto
+  manual
+  rule
+  tolerance
+  partial
+  split
+  merge
+}
+
+enum BnkPaymentBatchStatus {
+  draft
+  validated
+  authorized
+  approved
+  released
+  processing
+  completed
+  partially_completed
+  failed
+  cancelled
+}
+
+enum BnkRecurringFrequency {
+  daily
+  weekly
+  bi_weekly
+  monthly
+  bi_monthly
+  quarterly
+  semi_annual
+  annual
+}
+
+enum BnkFXRateType {
+  spot
+  forward
+  swap
+  historical
+  budget
+  reference
+  buy
+  sell
+  transfer
+}
+
+enum BnkCashPositionStatus {
+  draft
+  confirmed
+  approved
+  locked
+}
+
+enum BnkApprovalMode {
+  sequential
+  parallel
+  any
+}
+
+enum BnkApprovalStatus {
+  pending
+  approved
+  rejected
+  returned
+  escalated
+  delegated
+}
+
+enum BnkSignatureRule {
+  single
+  dual
+  triple
+  threshold
+  collective
+}
+
+enum BnkAccountLimitType {
+  single
+  daily
+  weekly
+  monthly
+  per_transaction
+}
+
+enum BnkInterestMethod {
+  simple
+  compound
+  daily
+  monthly
+  quarterly
+  annual
+}
+
+enum BnkInterestBasis {
+  actual_360
+  actual_365
+  actual_actual
+  thirty_360
+  thirty_e_360
+}
+
+enum BnkChargeType {
+  transaction
+  monthly
+  annual
+  maintenance
+  overdraft
+  wire
+  currency_conversion
+  late
+  early_repayment
+  service
+  penalty
+  commission
+}
+
+// ─── Bank Groups ─────────────────────────────────────────────────────────────────
+
+model BnkGroup {
+  id          String          @id @default(uuid())
+  code        String          @unique @db.VarChar(20)
+  name        String          @db.VarChar(255)
+  nameEn      String?         @db.VarChar(255)
+  groupType   BnkBankGroupType
+  isActive    Boolean         @default(true)
+  version     Int             @default(1)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  @@index([code])
+  @@index([groupType])
+  @@map("bnk_groups")
+}
+
+model BnkCorrespondent {
+  id                  String                @id @default(uuid())
+  bankId              String
+  correspondentBankId String
+  accountNumber       String?               @db.VarChar(50)
+  correspondentType   BnkCorrespondentType
+  currencyCode        String                @default("VND") @db.VarChar(3)
+  isActive            Boolean               @default(true)
+  version             Int                   @default(1)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([bankId, correspondentBankId, currencyCode])
+  @@index([bankId])
+  @@index([currencyCode])
+  @@map("bnk_correspondents")
+}
+
+// ─── Bank (extends cm_banks) ────────────────────────────────────────────────────
+
+model BnkBank {
+  id              String          @id @default(uuid())
+  groupId         String?
+  code            String          @unique @db.VarChar(20)
+  name            String          @db.VarChar(255)
+  nameEn          String?         @db.VarChar(255)
+  shortName       String?         @db.VarChar(50)
+  swiftCode       String?         @db.VarChar(11)
+  routingNumber   String?         @db.VarChar(20)
+  bankCode        String?         @db.VarChar(20)
+  countryCode     String          @default("VN") @db.VarChar(2)
+  address         String?         @db.Text
+  phone           String?         @db.VarChar(20)
+  email           String?         @db.VarChar(255)
+  website         String?         @db.VarChar(255)
+  isActive        Boolean         @default(true)
+  isCorrespondent  Boolean        @default(false)
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  branches BnkBranch[]
+
+  @@index([code])
+  @@index([swiftCode])
+  @@index([countryCode])
+  @@map("bnk_banks")
+}
+
+model BnkBranch {
+  id          String      @id @default(uuid())
+  bankId      String
+  bank        BnkBank     @relation(fields: [bankId], references: [id])
+  code        String      @unique @db.VarChar(20)
+  name        String      @db.VarChar(255)
+  nameEn      String?     @db.VarChar(255)
+  address     String?     @db.Text
+  phone       String?     @db.VarChar(20)
+  email       String?     @db.VarChar(255)
+  managerName String?     @db.VarChar(255)
+  isActive    Boolean     @default(true)
+  version     Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  accounts BnkAccount[]
+
+  @@index([bankId])
+  @@index([code])
+  @@map("bnk_branches")
+}
+
+// ─── Bank Accounts ──────────────────────────────────────────────────────────────
+
+model BnkAccount {
+  id                    String              @id @default(uuid())
+  companyId             String
+  bankId                String
+  branchId              String?
+  branch                BnkBranch?          @relation(fields: [branchId], references: [id])
+  accountNumber         String              @db.VarChar(50)
+  accountName           String              @db.VarChar(255)
+  accountNameEn         String?             @db.VarChar(255)
+  accountCategory       BnkAccountCategory  @default(current)
+  currencyCode          String              @default("VND") @db.VarChar(3)
+  countryCode           String              @default("VN") @db.VarChar(2)
+  iban                  String?             @db.VarChar(34)
+  swiftCode             String?             @db.VarChar(11)
+  routingNumber         String?             @db.VarChar(20)
+  status                BnkAccountStatus    @default(pending)
+  currentBalance        BigInt              @default(0)
+  availableBalance      BigInt              @default(0)
+  blockedBalance        BigInt              @default(0)
+  creditLimit           BigInt              @default(0)
+  minimumBalance        BigInt              @default(0)
+  maximumBalance        BigInt              @default(0)
+  overdraftLimit        BigInt              @default(0)
+  interestRate          Decimal             @default(0) @db.Decimal(7, 4)
+  glAccountId           String?
+  glBankChargeAccountId String?
+  glInterestAccountId   String?
+  glFXAccountId         String?
+  isVirtual             Boolean             @default(false)
+  parentAccountId       String?
+  classification        String?             @db.VarChar(50)
+  openingDate           DateTime
+  closingDate           DateTime?
+  lastActivityDate      DateTime?
+  lastReconciliationDate DateTime?
+  notes                 String?             @db.Text
+  version               Int                 @default(1)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  deletedAt             DateTime?
+
+  signers     BnkAuthorizedSigner[]
+  limits      BnkAccountLimit[]
+  mappings    BnkAccountMapping[]
+  transactionsFrom BnkTransaction[] @relation("TransactionFromAccount")
+  transactionsTo   BnkTransaction[] @relation("TransactionToAccount")
+  statements  BnkStatement[]
+  reconciliations BnkReconciliation[]
+  payments    BnkPaymentRequest[]
+
+  @@unique([bankId, accountNumber])
+  @@index([companyId])
+  @@index([accountNumber])
+  @@index([status])
+  @@index([currencyCode])
+  @@map("bnk_accounts")
+}
+
+model BnkAuthorizedSigner {
+  id              String            @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BnkAccount        @relation(fields: [bankAccountId], references: [id])
+  userId          String
+  name            String            @db.VarChar(255)
+  title           String?           @db.VarChar(255)
+  signatureRule   BnkSignatureRule  @default(single)
+  signingLimit    BigInt            @default(0)
+  currencyCode    String            @default("VND") @db.VarChar(3)
+  isActive        Boolean           @default(true)
+  startDate       DateTime
+  endDate         DateTime?
+  version         Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([bankAccountId])
+  @@index([userId])
+  @@map("bnk_authorized_signers")
+}
+
+model BnkAccountLimit {
+  id              String              @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BnkAccount          @relation(fields: [bankAccountId], references: [id])
+  limitType       BnkAccountLimitType
+  maxAmount       BigInt              @default(0)
+  minAmount       BigInt              @default(0)
+  currencyCode    String              @default("VND") @db.VarChar(3)
+  isEnforced      Boolean             @default(true)
+  version         Int                 @default(1)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([bankAccountId])
+  @@map("bnk_account_limits")
+}
+
+model BnkAccountMapping {
+  id              String   @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BnkAccount @relation(fields: [bankAccountId], references: [id])
+  mappingType     String   @db.VarChar(50)
+  glAccountId     String?
+  branchId        String?
+  costCenterId    String?
+  departmentId    String?
+  projectId       String?
+  isDefault       Boolean  @default(false)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([bankAccountId])
+  @@map("bnk_account_mappings")
+}
+
+// ─── Bank Transactions ──────────────────────────────────────────────────────────
+
+model BnkTransaction {
+  id                    String                 @id @default(uuid())
+  companyId             String
+  transactionNumber     String                 @unique @db.VarChar(50)
+  nature                BnkTransactionNature
+  method                BnkTransactionMethod
+  status                BnkTransactionStatus   @default(draft)
+  fromAccountId         String
+  fromAccount           BnkAccount             @relation("TransactionFromAccount", fields: [fromAccountId], references: [id])
+  fromAccountNumber     String?                @db.VarChar(50)
+  toAccountId           String?
+  toAccount             BnkAccount?            @relation("TransactionToAccount", fields: [toAccountId], references: [id])
+  toAccountNumber       String?                @db.VarChar(50)
+  toBankId              String?                @db.VarChar(36)
+  toBankName            String?                @db.VarChar(255)
+  toBankSwift           String?                @db.VarChar(11)
+  toBankRouting         String?                @db.VarChar(20)
+  beneficiaryName       String?                @db.VarChar(255)
+  beneficiaryAccount    String?                @db.VarChar(50)
+  beneficiaryAddress    String?                @db.Text
+  beneficiaryBank       String?                @db.VarChar(255)
+  intermediaryBankId    String?                @db.VarChar(36)
+  intermediaryBankSwift String?                @db.VarChar(11)
+  amount                BigInt                 @default(0)
+  currencyCode          String                 @default("VND") @db.VarChar(3)
+  exchangeRate          Decimal                @default(1.0) @db.Decimal(19, 6)
+  vndAmount             BigInt                 @default(0)
+  chargeBearer          BnkChargeBearer        @default(sender)
+  paymentPriority       BnkPaymentPriority     @default(normal)
+  settlementMethod      String?                @db.VarChar(50)
+  paymentChannel        String?                @db.VarChar(50)
+  reference             String?                @db.VarChar(100)
+  description           String?                @db.Text
+  fees                  BigInt                 @default(0)
+  feeCurrencyCode       String                 @default("VND") @db.VarChar(3)
+  valueDate             DateTime?
+  transactionDate       DateTime
+  swiftMessage          String?                @db.Text
+  endToEndId            String?                @db.VarChar(50)
+  transactionId         String?                @db.VarChar(50)
+  clearingSystemRef     String?                @db.VarChar(50)
+  approvalLevel         Int                    @default(0)
+  requiredApprovals     Int                    @default(0)
+  approvedById          String?                @db.VarChar(36)
+  approvedAt            DateTime?
+  executedById          String?                @db.VarChar(36)
+  executedAt            DateTime?
+  completedAt           DateTime?
+  failureReason         String?                @db.Text
+  reversalReason        String?                @db.Text
+  reversedAt            DateTime?
+  postedToGL            Boolean                @default(false)
+  glBatchId             String?
+  version               Int                    @default(1)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+
+  @@index([companyId])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([transactionNumber])
+  @@index([status])
+  @@index([reference])
+  @@index([transactionDate])
+  @@map("bnk_transactions")
+}
+
+// ─── Bank Statements ────────────────────────────────────────────────────────────
+
+model BnkStatement {
+  id              String             @id @default(uuid())
+  bankAccountId   String
+  bankAccount     BnkAccount         @relation(fields: [bankAccountId], references: [id])
+  statementNumber String             @db.VarChar(50)
+  periodStart     DateTime
+  periodEnd       DateTime
+  openingBalance  BigInt             @default(0)
+  closingBalance  BigInt             @default(0)
+  totalDebit      BigInt             @default(0)
+  totalCredit     BigInt             @default(0)
+  transactionCount Int               @default(0)
+  source          BnkStatementSource @default(manual)
+  importedAt      DateTime?
+  importedBy      String?            @db.VarChar(36)
+  hash            String?            @db.VarChar(64)
+  isReconciled    Boolean            @default(false)
+  isLocked        Boolean            @default(false)
+  notes           String?            @db.Text
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+
+  lines           BnkStatementLine[]
+  reconciliations BnkReconciliation[]
+
+  @@unique([bankAccountId, statementNumber])
+  @@index([bankAccountId])
+  @@index([periodStart, periodEnd])
+  @@map("bnk_statements")
+}
+
+model BnkStatementLine {
+  id              String   @id @default(uuid())
+  statementId     String
+  statement       BnkStatement @relation(fields: [statementId], references: [id])
+  lineDate        DateTime
+  valueDate       DateTime?
+  description     String?  @db.Text
+  reference       String?  @db.VarChar(100)
+  chequeNumber    String?  @db.VarChar(50)
+  lineType        String   @db.VarChar(20)
+  amount          BigInt   @default(0)
+  currencyCode    String   @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal  @default(1.0) @db.Decimal(19, 6)
+  runningBalance  BigInt   @default(0)
+  isMatched       Boolean  @default(false)
+  matchedToId     String?  @db.VarChar(36)
+  matchedToType   String?  @db.VarChar(50)
+  matchedAt       DateTime?
+  notes           String?  @db.Text
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([statementId])
+  @@index([lineDate])
+  @@index([isMatched])
+  @@map("bnk_statement_lines")
+}
+
+// ─── Bank Reconciliations ───────────────────────────────────────────────────────
+
+model BnkReconciliation {
+  id                    String                @id @default(uuid())
+  bankAccountId         String
+  bankAccount           BnkAccount            @relation(fields: [bankAccountId], references: [id])
+  bankStatementId       String
+  bankStatement         BnkStatement          @relation(fields: [bankStatementId], references: [id])
+  reconciliationNumber  String                @unique @db.VarChar(50)
+  reconciliationDate    DateTime
+  statementBalance      BigInt                @default(0)
+  bookBalance           BigInt                @default(0)
+  clearedAmount         BigInt                @default(0)
+  outstandingAmount     BigInt                @default(0)
+  difference            BigInt                @default(0)
+  status                BnkReconciliationStatus @default(open)
+  matchedCount          Int                   @default(0)
+  unmatchedCount        Int                   @default(0)
+  autoMatchedCount      Int                   @default(0)
+  manualMatchedCount    Int                   @default(0)
+  preparedById          String?               @db.VarChar(36)
+  reviewedById          String?               @db.VarChar(36)
+  approvedById          String?               @db.VarChar(36)
+  approvedAt            DateTime?
+  reversedById          String?               @db.VarChar(36)
+  reversedAt            DateTime?
+  reversalReason        String?               @db.Text
+  notes                 String?               @db.Text
+  version               Int                   @default(1)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  deletedAt             DateTime?
+
+  items BnkReconciliationItem[]
+
+  @@index([bankAccountId])
+  @@index([bankStatementId])
+  @@index([reconciliationNumber])
+  @@index([status])
+  @@map("bnk_reconciliations")
+}
+
+model BnkReconciliationItem {
+  id                String                  @id @default(uuid())
+  reconciliationId  String
+  reconciliation    BnkReconciliation       @relation(fields: [reconciliationId], references: [id])
+  statementLineId   String?
+  sourceType        String                  @db.VarChar(50)
+  sourceId          String                  @db.VarChar(36)
+  sourceReference   String?                 @db.VarChar(100)
+  amount            BigInt                  @default(0)
+  matchType         BnkReconciliationMatchType
+  matchDate         DateTime
+  isClearItem       Boolean                 @default(true)
+  notes             String?                 @db.Text
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([reconciliationId])
+  @@index([statementLineId])
+  @@index([sourceType, sourceId])
+  @@map("bnk_reconciliation_items")
+}
+
+// ─── Payment Processing ─────────────────────────────────────────────────────────
+
+model BnkPaymentRequest {
+  id                    String              @id @default(uuid())
+  companyId             String
+  requestNumber         String              @unique @db.VarChar(50)
+  paymentDate           DateTime
+  amount                BigInt              @default(0)
+  currencyCode          String              @default("VND") @db.VarChar(3)
+  fromAccountId         String
+  fromAccount           BnkAccount          @relation(fields: [fromAccountId], references: [id])
+  toAccountId           String?             @db.VarChar(36)
+  beneficiaryName       String              @db.VarChar(255)
+  beneficiaryAccount    String?             @db.VarChar(50)
+  beneficiaryBank       String?             @db.VarChar(255)
+  beneficiaryBankSwift  String?             @db.VarChar(11)
+  method                BnkTransactionMethod @default(wire)
+  priority              BnkPaymentPriority  @default(normal)
+  chargeBearer          BnkChargeBearer     @default(sender)
+  reference             String?             @db.VarChar(100)
+  description           String?             @db.Text
+  approvalStatus        BnkApprovalStatus   @default(pending)
+  approvalLevel         Int                 @default(0)
+  requiredApprovals     Int                 @default(1)
+  requestedById         String
+  requestedAt           DateTime
+  approvedById          String?             @db.VarChar(36)
+  approvedAt            DateTime?
+  rejectedById          String?             @db.VarChar(36)
+  rejectedAt            DateTime?
+  rejectionReason       String?             @db.Text
+  batchId               String?
+  transactionId         String?             @db.VarChar(36)
+  postedToGL            Boolean             @default(false)
+  glBatchId             String?
+  version               Int                 @default(1)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  deletedAt             DateTime?
+
+  @@index([companyId])
+  @@index([fromAccountId])
+  @@index([requestNumber])
+  @@index([approvalStatus])
+  @@map("bnk_payment_requests")
+}
+
+model BnkPaymentBatch {
+  id              String                @id @default(uuid())
+  companyId       String
+  batchNumber     String                @unique @db.VarChar(50)
+  status          BnkPaymentBatchStatus @default(draft)
+  paymentCount    Int                   @default(0)
+  totalAmount     BigInt                @default(0)
+  currencyCode    String                @default("VND") @db.VarChar(3)
+  paymentDate     DateTime
+  valueDate       DateTime?
+  approvedById    String?               @db.VarChar(36)
+  approvedAt      DateTime?
+  releasedById    String?               @db.VarChar(36)
+  releasedAt      DateTime?
+  completedAt     DateTime?
+  failureCount    Int                   @default(0)
+  version         Int                   @default(1)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  deletedAt       DateTime?
+
+  @@index([companyId])
+  @@index([batchNumber])
+  @@index([status])
+  @@map("bnk_payment_batches")
+}
+
+model BnkRecurringPayment {
+  id                  String               @id @default(uuid())
+  companyId           String
+  name                String               @db.VarChar(255)
+  fromAccountId       String
+  toAccountId         String?              @db.VarChar(36)
+  beneficiaryName     String               @db.VarChar(255)
+  beneficiaryAccount  String?              @db.VarChar(50)
+  beneficiaryBank     String?              @db.VarChar(255)
+  amount              BigInt               @default(0)
+  currencyCode        String               @default("VND") @db.VarChar(3)
+  frequency           BnkRecurringFrequency
+  interval            Int                  @default(1)
+  startDate           DateTime
+  endDate             DateTime?
+  nextExecutionDate   DateTime
+  lastExecutionDate   DateTime?
+  executionCount      Int                  @default(0)
+  maxExecutions       Int?
+  method              BnkTransactionMethod @default(wire)
+  reference           String?              @db.VarChar(100)
+  description         String?              @db.Text
+  isActive            Boolean              @default(true)
+  version             Int                  @default(1)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
+
+  @@index([companyId])
+  @@index([fromAccountId])
+  @@index([nextExecutionDate])
+  @@map("bnk_recurring_payments")
+}
+
+// ─── Treasury & Cash Positioning ────────────────────────────────────────────────
+
+model BnkCashPosition {
+  id               String               @id @default(uuid())
+  companyId        String
+  positionDate     DateTime
+  currencyCode     String               @default("VND") @db.VarChar(3)
+  openingBalance   BigInt               @default(0)
+  totalInflows     BigInt               @default(0)
+  totalOutflows    BigInt               @default(0)
+  netFlow          BigInt               @default(0)
+  closingBalance   BigInt               @default(0)
+  availableBalance  BigInt              @default(0)
+  blockedBalance   BigInt               @default(0)
+  pendingInflows   BigInt               @default(0)
+  pendingOutflows  BigInt               @default(0)
+  projectedBalance BigInt               @default(0)
+  minimumBalance   BigInt               @default(0)
+  maximumBalance   BigInt               @default(0)
+  status           BnkCashPositionStatus @default(draft)
+  isReconciled     Boolean              @default(false)
+  version          Int                  @default(1)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  deletedAt        DateTime?
+
+  @@unique([companyId, positionDate, currencyCode])
+  @@index([companyId])
+  @@index([positionDate])
+  @@map("bnk_cash_positions")
+}
+
+model BnkCashForecast {
+  id                String               @id @default(uuid())
+  companyId         String
+  forecastNumber    String               @unique @db.VarChar(50)
+  name              String               @db.VarChar(255)
+  periodStart       DateTime
+  periodEnd         DateTime
+  currencyCode      String               @default("VND") @db.VarChar(3)
+  openingBalance    BigInt               @default(0)
+  projectedInflows  BigInt               @default(0)
+  projectedOutflows BigInt               @default(0)
+  netProjected      BigInt               @default(0)
+  closingBalance    BigInt               @default(0)
+  minimumRequired   BigInt               @default(0)
+  surplusDeficit    BigInt               @default(0)
+  confidenceLevel   Decimal              @default(0) @db.Decimal(5, 2)
+  status            BnkCashPositionStatus @default(draft)
+  version           Int                  @default(1)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  deletedAt         DateTime?
+
+  @@index([companyId])
+  @@index([periodStart, periodEnd])
+  @@map("bnk_cash_forecasts")
+}
+
+// ─── Foreign Exchange ───────────────────────────────────────────────────────────
+
+model BnkFXRate {
+  id            String        @id @default(uuid())
+  fromCurrency  String        @db.VarChar(3)
+  toCurrency    String        @db.VarChar(3)
+  rate          Decimal       @db.Decimal(19, 6)
+  rateType      BnkFXRateType @default(reference)
+  validFrom     DateTime
+  validTo       DateTime
+  source        String?       @db.VarChar(100)
+  isActive      Boolean       @default(true)
+  version       Int           @default(1)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([fromCurrency, toCurrency])
+  @@index([validFrom, validTo])
+  @@map("bnk_fx_rates")
+}
+
+model BnkFXRevaluation {
+  id                  String   @id @default(uuid())
+  companyId           String
+  revaluationDate     DateTime
+  currencyCode        String   @db.VarChar(3)
+  exchangeRate        Decimal  @db.Decimal(19, 6)
+  previousRate        Decimal  @db.Decimal(19, 6)
+  accountId           String   @db.VarChar(36)
+  accountBalance      BigInt   @default(0)
+  fxGainLoss          BigInt   @default(0)
+  gainLossType        String   @db.VarChar(4)
+  isRealized          Boolean  @default(false)
+  sourceTransactionId String?  @db.VarChar(36)
+  glBatchId           String?
+  postedToGL          Boolean  @default(false)
+  version             Int      @default(1)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([accountId])
+  @@index([revaluationDate])
+  @@map("bnk_fx_revaluations")
+}
+
+// ─── Approval Matrix ────────────────────────────────────────────────────────────
+
+model BnkApprovalMatrix {
+  id            String          @id @default(uuid())
+  companyId     String
+  name          String          @db.VarChar(255)
+  entityType    String          @db.VarChar(50)
+  minAmount     BigInt          @default(0)
+  maxAmount     BigInt          @default(0)
+  currencyCode  String          @default("VND") @db.VarChar(3)
+  approvalMode  BnkApprovalMode @default(sequential)
+  levels        Int             @default(1)
+  isActive      Boolean         @default(true)
+  version       Int             @default(1)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  levelsDef BnkApprovalMatrixLevel[]
+
+  @@index([companyId])
+  @@index([entityType])
+  @@map("bnk_approval_matrices")
+}
+
+model BnkApprovalMatrixLevel {
+  id            String   @id @default(uuid())
+  matrixId      String
+  matrix        BnkApprovalMatrix @relation(fields: [matrixId], references: [id])
+  level         Int
+  approverId    String   @db.VarChar(36)
+  approverName  String?  @db.VarChar(255)
+  minAmount     BigInt   @default(0)
+  maxAmount     BigInt   @default(0)
+  isRequired    Boolean  @default(true)
+
+  @@index([matrixId])
+  @@map("bnk_approval_matrix_levels")
+}
+
+model BnkApprovalRequest {
+  id              String           @id @default(uuid())
+  requestNumber   String           @unique @db.VarChar(50)
+  entityType      String           @db.VarChar(50)
+  entityId        String           @db.VarChar(36)
+  amount          BigInt           @default(0)
+  currencyCode    String           @default("VND") @db.VarChar(3)
+  status          BnkApprovalStatus @default(pending)
+  currentLevel    Int              @default(1)
+  maxLevel        Int              @default(1)
+  approvalMode    BnkApprovalMode  @default(sequential)
+  requestedById   String           @db.VarChar(36)
+  requestedAt     DateTime
+  completedAt     DateTime?
+  notes           String?          @db.Text
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  steps BnkApprovalStep[]
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([requestedById])
+  @@map("bnk_approval_requests")
+}
+
+model BnkApprovalStep {
+  id            String           @id @default(uuid())
+  approvalId    String
+  approval      BnkApprovalRequest @relation(fields: [approvalId], references: [id])
+  level         Int
+  approverId    String           @db.VarChar(36)
+  approverName  String?          @db.VarChar(255)
+  status        BnkApprovalStatus @default(pending)
+  actionAt      DateTime?
+  comment       String?          @db.Text
+  escalatedAt   DateTime?
+  delegatedTo   String?          @db.VarChar(36)
+
+  @@index([approvalId])
+  @@index([approverId])
+  @@index([status])
+  @@map("bnk_approval_steps")
+}
+
+// ─── Charges & Interest ─────────────────────────────────────────────────────────
+
+model BnkCharge {
+  id              String        @id @default(uuid())
+  bankAccountId   String
+  chargeType      BnkChargeType
+  amount          BigInt        @default(0)
+  currencyCode    String        @default("VND") @db.VarChar(3)
+  chargeDate      DateTime
+  description     String?       @db.Text
+  reference       String?       @db.VarChar(100)
+  transactionId   String?       @db.VarChar(36)
+  glBatchId       String?
+  postedToGL      Boolean       @default(false)
+  version         Int           @default(1)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([bankAccountId])
+  @@index([chargeDate])
+  @@map("bnk_charges")
+}
+
+model BnkInterestCalculation {
+  id              String             @id @default(uuid())
+  bankAccountId   String
+  calculationDate DateTime
+  amount          BigInt             @default(0)
+  currencyCode    String             @default("VND") @db.VarChar(3)
+  interestRate    Decimal            @db.Decimal(7, 4)
+  calculationMethod BnkInterestMethod @default(simple)
+  interestBasis   BnkInterestBasis   @default(actual_365)
+  daysInPeriod    Int                @default(0)
+  interestAmount  BigInt             @default(0)
+  isCalculated    Boolean            @default(false)
+  isPosted        Boolean            @default(false)
+  glBatchId       String?
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([bankAccountId])
+  @@index([calculationDate])
+  @@map("bnk_interest_calculations")
+}
+
+// ─── Business Calendar ──────────────────────────────────────────────────────────
+
+model BnkBusinessCalendar {
+  id          String   @id @default(uuid())
+  companyId   String
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(255)
+  year        Int
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  holidays BnkCalendarHoliday[]
+
+  @@index([companyId])
+  @@map("bnk_business_calendars")
+}
+
+model BnkCalendarHoliday {
+  id          String   @id @default(uuid())
+  calendarId  String
+  calendar    BnkBusinessCalendar @relation(fields: [calendarId], references: [id])
+  date        DateTime
+  name        String   @db.VarChar(255)
+  isRecurring Boolean  @default(false)
+  isActive    Boolean  @default(true)
+
+  @@unique([calendarId, date])
+  @@index([date])
+  @@map("bnk_calendar_holidays")
+}
