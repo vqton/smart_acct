@@ -27,6 +27,7 @@ import {
   PrismaStockCountRepository,
   PrismaInventoryReservationRepository,
 } from "../../infrastructure/inventory/inventory-prisma-repos.js";
+import { InventoryGlService } from "./inventory-gl-service.js";
 
 @Injectable()
 export class InventoryService {
@@ -39,6 +40,7 @@ export class InventoryService {
     private readonly costRepo: PrismaCostLayerRepository,
     private readonly countRepo: PrismaStockCountRepository,
     private readonly resvRepo: PrismaInventoryReservationRepository,
+    private readonly glService: InventoryGlService,
   ) {}
 
   // ─── Item Master ──────────────────────────────────────────────────────────
@@ -270,6 +272,14 @@ export class InventoryService {
     }
 
     await this.txRepo.save(tx);
+
+    // Post to GL
+    try {
+      await this.glService.postTransactionGl(tx, userId);
+    } catch (e) {
+      throw new DomainError("Infrastructure", `GL posting failed for transaction ${tx.transactionNumber}: ${(e as Error).message}`);
+    }
+
     return tx;
   }
 

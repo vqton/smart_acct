@@ -217,6 +217,9 @@ export class Item extends AggregateRoot<ItemId> {
   get standardCost() { return this._standardCost; }
   get glInventoryAccountId() { return this._glInventoryAccountId; }
   get glCogsAccountId() { return this._glCogsAccountId; }
+  get glExpenseAccountId() { return this._glExpenseAccountId; }
+  get glPurchaseAccountId() { return this._glPurchaseAccountId; }
+  get glTransferAccountId() { return this._glTransferAccountId; }
   get version() { return this._version; }
 
   update(p: Partial<{
