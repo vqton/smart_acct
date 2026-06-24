@@ -1,0 +1,1330 @@
+// ─── Enterprise Fixed Assets Module ───────────────────────────────────────────
+
+// ─── Enums ──────────────────────────────────────────────────────────────────────
+
+enum FaAssetType {
+  tangible
+  intangible
+  finance_lease
+  operating_lease
+  investment_property
+  construction_in_progress
+  right_of_use
+  land_use_right
+  software
+  license
+  patent
+  copyright
+  building
+  machinery
+  vehicle
+  office_equipment
+  it_equipment
+  furniture
+  infrastructure
+  specialized
+  tool
+  low_value
+  capitalized_expense
+  other
+}
+
+enum FaAssetStatus {
+  draft
+  pending_acquisition
+  acquired
+  pending_capitalization
+  capitalized
+  in_use
+  suspended
+  under_maintenance
+  fully_depreciated
+  pending_disposal
+  disposed
+  retired
+  sold
+  scrapped
+  donated
+  lost
+  destroyed
+  written_off
+  transferred
+  decommissioned
+  archived
+}
+
+enum FaAcquisitionType {
+  purchase
+  self_constructed
+  finance_lease
+  operating_lease
+  contribution
+  donation
+  exchange
+  transfer
+  merger
+  surplus
+  government_allocation
+  capitalized_expense
+  other
+}
+
+enum FaDepreciationMethod {
+  straight_line
+  declining_balance
+  double_declining_balance
+  sum_of_years_digits
+  units_of_production
+  custom_formula
+  immediate
+  none
+}
+
+enum FaDepreciationArea {
+  book
+  tax
+  ifrs
+  management
+  statutory
+}
+
+enum FaDepreciationStatus {
+  pending
+  in_progress
+  completed
+  failed
+  reversed
+}
+
+enum FaDisposalType {
+  sale
+  scrap
+  donation
+  destruction
+  theft
+  loss
+  trade_in
+  retirement
+  transfer
+  partial
+  bulk
+}
+
+enum FaRevaluationType {
+  upward
+  downward
+  index_based
+  market_value
+  professional_valuation
+  bulk
+}
+
+enum FaImpairmentType {
+  external
+  internal
+  physical_damage
+  technological_obsolescence
+  market_decline
+  regulatory
+  other
+}
+
+enum FaLeaseType {
+  finance
+  operating
+  sale_leaseback
+  direct_financing
+}
+
+enum FaLeasePaymentFrequency {
+  monthly
+  quarterly
+  semi_annual
+  annual
+  custom
+}
+
+enum FaMaintenanceType {
+  preventive
+  corrective
+  predictive
+  emergency
+  inspection
+  overhaul
+  refurbishment
+}
+
+enum FaMaintenanceStatus {
+  planned
+  scheduled
+  in_progress
+  completed
+  cancelled
+  postponed
+}
+
+enum FaVerificationMethod {
+  barcode
+  qr_code
+  rfid
+  manual
+  mobile
+  gps
+}
+
+enum FaVerificationStatus {
+  planned
+  in_progress
+  completed
+  approved
+  cancelled
+}
+
+enum FaAssetCategory {
+  a
+  b
+  c
+  d
+}
+
+enum FaCostAllocationMethod {
+  manual
+  percentage
+  equal
+  by_area
+  by_usage
+  by_headcount
+  by_revenue
+}
+
+// ─── Master Data ─────────────────────────────────────────────────────────────────
+
+model FaAssetGroup {
+  id          String     @id @default(uuid())
+  code        String     @unique @db.VarChar(20)
+  name        String     @db.VarChar(255)
+  nameEn      String?    @db.VarChar(255)
+  description String?    @db.Text
+  parentId    String?
+  parent      FaAssetGroup?  @relation("AssetGroupHierarchy", fields: [parentId], references: [id])
+  children    FaAssetGroup[] @relation("AssetGroupHierarchy")
+  assetType   FaAssetType
+  category    FaAssetCategory?
+  usefulLifeMin Int?
+  usefulLifeMax Int?
+  depreciationMethod FaDepreciationMethod?
+  residualValueRate Decimal? @db.Decimal(5, 2)
+  isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  version     Int        @default(1)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  classes     FaAssetClass[]
+  assets      FaAsset[]
+
+  @@index([code])
+  @@index([parentId])
+  @@index([assetType])
+  @@index([isActive])
+  @@map("fa_asset_groups")
+}
+
+model FaAssetClass {
+  id          String     @id @default(uuid())
+  code        String     @unique @db.VarChar(20)
+  name        String     @db.VarChar(255)
+  nameEn      String?    @db.VarChar(255)
+  groupId     String?
+  group       FaAssetGroup? @relation(fields: [groupId], references: [id])
+  assetType   FaAssetType
+  description String?    @db.Text
+  usefulLifeYears  Int?
+  depreciationMethod FaDepreciationMethod?
+  residualValueRate Decimal? @db.Decimal(5, 2)
+  glAssetAccountId String? @db.VarChar(36)
+  glDepreciationAccountId String? @db.VarChar(36)
+  glAccumulatedDepreciationId String? @db.VarChar(36)
+  glExpenseAccountId String? @db.VarChar(36)
+  glDisposalAccountId String? @db.VarChar(36)
+  isActive    Boolean    @default(true)
+  version     Int        @default(1)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  categories  FaAssetCategory[]
+  assets      FaAsset[]
+
+  @@index([code])
+  @@index([groupId])
+  @@index([assetType])
+  @@map("fa_asset_classes")
+}
+
+model FaAssetCategory {
+  id          String       @id @default(uuid())
+  code        String       @unique @db.VarChar(20)
+  name        String       @db.VarChar(255)
+  nameEn      String?      @db.VarChar(255)
+  classId     String?
+  class       FaAssetClass? @relation(fields: [classId], references: [id])
+  description String?      @db.Text
+  isActive    Boolean      @default(true)
+  version     Int          @default(1)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  assets      FaAsset[]
+
+  @@index([code])
+  @@index([classId])
+  @@map("fa_asset_categories")
+}
+
+// ─── Asset Master ─────────────────────────────────────────────────────────────────
+
+model FaAsset {
+  id                  String         @id @default(uuid())
+  companyId           String
+  branchId            String?
+  assetCode           String         @unique @db.VarChar(50)
+  assetName           String         @db.VarChar(255)
+  assetNameEn         String?        @db.VarChar(255)
+  description         String?        @db.Text
+  assetType           FaAssetType
+  assetStatus         FaAssetStatus  @default(draft)
+  groupId             String?
+  group               FaAssetGroup?  @relation(fields: [groupId], references: [id])
+  classId             String?
+  class               FaAssetClass?  @relation(fields: [classId], references: [id])
+  categoryId          String?
+  category            FaAssetCategory? @relation(fields: [categoryId], references: [id])
+  parentId            String?
+  parent              FaAsset?       @relation("AssetHierarchy", fields: [parentId], references: [id])
+  children            FaAsset[]      @relation("AssetHierarchy")
+  rootAssetId         String?
+  isComponent         Boolean        @default(false)
+  isLeased            Boolean        @default(false)
+  isCip               Boolean        @default(false)
+  isInvestmentProperty Boolean       @default(false)
+
+  // Acquisition
+  acquisitionType     FaAcquisitionType?
+  acquisitionDate     DateTime?
+  capitalizationDate  DateTime?
+  inUseDate           DateTime?
+  disposalDate        DateTime?
+  retirementDate      DateTime?
+
+  // Financial
+  originalCost        BigInt         @default(0)
+  accumulatedDepreciation BigInt     @default(0)
+  netBookValue        BigInt         @default(0)
+  residualValue       BigInt         @default(0)
+  revaluationAmount   BigInt         @default(0)
+  impairmentAmount    BigInt         @default(0)
+  revaluationReserve  BigInt         @default(0)
+  currencyCode        String         @default("VND") @db.VarChar(3)
+  exchangeRate        Decimal        @default(1.0) @db.Decimal(19, 6)
+
+  // Depreciation
+  depreciationMethod  FaDepreciationMethod
+  usefulLifeYears     Int            @default(0)
+  usefulLifeMonths    Int            @default(0)
+  usefulLifeUnits     Decimal?       @db.Decimal(19, 4)
+  unitsProduced       Decimal?       @db.Decimal(19, 4)
+  depreciationRate    Decimal?       @db.Decimal(7, 4)
+  depreciationStartDate DateTime?
+  depreciationEndDate   DateTime?
+  isFullyDepreciated  Boolean        @default(false)
+  isSuspended         Boolean        @default(false)
+  suspensionStartDate DateTime?
+  suspensionEndDate   DateTime?
+
+  // Dimensions
+  costCenterId        String?        @db.VarChar(36)
+  profitCenterId      String?        @db.VarChar(36)
+  departmentId        String?        @db.VarChar(36)
+  projectId           String?        @db.VarChar(36)
+  businessUnitId      String?        @db.VarChar(36)
+  locationId          String?        @db.VarChar(36)
+  custodianId         String?        @db.VarChar(36)
+  custodianName       String?        @db.VarChar(255)
+  ownerId             String?        @db.VarChar(36)
+
+  // Physical
+  serialNumber        String?        @unique @db.VarChar(100)
+  modelNumber         String?        @db.VarChar(100)
+  manufacturer        String?        @db.VarChar(255)
+  manufacturerYear    Int?
+  manufactureCountry  String?        @db.VarChar(100)
+  supplierId          String?        @db.VarChar(36)
+  supplierName        String?        @db.VarChar(255)
+  warrantyExpiryDate  DateTime?
+  insurancePolicyNumber String?      @db.VarChar(100)
+  insuranceExpiryDate DateTime?
+  insuredValue        BigInt?        @default(0)
+
+  // Location
+  address             String?        @db.Text
+  ward                String?        @db.VarChar(100)
+  district            String?        @db.VarChar(100)
+  province            String?        @db.VarChar(100)
+  country             String?        @default("VN") @db.VarChar(2)
+  gpsCoordinates      String?        @db.VarChar(50)
+  building            String?        @db.VarChar(100)
+  floor               String?        @db.VarChar(50)
+  room                String?        @db.VarChar(100)
+
+  // Tax
+  taxCode             String?        @db.VarChar(50)
+  taxAuthority        String?        @db.VarChar(100)
+  vatRate             Decimal?       @db.Decimal(5, 2)
+  importDutyPaid      BigInt?        @default(0)
+  nonRefundableTax    BigInt?        @default(0)
+
+  // CIP Reference
+  cipProjectId        String?        @db.VarChar(36)
+  poNumber            String?        @db.VarChar(50)
+  invoiceNumber       String?        @db.VarChar(50)
+  contractNumber      String?        @db.VarChar(50)
+
+  // Workflow
+  approvalStatus      String?        @db.VarChar(20)
+  approvedById        String?        @db.VarChar(36)
+  approvedAt          DateTime?
+  version             Int            @default(1)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  components          FaAsset[]      @relation("AssetHierarchy")
+  deprAreas           FaAssetDepreciation[]
+  deprEntries         FaDepreciationEntry[]
+  revaluations        FaRevaluation[]
+  impairments         FaImpairment[]
+  disposals           FaDisposal[]
+  transfers           FaTransfer[]
+  maintenanceRecords  FaMaintenanceRecord[]
+  tags                FaAssetTag[]
+  verifications       FaVerificationLine[]
+  histories           FaAssetHistory[]
+  snapshots           FaSnapshot[]
+  glMappings          FaGlMapping[]
+
+  @@index([companyId])
+  @@index([branchId])
+  @@index([assetCode])
+  @@index([assetType])
+  @@index([assetStatus])
+  @@index([groupId])
+  @@index([classId])
+  @@index([categoryId])
+  @@index([parentId])
+  @@index([costCenterId])
+  @@index([profitCenterId])
+  @@index([departmentId])
+  @@index([projectId])
+  @@index([custodianId])
+  @@index([locationId])
+  @@index([serialNumber])
+  @@index([acquisitionDate])
+  @@index([capitalizationDate])
+  @@index([isFullyDepreciated])
+  @@index([isCip])
+  @@map("fa_assets")
+}
+
+// ─── Depreciation Engine ─────────────────────────────────────────────────────────
+
+model FaAssetDepreciation {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  depreciationArea    FaDepreciationArea
+  depreciationMethod  FaDepreciationMethod
+  usefulLifeYears     Int                @default(0)
+  usefulLifeMonths    Int                @default(0)
+  usefulLifeUnits     Decimal?           @db.Decimal(19, 4)
+  depreciationRate    Decimal?           @db.Decimal(7, 4)
+  originalCost        BigInt             @default(0)
+  accumulatedDepreciation BigInt         @default(0)
+  netBookValue        BigInt             @default(0)
+  residualValue       BigInt             @default(0)
+  revaluationAmount   BigInt             @default(0)
+  impairmentAmount    BigInt             @default(0)
+  startDate           DateTime?
+  endDate             DateTime?
+  isFullyDepreciated  Boolean            @default(false)
+  isActive            Boolean            @default(true)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  entries             FaDepreciationEntry[]
+
+  @@unique([assetId, depreciationArea])
+  @@index([assetId])
+  @@index([depreciationArea])
+  @@index([isActive])
+  @@map("fa_asset_depreciation")
+}
+
+model FaDepreciationRun {
+  id                  String             @id @default(uuid())
+  runNumber           String             @unique @db.VarChar(50)
+  depreciationArea    FaDepreciationArea
+  periodId            String
+  fiscalYearId        String
+  runDate             DateTime           @default(now())
+  status              FaDepreciationStatus @default(pending)
+  totalAssets         Int                @default(0)
+  totalDepreciation   BigInt             @default(0)
+  processedAssets     Int                @default(0)
+  failedAssets        Int                @default(0)
+  startedAt           DateTime?
+  completedAt         DateTime?
+  errorMessage        String?            @db.Text
+  createdById         String?            @db.VarChar(36)
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  isSimulation        Boolean            @default(false)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  entries             FaDepreciationEntry[]
+
+  @@index([runNumber])
+  @@index([periodId])
+  @@index([fiscalYearId])
+  @@index([status])
+  @@index([depreciationArea])
+  @@map("fa_depreciation_runs")
+}
+
+model FaDepreciationEntry {
+  id                  String             @id @default(uuid())
+  runId               String?
+  run                 FaDepreciationRun? @relation(fields: [runId], references: [id])
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  deprAreaId          String
+  deprArea            FaAssetDepreciation @relation(fields: [deprAreaId], references: [id])
+  periodId            String
+  fiscalYearId        String
+  entryDate           DateTime           @default(now())
+  periodNumber        Int                @default(1)
+  depreciationAmount  BigInt             @default(0)
+  accumulatedDepreciation BigInt         @default(0)
+  netBookValueBefore  BigInt             @default(0)
+  netBookValueAfter   BigInt             @default(0)
+  isCatchUp           Boolean            @default(false)
+  isAdjustment        Boolean            @default(false)
+  isForecast          Boolean            @default(false)
+  isSimulation        Boolean            @default(false)
+  isReversal          Boolean            @default(false)
+  reversalEntryId     String?            @db.VarChar(36)
+  notes               String?            @db.Text
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([runId])
+  @@index([assetId])
+  @@index([deprAreaId])
+  @@index([periodId])
+  @@index([fiscalYearId])
+  @@index([entryDate])
+  @@index([postedToGL])
+  @@map("fa_depreciation_entries")
+}
+
+// ─── Revaluation ──────────────────────────────────────────────────────────────────
+
+model FaRevaluation {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  revaluationNumber   String             @unique @db.VarChar(50)
+  revaluationType     FaRevaluationType
+  revaluationDate     DateTime
+  previousValue       BigInt             @default(0)
+  revaluedAmount      BigInt             @default(0)
+  newValue            BigInt             @default(0)
+  accumulatedDepreciationBefore BigInt   @default(0)
+  accumulatedDepreciationAfter  BigInt   @default(0)
+  revaluationReserve  BigInt             @default(0)
+  reserveAccountId    String?            @db.VarChar(36)
+  reference           String?            @db.VarChar(100)
+  referenceId         String?            @db.VarChar(36)
+  documentNumber      String?            @db.VarChar(50)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([revaluationNumber])
+  @@index([revaluationDate])
+  @@index([revaluationType])
+  @@map("fa_revaluations")
+}
+
+// ─── Impairment ───────────────────────────────────────────────────────────────────
+
+model FaImpairment {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  impairmentNumber    String             @unique @db.VarChar(50)
+  impairmentType      FaImpairmentType
+  impairmentDate      DateTime
+  carryingAmount      BigInt             @default(0)
+  recoverableAmount   BigInt             @default(0)
+  impairmentLoss      BigInt             @default(0)
+  fairValueLessCost   BigInt?            @default(0)
+  valueInUse          BigInt?            @default(0)
+  impairmentReversal  BigInt             @default(0)
+  isReversal          Boolean            @default(false)
+  originalImpairmentId String?           @db.VarChar(36)
+  reference           String?            @db.VarChar(100)
+  documentNumber      String?            @db.VarChar(50)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([impairmentNumber])
+  @@index([impairmentDate])
+  @@index([impairmentType])
+  @@map("fa_impairments")
+}
+
+// ─── Disposal ─────────────────────────────────────────────────────────────────────
+
+model FaDisposal {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  disposalNumber      String             @unique @db.VarChar(50)
+  disposalType        FaDisposalType
+  disposalDate        DateTime
+  originalCost        BigInt             @default(0)
+  accumulatedDepreciation BigInt         @default(0)
+  netBookValue        BigInt             @default(0)
+  disposalProceeds    BigInt             @default(0)
+  disposalCosts       BigInt             @default(0)
+  gainOnDisposal      BigInt             @default(0)
+  lossOnDisposal      BigInt             @default(0)
+  vatAmount           BigInt             @default(0)
+  customerId          String?            @db.VarChar(36)
+  customerName        String?            @db.VarChar(255)
+  invoiceNumber       String?            @db.VarChar(50)
+  invoiceDate         DateTime?
+  reason              String?            @db.Text
+  reference           String?            @db.VarChar(100)
+  documentNumber      String?            @db.VarChar(50)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([disposalNumber])
+  @@index([disposalType])
+  @@index([disposalDate])
+  @@map("fa_disposals")
+}
+
+// ─── Transfer ─────────────────────────────────────────────────────────────────────
+
+model FaTransfer {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  transferNumber      String             @unique @db.VarChar(50)
+  transferDate        DateTime
+  fromBranchId        String?            @db.VarChar(36)
+  toBranchId          String?            @db.VarChar(36)
+  fromCompanyId       String?            @db.VarChar(36)
+  toCompanyId         String?            @db.VarChar(36)
+  fromCostCenterId    String?            @db.VarChar(36)
+  toCostCenterId      String?            @db.VarChar(36)
+  fromDepartmentId    String?            @db.VarChar(36)
+  toDepartmentId      String?            @db.VarChar(36)
+  fromLocationId      String?            @db.VarChar(36)
+  toLocationId        String?            @db.VarChar(36)
+  fromCustodianId     String?            @db.VarChar(36)
+  toCustodianId       String?            @db.VarChar(36)
+  fromCustodianName   String?            @db.VarChar(255)
+  toCustodianName     String?            @db.VarChar(255)
+  transferType        String?            @db.VarChar(20)
+  reason              String?            @db.Text
+  reference           String?            @db.VarChar(100)
+  documentNumber      String?            @db.VarChar(50)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([transferNumber])
+  @@index([transferDate])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@map("fa_transfers")
+}
+
+// ─── Split / Merge ────────────────────────────────────────────────────────────────
+
+model FaSplitMerge {
+  id                  String             @id @default(uuid())
+  operationType       String             @db.VarChar(10)
+  documentNumber      String             @db.VarChar(50)
+  operationDate       DateTime
+  sourceAssetId       String?
+  sourceAsset         FaAsset?           @relation(fields: [sourceAssetId], references: [id])
+  sourceOriginalCost  BigInt             @default(0)
+  sourceAccumulatedDepreciation BigInt   @default(0)
+  sourceNetBookValue  BigInt             @default(0)
+  targetAssetIds      String?            @db.Text
+  targetAssetCodes    String?            @db.Text
+  ratios              String?            @db.Text
+  reason              String?            @db.Text
+  reference           String?            @db.VarChar(100)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([operationType, documentNumber])
+  @@index([sourceAssetId])
+  @@index([operationDate])
+  @@map("fa_split_merges")
+}
+
+// ─── CIP (Construction In Progress) ───────────────────────────────────────────────
+
+model FaCipProject {
+  id                  String             @id @default(uuid())
+  projectCode         String             @unique @db.VarChar(50)
+  projectName         String             @db.VarChar(255)
+  projectType         String?            @db.VarChar(50)
+  status              String?            @db.VarChar(20)
+  companyId           String
+  branchId            String?            @db.VarChar(36)
+  departmentId        String?            @db.VarChar(36)
+  projectManagerId    String?            @db.VarChar(36)
+  startDate           DateTime
+  expectedEndDate     DateTime?
+  actualEndDate       DateTime?
+  totalBudget         BigInt             @default(0)
+  totalCost           BigInt             @default(0)
+  capitalizedAmount   BigInt             @default(0)
+  remainingBudget     BigInt             @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  description         String?            @db.Text
+  contractNumber      String?            @db.VarChar(50)
+  contractorId        String?            @db.VarChar(36)
+  contractorName      String?            @db.VarChar(255)
+  isExternal          Boolean            @default(true)
+  approvalStatus      String?            @db.VarChar(20)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  costs               FaCipCost[]
+  milestones          FaCipMilestone[]
+  settlements         FaCipSettlement[]
+  assets              FaAsset[]
+
+  @@index([projectCode])
+  @@index([companyId])
+  @@index([status])
+  @@index([startDate])
+  @@map("fa_cip_projects")
+}
+
+model FaCipCost {
+  id                  String             @id @default(uuid())
+  projectId           String
+  project             FaCipProject       @relation(fields: [projectId], references: [id])
+  costDate            DateTime
+  costType            String?            @db.VarChar(50)
+  description         String?            @db.Text
+  amount              BigInt             @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  exchangeRate        Decimal            @default(1.0) @db.Decimal(19, 6)
+  vatAmount           BigInt             @default(0)
+  isCapitalized       Boolean            @default(false)
+  capitalizedToAssetId String?           @db.VarChar(36)
+  capitalizedAt       DateTime?
+  poNumber            String?            @db.VarChar(50)
+  invoiceNumber       String?            @db.VarChar(50)
+  vendorId            String?            @db.VarChar(36)
+  reference           String?            @db.VarChar(100)
+  notes               String?            @db.Text
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([projectId])
+  @@index([costDate])
+  @@index([costType])
+  @@index([isCapitalized])
+  @@map("fa_cip_costs")
+}
+
+model FaCipMilestone {
+  id                  String             @id @default(uuid())
+  projectId           String
+  project             FaCipProject       @relation(fields: [projectId], references: [id])
+  milestoneCode       String             @db.VarChar(50)
+  milestoneName       String             @db.VarChar(255)
+  plannedDate         DateTime
+  actualDate          DateTime?
+  plannedAmount       BigInt             @default(0)
+  actualAmount        BigInt             @default(0)
+  completionPercent   Decimal?           @db.Decimal(5, 2)
+  status              String?            @db.VarChar(20)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([projectId, milestoneCode])
+  @@index([projectId])
+  @@index([status])
+  @@map("fa_cip_milestones")
+}
+
+model FaCipSettlement {
+  id                  String             @id @default(uuid())
+  projectId           String
+  project             FaCipProject       @relation(fields: [projectId], references: [id])
+  settlementNumber    String             @db.VarChar(50)
+  settlementDate      DateTime
+  totalProjectCost    BigInt             @default(0)
+  capitalizedAmount   BigInt             @default(0)
+  remainingAmount     BigInt             @default(0)
+  settlementType      String?            @db.VarChar(20)
+  targetAssetId       String?            @db.VarChar(36)
+  targetAssetCode     String?            @db.VarChar(50)
+  targetAssetName     String?            @db.VarChar(255)
+  isFinal             Boolean            @default(false)
+  reference           String?            @db.VarChar(100)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([projectId, settlementNumber])
+  @@index([projectId])
+  @@index([settlementDate])
+  @@map("fa_cip_settlements")
+}
+
+// ─── Lease Accounting ─────────────────────────────────────────────────────────────
+
+model FaLease {
+  id                  String             @id @default(uuid())
+  leaseNumber         String             @unique @db.VarChar(50)
+  leaseType           FaLeaseType
+  assetId             String?
+  asset               FaAsset?           @relation(fields: [assetId], references: [id])
+  lessorId            String?            @db.VarChar(36)
+  lessorName          String?            @db.VarChar(255)
+  startDate           DateTime
+  endDate             DateTime
+  leaseTermMonths     Int                @default(0)
+  paymentAmount       BigInt             @default(0)
+  paymentFrequency    FaLeasePaymentFrequency @default(monthly)
+  totalLeaseLiability BigInt             @default(0)
+  interestRate        Decimal?           @db.Decimal(7, 4)
+  incrementalRate     Decimal?           @db.Decimal(7, 4)
+  rightOfUseAsset     BigInt             @default(0)
+  accumulatedAmortization BigInt         @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  renewalOption       Boolean            @default(false)
+  purchaseOption      Boolean            @default(false)
+  terminationOption   Boolean            @default(false)
+  status              String?            @db.VarChar(20)
+  reference           String?            @db.VarChar(100)
+  contractFile        String?            @db.VarChar(255)
+  notes               String?            @db.Text
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  payments            FaLeasePayment[]
+  liabilities         FaLeaseLiability[]
+
+  @@index([leaseNumber])
+  @@index([assetId])
+  @@index([leaseType])
+  @@index([startDate])
+  @@index([endDate])
+  @@map("fa_leases")
+}
+
+model FaLeasePayment {
+  id                  String             @id @default(uuid())
+  leaseId             String
+  lease               FaLease            @relation(fields: [leaseId], references: [id])
+  paymentNumber       Int                @default(1)
+  dueDate             DateTime
+  amount              BigInt             @default(0)
+  interestAmount      BigInt             @default(0)
+  principalAmount     BigInt             @default(0)
+  balanceAfter        BigInt             @default(0)
+  status              String?            @db.VarChar(20)
+  paidDate            DateTime?
+  paidAmount          BigInt?            @default(0)
+  reference           String?            @db.VarChar(100)
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([leaseId, paymentNumber])
+  @@index([leaseId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("fa_lease_payments")
+}
+
+model FaLeaseLiability {
+  id                  String             @id @default(uuid())
+  leaseId             String
+  lease               FaLease            @relation(fields: [leaseId], references: [id])
+  periodId            String
+  fiscalYearId        String
+  openingBalance      BigInt             @default(0)
+  interestAccrued     BigInt             @default(0)
+  paymentAmount       BigInt             @default(0)
+  closingBalance      BigInt             @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([leaseId, periodId])
+  @@index([leaseId])
+  @@index([periodId])
+  @@map("fa_lease_liabilities")
+}
+
+// ─── Maintenance Management ───────────────────────────────────────────────────────
+
+model FaMaintenancePlan {
+  id                  String             @id @default(uuid())
+  planCode            String             @unique @db.VarChar(50)
+  planName            String             @db.VarChar(255)
+  assetId             String?
+  asset               FaAsset?           @relation(fields: [assetId], references: [id])
+  maintenanceType     FaMaintenanceType
+  frequencyDays       Int?               @default(0)
+  frequencyMonths     Int?               @default(0)
+  frequencyUsage      Decimal?           @db.Decimal(19, 4)
+  estimatedCost       BigInt             @default(0)
+  estimatedDuration   Int?               @default(0)
+  isActive            Boolean            @default(true)
+  description         String?            @db.Text
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  schedules           FaMaintenanceSchedule[]
+  records             FaMaintenanceRecord[]
+
+  @@index([planCode])
+  @@index([assetId])
+  @@index([maintenanceType])
+  @@index([isActive])
+  @@map("fa_maintenance_plans")
+}
+
+model FaMaintenanceSchedule {
+  id                  String             @id @default(uuid())
+  planId              String
+  plan                FaMaintenancePlan  @relation(fields: [planId], references: [id])
+  scheduledDate       DateTime
+  estimatedCost       BigInt             @default(0)
+  assignedToId        String?            @db.VarChar(36)
+  assignedToName      String?            @db.VarChar(255)
+  status              FaMaintenanceStatus @default(planned)
+  actualDate          DateTime?
+  actualCost          BigInt?            @default(0)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([planId])
+  @@index([scheduledDate])
+  @@index([status])
+  @@map("fa_maintenance_schedules")
+}
+
+model FaMaintenanceRecord {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  planId              String?
+  plan                FaMaintenancePlan? @relation(fields: [planId], references: [id])
+  scheduleId          String?
+  schedule            FaMaintenanceSchedule? @relation(fields: [scheduleId], references: [id])
+  recordNumber        String             @unique @db.VarChar(50)
+  maintenanceType     FaMaintenanceType
+  maintenanceDate     DateTime
+  completedDate       DateTime?
+  cost                BigInt             @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  vendorId            String?            @db.VarChar(36)
+  vendorName          String?            @db.VarChar(255)
+  technicianId        String?            @db.VarChar(36)
+  technicianName      String?            @db.VarChar(255)
+  description         String?            @db.Text
+  findings            String?            @db.Text
+  resolution          String?            @db.Text
+  partsReplaced       String?            @db.Text
+  downtimeHours       Decimal?           @db.Decimal(10, 2)
+  warrantyClaim       Boolean            @default(false)
+  reference           String?            @db.VarChar(100)
+  documentFile        String?            @db.VarChar(255)
+  postedToGL          Boolean            @default(false)
+  glBatchId           String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([planId])
+  @@index([recordNumber])
+  @@index([maintenanceDate])
+  @@index([maintenanceType])
+  @@index([vendorId])
+  @@map("fa_maintenance_records")
+}
+
+// ─── Physical Asset Control ───────────────────────────────────────────────────────
+
+model FaAssetTag {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  tagType             String             @db.VarChar(20)
+  tagValue            String             @db.VarChar(100)
+  isActive            Boolean            @default(true)
+  assignedAt          DateTime           @default(now())
+  assignedById        String?            @db.VarChar(36)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@unique([tagType, tagValue])
+  @@index([assetId])
+  @@index([tagType])
+  @@index([tagValue])
+  @@map("fa_asset_tags")
+}
+
+model FaPhysicalVerification {
+  id                  String             @id @default(uuid())
+  verificationNumber  String             @unique @db.VarChar(50)
+  companyId           String
+  branchId            String?            @db.VarChar(36)
+  verificationDate    DateTime
+  verificationMethod  FaVerificationMethod @default(manual)
+  status              FaVerificationStatus @default(planned)
+  totalAssets         Int                @default(0)
+  verifiedAssets      Int                @default(0)
+  matchedAssets       Int                @default(0)
+  discrepancyAssets   Int                @default(0)
+  missingAssets       Int                @default(0)
+  verifiedById        String?            @db.VarChar(36)
+  verifiedByName      String?            @db.VarChar(255)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  lines               FaVerificationLine[]
+
+  @@index([verificationNumber])
+  @@index([companyId])
+  @@index([verificationDate])
+  @@index([status])
+  @@map("fa_physical_verifications")
+}
+
+model FaVerificationLine {
+  id                  String             @id @default(uuid())
+  verificationId      String
+  verification        FaPhysicalVerification @relation(fields: [verificationId], references: [id])
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  expectedLocation    String?            @db.Text
+  actualLocation      String?            @db.Text
+  expectedCustodian   String?            @db.VarChar(255)
+  actualCustodian     String?            @db.VarChar(255)
+  expectedStatus      FaAssetStatus?
+  actualStatus        FaAssetStatus?
+  isMatched           Boolean            @default(false)
+  discrepancyDesc     String?            @db.Text
+  scannedAt           DateTime?
+  scannedById         String?            @db.VarChar(36)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([verificationId])
+  @@index([assetId])
+  @@index([isMatched])
+  @@map("fa_verification_lines")
+}
+
+// ─── Insurance ────────────────────────────────────────────────────────────────────
+
+model FaInsurancePolicy {
+  id                  String             @id @default(uuid())
+  policyNumber        String             @unique @db.VarChar(50)
+  assetId             String?
+  asset               FaAsset?           @relation(fields: [assetId], references: [id])
+  insurerId           String?            @db.VarChar(36)
+  insurerName         String?            @db.VarChar(255)
+  policyType          String?            @db.VarChar(50)
+  startDate           DateTime
+  endDate             DateTime
+  insuredValue        BigInt             @default(0)
+  premium             BigInt             @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  deductible          BigInt             @default(0)
+  coverageDetails     String?            @db.Text
+  isActive            Boolean            @default(true)
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  claims              FaInsuranceClaim[]
+
+  @@index([policyNumber])
+  @@index([assetId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive])
+  @@map("fa_insurance_policies")
+}
+
+model FaInsuranceClaim {
+  id                  String             @id @default(uuid())
+  policyId            String
+  policy              FaInsurancePolicy  @relation(fields: [policyId], references: [id])
+  claimNumber         String             @unique @db.VarChar(50)
+  claimDate           DateTime
+  claimAmount         BigInt             @default(0)
+  settlementAmount    BigInt             @default(0)
+  currencyCode        String             @default("VND") @db.VarChar(3)
+  description         String?            @db.Text
+  status              String?            @db.VarChar(20)
+  settlementDate      DateTime?
+  notes               String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([policyId])
+  @@index([claimNumber])
+  @@index([claimDate])
+  @@index([status])
+  @@map("fa_insurance_claims")
+}
+
+// ─── GL Integration ───────────────────────────────────────────────────────────────
+
+model FaGlMapping {
+  id                  String             @id @default(uuid())
+  assetId             String?
+  asset               FaAsset?           @relation(fields: [assetId], references: [id])
+  groupId             String?
+  classId             String?
+  transactionType     String             @db.VarChar(50)
+  glAccountId         String             @db.VarChar(36)
+  glAccountCode       String?            @db.VarChar(20)
+  glAccountName       String?            @db.VarChar(255)
+  debitCredit         String?            @db.VarChar(10)
+  isDefault           Boolean            @default(false)
+  isActive            Boolean            @default(true)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([groupId])
+  @@index([classId])
+  @@index([transactionType])
+  @@index([glAccountId])
+  @@map("fa_gl_mappings")
+}
+
+// ─── Asset History & Audit ────────────────────────────────────────────────────────
+
+model FaAssetHistory {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  eventType           String             @db.VarChar(50)
+  eventDate           DateTime           @default(now())
+  description         String?            @db.Text
+  oldValue            String?            @db.Text
+  newValue            String?            @db.Text
+  userId              String?            @db.VarChar(36)
+  userName            String?            @db.VarChar(255)
+  ipAddress           String?            @db.VarChar(50)
+  userAgent           String?            @db.VarChar(255)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([eventType])
+  @@index([eventDate])
+  @@index([userId])
+  @@map("fa_asset_histories")
+}
+
+model FaSnapshot {
+  id                  String             @id @default(uuid())
+  assetId             String
+  asset               FaAsset            @relation(fields: [assetId], references: [id])
+  snapshotDate        DateTime           @default(now())
+  originalCost        BigInt             @default(0)
+  accumulatedDepreciation BigInt         @default(0)
+  netBookValue        BigInt             @default(0)
+  residualValue       BigInt             @default(0)
+  revaluationAmount   BigInt             @default(0)
+  impairmentAmount    BigInt             @default(0)
+  revaluationReserve  BigInt             @default(0)
+  depreciationMethod  FaDepreciationMethod
+  usefulLifeYears     Int                @default(0)
+  usefulLifeMonths    Int                @default(0)
+  assetStatus         FaAssetStatus
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  deletedAt           DateTime?
+
+  @@index([assetId])
+  @@index([snapshotDate])
+  @@map("fa_snapshots")
+}
+
+model FaApproval {
+  id                  String             @id @default(uuid())
+  documentType        String             @db.VarChar(50)
+  documentId          String
+  approvalLevel       Int                @default(1)
+  status              String             @default("pending") @db.VarChar(20)
+  requestedById       String?            @db.VarChar(36)
+  approvedById        String?            @db.VarChar(36)
+  approvedAt          DateTime?
+  comments            String?            @db.Text
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([documentType, documentId])
+  @@index([documentId])
+  @@index([status])
+  @@index([approvedById])
+  @@map("fa_approvals")
+}
+
+model FaApprovalMatrix {
+  id                  String             @id @default(uuid())
+  documentType        String             @db.VarChar(50)
+  minAmount           BigInt             @default(0)
+  maxAmount           BigInt             @default(9999999999999)
+  approvalLevel       Int                @default(1)
+  approverId          String?            @db.VarChar(36)
+  approverRole        String?            @db.VarChar(50)
+  isActive            Boolean            @default(true)
+  version             Int                @default(1)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+
+  @@index([documentType])
+  @@index([approverId])
+  @@index([isActive])
+  @@map("fa_approval_matrix")
+}
