@@ -1,0 +1,280 @@
+// ─── COA Module ───────────────────────────────────────────────────────────────
+
+enum AccountClassType {
+  asset
+  liability
+  equity
+  revenue
+  expense
+  cost_of_goods_sold
+  other_income
+  other_expense
+  manufacturing
+}
+
+enum AccountTypeCategory {
+  current_asset
+  non_current_asset
+  current_liability
+  non_current_liability
+  equity
+  revenue
+  operating_expense
+  manufacturing_cost
+  cost_of_goods_sold
+  other_income
+  other_expense
+  off_balance_sheet
+}
+
+enum AccountSubType {
+  cash
+  bank
+  receivable
+  inventory
+  fixed_asset
+  intangible_asset
+  investment
+  payable
+  tax_payable
+  loan
+  equity_capital
+  retained_earnings
+  revenue
+  cost_of_sales
+  salary
+  depreciation
+  tax_expense
+  other
+}
+
+enum AccountMappingStandard {
+  ifrs
+  vas
+  cash_flow
+  tax
+  statutory
+  management
+}
+
+enum AccountMappingType {
+  direct
+  aggregation
+  percentage
+  formula
+  manual
+}
+
+enum DimensionRequirement {
+  optional
+  recommended
+  required
+  prohibited
+}
+
+enum AccountEffectiveStatus {
+  draft
+  active
+  suspended
+  closed
+  archived
+}
+
+enum AccountControlLevel {
+  none
+  warning
+  strict
+}
+
+model AccountClass {
+  id          String         @id @default(uuid())
+  code        String         @unique @db.VarChar(1)
+  name        String         @db.VarChar(255)
+  nameEn      String?        @db.VarChar(255)
+  classType   AccountClassType
+  description String?        @db.Text
+  displayOrder Int           @default(0)
+  isActive    Boolean        @default(true)
+  version     Int            @default(1)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  accountTypes AccountType[]
+
+  @@index([code])
+  @@index([classType])
+  @@map("coa_account_classes")
+}
+
+model AccountType {
+  id            String            @id @default(uuid())
+  classId       String
+  class         AccountClass      @relation(fields: [classId], references: [id])
+  code          String            @unique @db.VarChar(10)
+  name          String            @db.VarChar(255)
+  nameEn        String?           @db.VarChar(255)
+  category      AccountTypeCategory
+  subType       AccountSubType?
+  nature        AccountNature
+  description   String?           @db.Text
+  isActive      Boolean           @default(true)
+  displayOrder  Int               @default(0)
+  version       Int               @default(1)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  extensions    AccountExtension[]
+  childTypes    AccountType[]     @relation("AccountTypeHierarchy")
+  parentTypeId  String?
+  parentType    AccountType?      @relation("AccountTypeHierarchy", fields: [parentTypeId], references: [id])
+
+  @@index([classId])
+  @@index([code])
+  @@index([category])
+  @@index([subType])
+  @@map("coa_account_types")
+}
+
+/// Extends the Account model with COA-specific fields
+model AccountExtension {
+  id                String              @id @default(uuid())
+  accountId         String              @unique
+  account           Account             @relation(fields: [accountId], references: [id])
+
+  // Classification
+  typeId            String?
+  type              AccountType?        @relation(fields: [typeId], references: [id])
+
+  // Status lifecycle
+  effectiveStatus   AccountEffectiveStatus @default(active)
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  statusReason      String?             @db.Text
+
+  // Posting permissions
+  allowAutoPosting  Boolean             @default(true)
+  requireApproval   Boolean             @default(false)
+
+  // Budget control
+  budgetControlLevel AccountControlLevel @default(none)
+  budgetCheckMessage String?            @db.Text
+
+  // Default dimensions
+  defaultCostCenterId  String?
+  defaultDepartmentId  String?
+  defaultProjectId     String?
+  defaultBranchId      String?
+
+  // Dimension rules
+  costCenterRequired   DimensionRequirement @default(optional)
+  departmentRequired   DimensionRequirement @default(optional)
+  projectRequired      DimensionRequirement @default(optional)
+  branchRequired       DimensionRequirement @default(optional)
+  profitCenterRequired DimensionRequirement @default(optional)
+
+  // Sub-ledger links
+  isCashAccount        Boolean          @default(false)
+  isBankAccount        Boolean          @default(false)
+  isTaxAccount         Boolean          @default(false)
+  isInventoryAccount   Boolean          @default(false)
+  isReceivableAccount  Boolean          @default(false)
+  isPayableAccount     Boolean          @default(false)
+  isIntercompanyAccount Boolean         @default(false)
+
+  // Default tax
+  defaultTaxCodeId  String?            @db.VarChar(36)
+  defaultTaxRateId  String?            @db.VarChar(36)
+
+  // Cash flow
+  cashFlowCode      String?            @db.VarChar(10)
+
+  // Financial statement mapping
+  financialStatementCode String?       @db.VarChar(20)
+  financialStatementNote  String?      @db.Text
+
+  // Audit & metadata
+  createdById       String?
+  updatedById       String?
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([typeId])
+  @@index([effectiveStatus])
+  @@index([isCashAccount])
+  @@index([isBankAccount])
+  @@index([isTaxAccount])
+  @@index([isInventoryAccount])
+  @@map("coa_account_extensions")
+}
+
+model AccountMapping {
+  id              String                  @id @default(uuid())
+  accountId       String
+  account         Account                 @relation(fields: [accountId], references: [id])
+  mappingStandard AccountMappingStandard
+  mappingType     AccountMappingType
+  targetCode      String                  @db.VarChar(50)
+  targetName      String?                 @db.VarChar(255)
+  mappingRule     String?                 @db.Text
+  percentage      Decimal?                @db.Decimal(7, 4)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  isActive        Boolean                 @default(true)
+  description     String?                 @db.Text
+  version         Int                     @default(1)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([accountId, mappingStandard, targetCode])
+  @@index([accountId])
+  @@index([mappingStandard])
+  @@index([targetCode])
+  @@map("coa_account_mappings")
+}
+
+model AccountHierarchyChange {
+  id            String   @id @default(uuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id])
+  oldParentId   String?
+  newParentId   String?
+  changedById   String
+  changedAt     DateTime @default(now())
+  reason        String?  @db.Text
+
+  @@index([accountId])
+  @@index([changedAt])
+  @@map("coa_hierarchy_changes")
+}
+
+model AccountCodeChange {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id])
+  oldCode     String   @db.VarChar(20)
+  newCode     String   @db.VarChar(20)
+  changedById String
+  changedAt   DateTime @default(now())
+  reason      String?  @db.Text
+
+  @@index([accountId])
+  @@index([changedAt])
+  @@map("coa_code_changes")
+}
+
+model AccountStatusChange {
+  id            String                 @id @default(uuid())
+  accountId     String
+  account       Account                @relation(fields: [accountId], references: [id])
+  oldStatus     AccountEffectiveStatus
+  newStatus     AccountEffectiveStatus
+  changedById   String
+  changedAt     DateTime               @default(now())
+  reason        String?                @db.Text
+
+  @@index([accountId])
+  @@index([changedAt])
+  @@map("coa_status_changes")
+}
+

@@ -1,0 +1,809 @@
+// ─── Payroll Module ──────────────────────────────────────────────────────────
+
+enum PrlPayFrequency {
+  monthly
+  weekly
+  biweekly
+  semimonthly
+  daily
+  hourly
+}
+
+enum PrlEmploymentType {
+  indefinite
+  fixed_term
+  seasonal
+  probation
+  internship
+  part_time
+  outsourced
+}
+
+enum PrlPaymentMethod {
+  bank_transfer
+  cash
+  cheque
+}
+
+enum PrlPayrollRunStatus {
+  draft
+  calculated
+  approved
+  posted
+  paid
+  reversed
+  cancelled
+}
+
+enum PrlElementCategory {
+  earning
+  deduction
+  employer_contribution
+  employee_contribution
+  tax
+  insurance
+  loan
+  adjustment
+}
+
+enum PrlElementType {
+  base_salary
+  hourly_wage
+  daily_wage
+  commission
+  bonus
+  performance_bonus
+  thirteenth_month
+  allowance_fixed
+  allowance_variable
+  shift_allowance
+  meal_allowance
+  transportation
+  phone_allowance
+  housing_allowance
+  responsibility_allowance
+  position_allowance
+  attendance_allowance
+  kpi_bonus
+  overtime
+  night_shift
+  weekend_work
+  holiday_work
+  social_insurance_ee
+  health_insurance_ee
+  unemployment_insurance_ee
+  social_insurance_er
+  health_insurance_er
+  unemployment_insurance_er
+  trade_union_fee
+  pit
+  salary_advance
+  loan_repayment
+  garnishment
+  other_earning
+  other_deduction
+}
+
+enum PrlInsuranceType {
+  social_insurance
+  health_insurance
+  unemployment_insurance
+  occupational_insurance
+  trade_union
+}
+
+enum PrlLeaveType {
+  annual
+  sick
+  maternity
+  paternity
+  unpaid
+  marriage
+  funeral
+  study
+  compassionate
+  other
+}
+
+enum PrlOvertimeType {
+  weekday
+  weekday_night
+  weekend
+  weekend_night
+  holiday
+  holiday_night
+}
+
+enum PrlApprovalStatus {
+  pending
+  approved
+  rejected
+  returned
+}
+
+enum PrlGender {
+  male
+  female
+  other
+}
+
+// ─── Payroll Master Data ─────────────────────────────────────────────────────
+
+model PrlPayrollGroup {
+  id          String   @id @default(uuid())
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  companyId   String   @db.VarChar(36)
+  branchId    String?  @db.VarChar(36)
+  payFrequency PrlPayFrequency @default(monthly)
+  currencyCode String   @default("VND") @db.VarChar(3)
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  employees    PrlEmployeePayroll[]
+  payrollRuns  PrlPayrollRun[]
+
+  @@index([code])
+  @@index([companyId])
+  @@map("prl_payroll_groups")
+}
+
+model PrlSalaryComponent {
+  id            String            @id @default(uuid())
+  code          String            @unique @db.VarChar(20)
+  name          String            @db.VarChar(255)
+  nameEn        String?           @db.VarChar(255)
+  elementType   PrlElementType
+  category      PrlElementCategory
+  isActive      Boolean           @default(true)
+  isTaxable     Boolean           @default(true)
+  isInsurable   Boolean           @default(false)
+  isPITable      Boolean           @default(true)
+  priority      Int               @default(0)
+  formula       String?           @db.Text
+  defaultValue  BigInt?           @default(0)
+  currencyCode  String            @default("VND") @db.VarChar(3)
+  description   String?           @db.Text
+  version       Int               @default(1)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  employeeSalaries PrlEmployeeSalary[]
+  payrollElements  PrlPayrollElement[]
+
+  @@index([code])
+  @@index([category])
+  @@index([elementType])
+  @@map("prl_salary_components")
+}
+
+model PrlInsuranceRate {
+  id              String          @id @default(uuid())
+  insuranceType   PrlInsuranceType
+  name            String          @db.VarChar(255)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  eeRate          Decimal         @db.Decimal(5, 3)
+  erRate          Decimal         @db.Decimal(5, 3)
+  ceilingAmount   BigInt?         @default(0)
+  ceilingType     String?         @default("monthly") @db.VarChar(20)
+  currencyCode    String          @default("VND") @db.VarChar(3)
+  isActive        Boolean         @default(true)
+  regulationRef   String?         @db.VarChar(255)
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@index([insuranceType])
+  @@index([effectiveFrom])
+  @@map("prl_insurance_rates")
+}
+
+model PrlTaxBracket {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  effectiveFrom DateTime
+  effectiveTo DateTime?
+  bracketOrder Int
+  fromAmount  BigInt   @default(0)
+  toAmount    BigInt?
+  rate        Decimal  @db.Decimal(5, 3)
+  deductAmount BigInt  @default(0)
+  currencyCode String  @default("VND") @db.VarChar(3)
+  isActive    Boolean  @default(true)
+  regulationRef String? @db.VarChar(255)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([effectiveFrom])
+  @@index([bracketOrder])
+  @@map("prl_tax_brackets")
+}
+
+model PrlPayrollCalendar {
+  id            String          @id @default(uuid())
+  code          String          @unique @db.VarChar(20)
+  name          String          @db.VarChar(255)
+  payFrequency  PrlPayFrequency @default(monthly)
+  companyId     String          @db.VarChar(36)
+  branchId      String?         @db.VarChar(36)
+  isActive      Boolean         @default(true)
+  version       Int             @default(1)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  periods PrlPayrollPeriod[]
+
+  @@index([code])
+  @@index([companyId])
+  @@map("prl_payroll_calendars")
+}
+
+model PrlPayrollPeriod {
+  id             String   @id @default(uuid())
+  calendarId     String   @db.VarChar(36)
+  periodNumber   Int
+  name           String   @db.VarChar(255)
+  startDate      DateTime
+  endDate        DateTime
+  paymentDate    DateTime?
+  year           Int
+  month          Int
+  isClosed       Boolean  @default(false)
+  closedAt       DateTime?
+  closedById     String?  @db.VarChar(100)
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  calendar   PrlPayrollCalendar @relation(fields: [calendarId], references: [id])
+  payrollRuns PrlPayrollRun[]
+
+  @@index([calendarId])
+  @@index([year, month])
+  @@index([startDate, endDate])
+  @@unique([calendarId, periodNumber])
+  @@map("prl_payroll_periods")
+}
+
+model PrlHolidayCalendar {
+  id        String   @id @default(uuid())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(255)
+  country   String   @default("VN") @db.VarChar(3)
+  companyId String?  @db.VarChar(36)
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  holidays PrlHoliday[]
+
+  @@index([code])
+  @@map("prl_holiday_calendars")
+}
+
+model PrlHoliday {
+  id           String   @id @default(uuid())
+  calendarId   String   @db.VarChar(36)
+  date         DateTime
+  name         String   @db.VarChar(255)
+  isRecurring  Boolean  @default(false)
+  isPaid       Boolean  @default(true)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  calendar PrlHolidayCalendar @relation(fields: [calendarId], references: [id])
+
+  @@unique([calendarId, date])
+  @@index([calendarId])
+  @@map("prl_holidays")
+}
+
+model PrlApprovalMatrix {
+  id          String   @id @default(uuid())
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(255)
+  minAmount   BigInt?  @default(0)
+  maxAmount   BigInt?
+  approverRole String  @db.VarChar(100)
+  approverId  String?  @db.VarChar(36)
+  stepOrder   Int
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([code])
+  @@index([approverRole])
+  @@index([stepOrder])
+  @@map("prl_approval_matrices")
+}
+
+// ─── Employee Payroll Data ───────────────────────────────────────────────────
+
+model PrlEmployeePayroll {
+  id              String            @id @default(uuid())
+  employeeCode    String            @unique @db.VarChar(50)
+  employeeName    String            @db.VarChar(255)
+  fullName        String?           @db.VarChar(255)
+  gender          PrlGender?        @default(male)
+  dateOfBirth     DateTime?
+  identityNumber  String?           @db.VarChar(20)
+  taxCode         String?           @db.VarChar(20)
+  socialInsuranceNo String?         @db.VarChar(20)
+  healthInsuranceNo String?         @db.VarChar(20)
+  phone           String?           @db.VarChar(20)
+  email           String?           @db.VarChar(255)
+  address         String?           @db.VarChar(500)
+  // Organization
+  companyId       String            @db.VarChar(36)
+  branchId        String?           @db.VarChar(36)
+  departmentId    String?           @db.VarChar(36)
+  divisionId      String?           @db.VarChar(36)
+  sectionId       String?           @db.VarChar(36)
+  positionId      String?           @db.VarChar(36)
+  jobGradeId      String?           @db.VarChar(36)
+  costCenterId    String?           @db.VarChar(36)
+  // Payroll
+  groupId         String            @db.VarChar(36)
+  group           PrlPayrollGroup   @relation(fields: [groupId], references: [id])
+  payFrequency    PrlPayFrequency?  @default(monthly)
+  currencyCode    String            @default("VND") @db.VarChar(3)
+  paymentMethod   PrlPaymentMethod  @default(bank_transfer)
+  employmentType  PrlEmploymentType @default(indefinite)
+  // Dates
+  hireDate        DateTime
+  contractEndDate DateTime?
+  terminationDate DateTime?
+  // Status
+  isActive        Boolean           @default(true)
+  isPITRegistered  Boolean          @default(false)
+  isSIEnrolled    Boolean           @default(true)
+  isHIEnrolled    Boolean           @default(true)
+  isUIEnrolled    Boolean           @default(true)
+  // Family deduction
+  dependentCount  Int               @default(0)
+  // Approval
+  approvedById    String?           @db.VarChar(100)
+  approvedAt      DateTime?
+  // Audit
+  version         Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  salaries        PrlEmployeeSalary[]
+  dependents      PrlEmployeeDependent[]
+  bankAccounts    PrlEmployeeBankAccount[]
+  payrollLines    PrlPayrollLine[]
+  attendance      PrlAttendanceRecord[]
+  overtime        PrlOvertimeRecord[]
+  leaveRecords    PrlLeaveRecord[]
+
+  @@index([employeeCode])
+  @@index([companyId])
+  @@index([branchId])
+  @@index([groupId])
+  @@index([departmentId])
+  @@index([costCenterId])
+  @@index([isActive])
+  @@index([taxCode])
+  @@map("prl_employee_payrolls")
+}
+
+model PrlEmployeeSalary {
+  id              String            @id @default(uuid())
+  employeeId      String            @db.VarChar(36)
+  employee        PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  componentId     String            @db.VarChar(36)
+  component       PrlSalaryComponent @relation(fields: [componentId], references: [id])
+  amount          BigInt            @default(0)
+  currencyCode    String            @default("VND") @db.VarChar(3)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  isActive        Boolean           @default(true)
+  version         Int               @default(1)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  @@index([employeeId])
+  @@index([componentId])
+  @@index([effectiveFrom])
+  @@unique([employeeId, componentId, effectiveFrom])
+  @@map("prl_employee_salaries")
+}
+
+model PrlEmployeeDependent {
+  id              String   @id @default(uuid())
+  employeeId      String   @db.VarChar(36)
+  employee        PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  fullName        String   @db.VarChar(255)
+  dateOfBirth     DateTime?
+  relationship    String   @db.VarChar(50)
+  taxCode         String?  @db.VarChar(20)
+  identificationNo String? @db.VarChar(20)
+  isRegistered    Boolean  @default(false)
+  registrationDate DateTime?
+  isActive        Boolean  @default(true)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([employeeId])
+  @@map("prl_employee_dependents")
+}
+
+model PrlEmployeeBankAccount {
+  id            String             @id @default(uuid())
+  employeeId    String             @db.VarChar(36)
+  employee      PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  bankName      String             @db.VarChar(255)
+  bankBranch    String?            @db.VarChar(255)
+  accountNumber String             @db.VarChar(50)
+  accountName   String             @db.VarChar(255)
+  isDefault     Boolean            @default(false)
+  isActive      Boolean            @default(true)
+  version       Int                @default(1)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  @@index([employeeId])
+  @@map("prl_employee_bank_accounts")
+}
+
+// ─── Attendance & Time ───────────────────────────────────────────────────────
+
+model PrlAttendanceRecord {
+  id          String   @id @default(uuid())
+  employeeId  String   @db.VarChar(36)
+  employee    PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  recordDate  DateTime
+  workHours   Decimal  @default(0) @db.Decimal(5, 2)
+  lateMinutes Int      @default(0)
+  earlyMinutes Int     @default(0)
+  absenceType String?  @db.VarChar(20)
+  isAbsent    Boolean  @default(false)
+  isHoliday   Boolean  @default(false)
+  isWeekend   Boolean  @default(false)
+  notes       String?  @db.Text
+  approvedById String? @db.VarChar(100)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([employeeId, recordDate])
+  @@index([employeeId])
+  @@index([recordDate])
+  @@map("prl_attendance_records")
+}
+
+model PrlOvertimeRecord {
+  id            String           @id @default(uuid())
+  employeeId    String           @db.VarChar(36)
+  employee      PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  recordDate    DateTime
+  overtimeType  PrlOvertimeType
+  hours         Decimal          @db.Decimal(5, 2)
+  rateMultiplier Decimal          @db.Decimal(3, 1)
+  approvedById   String?          @db.VarChar(100)
+  notes         String?          @db.Text
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+
+  @@index([employeeId])
+  @@index([recordDate])
+  @@map("prl_overtime_records")
+}
+
+model PrlLeaveRecord {
+  id            String          @id @default(uuid())
+  employeeId    String          @db.VarChar(36)
+  employee      PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  leaveType     PrlLeaveType
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Decimal         @db.Decimal(5, 2)
+  isPaid        Boolean         @default(true)
+  approvedById  String?         @db.VarChar(100)
+  status        String          @default("approved") @db.VarChar(20)
+  notes         String?         @db.Text
+  version       Int             @default(1)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  @@index([employeeId])
+  @@index([startDate, endDate])
+  @@map("prl_leave_records")
+}
+
+// ─── Payroll Transaction ─────────────────────────────────────────────────────
+
+model PrlPayrollRun {
+  id              String              @id @default(uuid())
+  runNumber       String              @unique @db.VarChar(50)
+  groupId         String              @db.VarChar(36)
+  group           PrlPayrollGroup     @relation(fields: [groupId], references: [id])
+  periodId        String              @db.VarChar(36)
+  period          PrlPayrollPeriod    @relation(fields: [periodId], references: [id])
+  calendarId      String              @db.VarChar(36)
+  name            String              @db.VarChar(255)
+  status          PrlPayrollRunStatus @default(draft)
+  companyId       String              @db.VarChar(36)
+  branchId        String?             @db.VarChar(36)
+  currencyCode    String              @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal             @default(1) @db.Decimal(18, 6)
+  // Totals
+  totalEarnings   BigInt              @default(0)
+  totalDeductions BigInt              @default(0)
+  totalEmployerCost BigInt            @default(0)
+  totalNetPay     BigInt              @default(0)
+  totalPIT        BigInt              @default(0)
+  totalInsurance  BigInt              @default(0)
+  employeeCount   Int                 @default(0)
+  // Dates
+  calculationDate DateTime?
+  approvedDate    DateTime?
+  approvedById    String?             @db.VarChar(100)
+  postedDate      DateTime?
+  postedById      String?             @db.VarChar(100)
+  paidDate        DateTime?
+  paidById        String?             @db.VarChar(100)
+  reversedDate    DateTime?
+  reversedById    String?             @db.VarChar(100)
+  reverseOfId     String?             @db.VarChar(36)
+  // GL
+  glBatchId       String?             @db.VarChar(36)
+  postedToGL      Boolean             @default(false)
+  // Notes
+  notes           String?             @db.Text
+  // Audit
+  version         Int                 @default(1)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  payrollLines       PrlPayrollLine[]
+  payrollPayments    PrlPayrollPayment[]
+  payrollJournals    PrlPayrollJournal[]
+  approvals          PrlPayrollApproval[]
+
+  @@index([runNumber])
+  @@index([groupId])
+  @@index([periodId])
+  @@index([status])
+  @@index([companyId])
+  @@map("prl_payroll_runs")
+}
+
+model PrlPayrollLine {
+  id          String         @id @default(uuid())
+  runId       String         @db.VarChar(36)
+  payrollRun  PrlPayrollRun  @relation(fields: [runId], references: [id])
+  employeeId  String         @db.VarChar(36)
+  employee    PrlEmployeePayroll @relation(fields: [employeeId], references: [id])
+  lineNumber  Int
+  // Employee info snapshot
+  employeeCode  String       @db.VarChar(50)
+  employeeName  String       @db.VarChar(255)
+  departmentId  String?      @db.VarChar(36)
+  costCenterId  String?      @db.VarChar(36)
+  branchId      String?      @db.VarChar(36)
+  taxCode       String?      @db.VarChar(20)
+  socialInsuranceNo String?  @db.VarChar(20)
+  bankAccountId String?      @db.VarChar(36)
+  // Amounts
+  totalEarnings   BigInt     @default(0)
+  totalDeductions BigInt     @default(0)
+  grossPay        BigInt     @default(0)
+  totalInsurance  BigInt     @default(0)
+  totalPIT        BigInt     @default(0)
+  netPay          BigInt     @default(0)
+  employerCost    BigInt     @default(0)
+  // Working days
+  workingDays     Decimal    @default(0) @db.Decimal(5, 2)
+  overtimeHours   Decimal    @default(0) @db.Decimal(5, 2)
+  leaveDays       Decimal    @default(0) @db.Decimal(5, 2)
+  absenceDays     Decimal    @default(0) @db.Decimal(5, 2)
+  // Status
+  isCalculated    Boolean    @default(false)
+  isExcluded      Boolean    @default(false)
+  excludeReason   String?    @db.Text
+  notes           String?    @db.Text
+  // Audit
+  version         Int        @default(1)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  elements PrlPayrollElement[]
+
+  @@index([runId])
+  @@index([employeeId])
+  @@index([runId, employeeId])
+  @@map("prl_payroll_lines")
+}
+
+model PrlPayrollElement {
+  id            String             @id @default(uuid())
+  lineId        String             @db.VarChar(36)
+  line          PrlPayrollLine     @relation(fields: [lineId], references: [id])
+  componentId   String             @db.VarChar(36)
+  component     PrlSalaryComponent @relation(fields: [componentId], references: [id])
+  elementName   String             @db.VarChar(255)
+  elementType   PrlElementType
+  category      PrlElementCategory
+  amount        BigInt             @default(0)
+  baseAmount    BigInt             @default(0)
+  quantity      Decimal?           @db.Decimal(12, 2)
+  rate          Decimal?           @db.Decimal(12, 2)
+  isTaxable     Boolean            @default(true)
+  isInsurable   Boolean            @default(false)
+  isPITable      Boolean           @default(true)
+  notes         String?            @db.Text
+  version       Int                @default(1)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+
+  @@index([lineId])
+  @@index([componentId])
+  @@map("prl_payroll_elements")
+}
+
+// ─── Payroll Approval ────────────────────────────────────────────────────────
+
+model PrlPayrollApproval {
+  id            String            @id @default(uuid())
+  runId         String            @db.VarChar(36)
+  payrollRun    PrlPayrollRun     @relation(fields: [runId], references: [id])
+  stepOrder     Int
+  approverRole  String            @db.VarChar(100)
+  approverId    String            @db.VarChar(36)
+  approverName  String?           @db.VarChar(255)
+  status        PrlApprovalStatus @default(pending)
+  comment       String?           @db.Text
+  approvedAt    DateTime?
+  rejectedAt    DateTime?
+  version       Int               @default(1)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([runId])
+  @@index([approverId])
+  @@unique([runId, stepOrder])
+  @@map("prl_payroll_approvals")
+}
+
+// ─── Payroll Payment ─────────────────────────────────────────────────────────
+
+model PrlPayrollPayment {
+  id              String              @id @default(uuid())
+  runId           String              @db.VarChar(36)
+  payrollRun      PrlPayrollRun       @relation(fields: [runId], references: [id])
+  paymentNumber   String              @unique @db.VarChar(50)
+  paymentDate     DateTime
+  totalAmount     BigInt              @default(0)
+  currencyCode    String              @default("VND") @db.VarChar(3)
+  paymentMethod   PrlPaymentMethod    @default(bank_transfer)
+  bankFileId      String?             @db.VarChar(100)
+  bankFileName    String?             @db.VarChar(255)
+  bankFileContent String?             @db.Text
+  status          String              @default("pending") @db.VarChar(20)
+  confirmedAt     DateTime?
+  confirmedById   String?             @db.VarChar(100)
+  rejectedAt      DateTime?
+  rejectReason    String?             @db.Text
+  reversedAt      DateTime?
+  reverseOfId     String?             @db.VarChar(36)
+  notes           String?             @db.Text
+  version         Int                 @default(1)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  lines PrlPayrollPaymentLine[]
+
+  @@index([paymentNumber])
+  @@index([runId])
+  @@index([status])
+  @@map("prl_payroll_payments")
+}
+
+model PrlPayrollPaymentLine {
+  id          String             @id @default(uuid())
+  paymentId   String             @db.VarChar(36)
+  payment     PrlPayrollPayment  @relation(fields: [paymentId], references: [id])
+  runId       String             @db.VarChar(36)
+  lineId      String             @db.VarChar(36)
+  employeeId  String             @db.VarChar(36)
+  employeeCode String            @db.VarChar(50)
+  employeeName String            @db.VarChar(255)
+  netPay      BigInt             @default(0)
+  bankName    String?            @db.VarChar(255)
+  bankBranch  String?            @db.VarChar(255)
+  accountNumber String?          @db.VarChar(50)
+  accountName String?            @db.VarChar(255)
+  isPaid      Boolean            @default(false)
+  paidAt      DateTime?
+  failReason  String?            @db.Text
+  version     Int                @default(1)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([paymentId])
+  @@index([employeeId])
+  @@index([lineId])
+  @@map("prl_payroll_payment_lines")
+}
+
+// ─── Payroll Accounting (GL Integration) ─────────────────────────────────────
+
+model PrlPayrollJournal {
+  id            String   @id @default(uuid())
+  runId         String   @db.VarChar(36)
+  payrollRun    PrlPayrollRun @relation(fields: [runId], references: [id])
+  journalNumber String   @unique @db.VarChar(50)
+  journalDate   DateTime
+  description   String?  @db.Text
+  totalDebit    BigInt   @default(0)
+  totalCredit   BigInt   @default(0)
+  currencyCode  String   @default("VND") @db.VarChar(3)
+  glBatchId     String?  @db.VarChar(36)
+  isPosted      Boolean  @default(false)
+  postedAt      DateTime?
+  postedById    String?  @db.VarChar(100)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  lines PrlPayrollJournalLine[]
+
+  @@index([runId])
+  @@index([journalNumber])
+  @@index([isPosted])
+  @@map("prl_payroll_journals")
+}
+
+model PrlPayrollJournalLine {
+  id          String           @id @default(uuid())
+  journalId   String           @db.VarChar(36)
+  journal     PrlPayrollJournal @relation(fields: [journalId], references: [id])
+  lineNumber  Int
+  accountCode String           @db.VarChar(20)
+  accountName String           @db.VarChar(255)
+  debitAmount BigInt           @default(0)
+  creditAmount BigInt          @default(0)
+  description String?          @db.Text
+  // Dimensions
+  costCenterId  String?        @db.VarChar(36)
+  departmentId  String?        @db.VarChar(36)
+  branchId      String?        @db.VarChar(36)
+  projectId     String?        @db.VarChar(36)
+  employeeId    String?        @db.VarChar(36)
+  lineType      String         @db.VarChar(50)
+
+  @@index([journalId])
+  @@map("prl_payroll_journal_lines")
+}

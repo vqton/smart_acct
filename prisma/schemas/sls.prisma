@@ -1,0 +1,1618 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// SALES MODULE (Order-to-Cash)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum SlsCustomerStatus {
+  active
+  inactive
+  blocked
+  suspended
+  pending
+}
+
+enum SlsCustomerType {
+  individual
+  company
+  government
+  foreign
+  vip
+  wholesale
+  retail
+  internal
+}
+
+enum SlsCustomerCategory {
+  standard
+  silver
+  gold
+  platinum
+  diamond
+  corporate
+  sme
+  franchise
+}
+
+enum SlsPriceGroup {
+  group_a
+  group_b
+  group_c
+  group_d
+  retail
+  wholesale
+  special
+}
+
+enum SlsDiscountGroup {
+  none
+  standard
+  preferred
+  vip
+  staff
+  promotional
+}
+
+enum SlsOrderStatus {
+  draft
+  pending_approval
+  approved
+  confirmed
+  processing
+  partly_delivered
+  fully_delivered
+  partly_invoiced
+  fully_invoiced
+  partly_paid
+  fully_paid
+  completed
+  cancelled
+  on_hold
+  returned
+}
+
+enum SlsOrderType {
+  standard
+  pos
+  online
+  marketplace
+  wholesale
+  b2b
+  recurring
+  rush
+  pre_order
+  backorder
+  drop_shipment
+  exchange
+  gift
+}
+
+enum SlsOrderSource {
+  pos
+  retail
+  online
+  marketplace
+  mobile_app
+  call_center
+  social_commerce
+  b2b_portal
+  wholesale_portal
+  api
+  manual
+  import
+}
+
+enum SlsQuotationStatus {
+  draft
+  sent
+  accepted
+  rejected
+  expired
+  converted
+  cancelled
+  revised
+}
+
+enum SlsDeliveryStatus {
+  draft
+  picking
+  packed
+  shipped
+  in_transit
+  delivered
+  partly_delivered
+  delivery_failed
+  returned
+  cancelled
+  confirmed
+}
+
+enum SlsInvoiceStatus {
+  draft
+  issued
+  approved
+  posted
+  partially_paid
+  fully_paid
+  cancelled
+  replaced
+  adjusted
+  debit_note
+  credit_note
+  reversed
+}
+
+enum SlsInvoiceType {
+  sales_invoice
+  debit_note
+  credit_note
+  adjustment
+  replacement
+  prepayment
+  final
+}
+
+enum SlsReturnStatus {
+  draft
+  pending_approval
+  approved
+  received
+  inspected
+  partly_refunded
+  fully_refunded
+  rejected
+  cancelled
+  completed
+  exchanged
+}
+
+enum SlsReturnReason {
+  defective
+  wrong_item
+  expired
+  damaged
+  customer_change_mind
+  quality_issue
+  warranty
+  over_delivery
+  duplicate
+  other
+}
+
+enum SlsPaymentStatus {
+  pending
+  partially_paid
+  fully_paid
+  overpaid
+  refunded
+  cancelled
+}
+
+enum SlsPaymentMethod {
+  cash
+  bank_transfer
+  qr_payment
+  credit_card
+  debit_card
+  e_wallet
+  gift_card
+  store_credit
+  voucher
+  mixed
+  split
+  cod
+  installment
+  other
+}
+
+enum SlsPromotionType {
+  discount_percentage
+  discount_amount
+  buy_x_get_y
+  bundle
+  combo
+  mix_match
+  flash_sale
+  loyalty
+  birthday
+  seasonal
+  clearance
+  free_shipping
+  gift_with_purchase
+  coupon
+  voucher
+  tiered
+  volume
+  campaign
+}
+
+enum SlsPromotionStatus {
+  draft
+  scheduled
+  active
+  paused
+  expired
+  cancelled
+  completed
+}
+
+enum SlsCouponStatus {
+  active
+  used
+  expired
+  cancelled
+  suspended
+}
+
+enum SlsGiftCardStatus {
+  active
+  partially_used
+  fully_used
+  expired
+  lost
+  stolen
+  cancelled
+}
+
+enum SlsLoyaltyTier {
+  bronze
+  silver
+  gold
+  platinum
+  diamond
+  elite
+}
+
+enum SlsLoyaltyStatus {
+  active
+  inactive
+  suspended
+  closed
+}
+
+enum SlsMembershipStatus {
+  pending
+  active
+  suspended
+  cancelled
+  expired
+}
+
+enum SlsReservationStatus {
+  pending
+  confirmed
+  allocated
+  picked
+  shipped
+  cancelled
+  expired
+  partially_fulfilled
+  fulfilled
+}
+
+enum SlsDiscountType {
+  percentage
+  fixed_amount
+  free_item
+  free_shipping
+  bundle
+  tiered
+}
+
+enum SlsDiscountApplication {
+  line
+  header
+  shipping
+  tax
+}
+
+// ─── Customer Master ─────────────────────────────────────────────────────────────
+
+model SlsCustomerGroup {
+  id        String   @id @default(uuid())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(255)
+  nameEn    String?  @db.VarChar(255)
+  priceGroup SlsPriceGroup @default(retail)
+  discountGroup SlsDiscountGroup @default(none)
+  paymentTermCode String? @db.VarChar(20)
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  customers SlsCustomer[]
+
+  @@index([code])
+  @@map("sls_customer_groups")
+}
+
+model SlsCustomer {
+  id                String           @id @default(uuid())
+  code              String           @unique @db.VarChar(20)
+  name              String           @db.VarChar(255)
+  nameEn            String?          @db.VarChar(255)
+  groupId           String?
+  group             SlsCustomerGroup? @relation(fields: [groupId], references: [id])
+  customerType      SlsCustomerType  @default(retail)
+  category          SlsCustomerCategory @default(standard)
+  classification    String?          @db.VarChar(50)
+  // Tax
+  taxCode           String?          @db.VarChar(20)
+  taxAuthority      String?          @db.VarChar(100)
+  taxOffice         String?          @db.VarChar(255)
+  // Address
+  address           String?          @db.VarChar(500)
+  ward              String?          @db.VarChar(100)
+  district          String?          @db.VarChar(100)
+  province          String?          @db.VarChar(100)
+  country           String           @default("VN") @db.VarChar(2)
+  postalCode        String?          @db.VarChar(20)
+  // Contact
+  phone             String?          @db.VarChar(50)
+  email             String?          @db.VarChar(255)
+  website           String?          @db.VarChar(255)
+  // Trade
+  paymentTermCode   String?          @db.VarChar(20)
+  priceGroup        SlsPriceGroup    @default(retail)
+  discountGroup     SlsDiscountGroup @default(none)
+  currencyCode      String           @default("VND") @db.VarChar(3)
+  creditLimit       BigInt           @default(0)
+  creditUsed        BigInt           @default(0)
+  creditAvailable   BigInt           @default(0)
+  creditStatus      String           @default("good") @db.VarChar(20)
+  allowNegativeDebt Boolean          @default(false)
+  // Status
+  status            SlsCustomerStatus @default(active)
+  isActive          Boolean          @default(true)
+  isBlacklisted     Boolean          @default(false)
+  blacklistReason   String?          @db.Text
+  // Sales info
+  storeId           String?          @db.VarChar(36)
+  salespersonId     String?          @db.VarChar(36)
+  branchId          String?          @db.VarChar(36)
+  // Registration
+  registeredAt      DateTime?
+  lastPurchaseAt    DateTime?
+  totalPurchases    BigInt           @default(0)
+  totalReturns      BigInt           @default(0)
+  totalOrders       Int              @default(0)
+  // Audit
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  contacts      SlsCustomerContact[]
+  addresses     SlsCustomerAddress[]
+  taxInfos      SlsCustomerTaxInfo[]
+  orders        SlsSalesOrder[]
+  quotations    SlsQuotation[]
+  invoices      SlsSalesInvoice[]
+  returns       SlsSalesReturn[]
+  receipts      SlsCustomerReceipt[]
+  loyalty       SlsLoyaltyAccount?
+  memberships   SlsMembership[]
+  wallets       SlsCustomerWallet[]
+  creditHistory SlsCustomerCreditHistory[]
+
+  @@index([code])
+  @@index([taxCode])
+  @@index([status])
+  @@index([groupId])
+  @@index([phone])
+  @@index([email])
+  @@index([isBlacklisted])
+  @@map("sls_customers")
+}
+
+model SlsCustomerContact {
+  id        String   @id @default(uuid())
+  customerId String
+  customer  SlsCustomer @relation(fields: [customerId], references: [id])
+  fullName  String   @db.VarChar(255)
+  email     String?  @db.VarChar(255)
+  phone     String?  @db.VarChar(50)
+  position  String?  @db.VarChar(255)
+  isPrimary Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([customerId])
+  @@map("sls_customer_contacts")
+}
+
+model SlsCustomerAddress {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   SlsCustomer @relation(fields: [customerId], references: [id])
+  addressType String  @default("shipping") @db.VarChar(20)
+  address    String   @db.VarChar(500)
+  ward       String?  @db.VarChar(100)
+  district   String?  @db.VarChar(100)
+  province   String?  @db.VarChar(100)
+  country    String   @default("VN") @db.VarChar(2)
+  postalCode String?  @db.VarChar(20)
+  isDefault  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  @@index([customerId])
+  @@index([addressType])
+  @@map("sls_customer_addresses")
+}
+
+model SlsCustomerTaxInfo {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    SlsCustomer @relation(fields: [customerId], references: [id])
+  taxCode     String   @db.VarChar(20)
+  companyName String?  @db.VarChar(255)
+  address     String?  @db.VarChar(500)
+  isDefault   Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([customerId])
+  @@map("sls_customer_tax_infos")
+}
+
+model SlsCustomerCreditHistory {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    SlsCustomer @relation(fields: [customerId], references: [id])
+  changeType  String   @db.VarChar(50)
+  oldLimit    BigInt   @default(0)
+  newLimit    BigInt   @default(0)
+  oldUsed     BigInt   @default(0)
+  newUsed     BigInt   @default(0)
+  reason      String?  @db.Text
+  changedBy   String   @db.VarChar(100)
+  changedAt   DateTime @default(now())
+
+  @@index([customerId])
+  @@map("sls_customer_credit_history")
+}
+
+model SlsCustomerWallet {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    SlsCustomer @relation(fields: [customerId], references: [id])
+  walletType  String   @default("store_credit") @db.VarChar(20)
+  balance     BigInt   @default(0)
+  currencyCode String  @default("VND") @db.VarChar(3)
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  transactions SlsWalletTransaction[]
+
+  @@index([customerId])
+  @@map("sls_customer_wallets")
+}
+
+model SlsWalletTransaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  wallet      SlsCustomerWallet @relation(fields: [walletId], references: [id])
+  transactionNumber String @unique @db.VarChar(50)
+  direction   String   @db.VarChar(10)
+  amount      BigInt   @default(0)
+  balanceBefore BigInt @default(0)
+  balanceAfter  BigInt @default(0)
+  currencyCode String  @default("VND") @db.VarChar(3)
+  referenceType String? @db.VarChar(50)
+  referenceId  String? @db.VarChar(36)
+  description  String? @db.Text
+  createdBy    String? @db.VarChar(100)
+  createdAt    DateTime @default(now())
+
+  @@index([walletId])
+  @@index([referenceType, referenceId])
+  @@map("sls_wallet_transactions")
+}
+
+// ─── Sales Channel ───────────────────────────────────────────────────────────────
+
+model SlsStore {
+  id          String   @id @default(uuid())
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(255)
+  nameEn      String?  @db.VarChar(255)
+  storeType   String   @default("retail") @db.VarChar(20)
+  address     String?  @db.VarChar(500)
+  ward        String?  @db.VarChar(100)
+  district    String?  @db.VarChar(100)
+  province    String?  @db.VarChar(100)
+  phone       String?  @db.VarChar(50)
+  email       String?  @db.VarChar(255)
+  managerId   String?  @db.VarChar(36)
+  warehouseId String?  @db.VarChar(36)
+  cashBoxId   String?  @db.VarChar(36)
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  salespersons SlsSalesperson[]
+  orders       SlsSalesOrder[]
+
+  @@index([code])
+  @@index([storeType])
+  @@map("sls_stores")
+}
+
+model SlsSalesperson {
+  id          String   @id @default(uuid())
+  storeId     String?
+  store       SlsStore? @relation(fields: [storeId], references: [id])
+  employeeId  String   @db.VarChar(36)
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(255)
+  commissionRate Decimal? @db.Decimal(5, 2)
+  targetAmount   BigInt? @default(0)
+  achievedAmount BigInt? @default(0)
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  orders SlsSalesOrder[]
+
+  @@index([storeId])
+  @@index([employeeId])
+  @@index([code])
+  @@map("sls_salespersons")
+}
+
+// ─── Pricing ─────────────────────────────────────────────────────────────────────
+
+model SlsPriceList {
+  id           String   @id @default(uuid())
+  code         String   @unique @db.VarChar(20)
+  name         String   @db.VarChar(255)
+  currencyCode String   @default("VND") @db.VarChar(3)
+  isActive     Boolean  @default(true)
+  isDefault    Boolean  @default(false)
+  priority     Int      @default(0)
+  effectiveFrom DateTime?
+  effectiveTo  DateTime?
+  description  String?  @db.Text
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  items SlsPriceListItem[]
+
+  @@index([code])
+  @@index([isDefault])
+  @@map("sls_price_lists")
+}
+
+model SlsPriceListItem {
+  id          String   @id @default(uuid())
+  priceListId String
+  priceList   SlsPriceList @relation(fields: [priceListId], references: [id])
+  itemId      String   @db.VarChar(36)
+  itemCode    String   @db.VarChar(50)
+  unitPrice   BigInt   @default(0)
+  minQuantity Decimal? @db.Decimal(18, 4)
+  maxQuantity Decimal? @db.Decimal(18, 4)
+  currencyCode String  @default("VND") @db.VarChar(3)
+  effectiveFrom DateTime?
+  effectiveTo  DateTime?
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([priceListId])
+  @@index([itemId])
+  @@index([itemCode])
+  @@map("sls_price_list_items")
+}
+
+// ─── Promotion ───────────────────────────────────────────────────────────────────
+
+model SlsPromotion {
+  id              String           @id @default(uuid())
+  code            String           @unique @db.VarChar(20)
+  name            String           @db.VarChar(255)
+  promotionType   SlsPromotionType
+  status          SlsPromotionStatus @default(draft)
+  description     String?          @db.Text
+  // Scope
+  appliesTo       String           @default("all") @db.VarChar(20)
+  customerGroupIds String?         @db.Text
+  storeIds        String?          @db.Text
+  itemIds         String?          @db.Text
+  // Schedule
+  startDate       DateTime
+  endDate         DateTime
+  // Value
+  discountType    SlsDiscountType  @default(percentage)
+  discountValue   Decimal          @default(0) @db.Decimal(19, 6)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  maxDiscount     BigInt?
+  minOrderAmount  BigInt?
+  maxQuantity     Int?
+  // Budget
+  budgetAmount    BigInt?
+  usedAmount      BigInt           @default(0)
+  usageLimit      Int?
+  usageCount      Int              @default(0)
+  perCustomerLimit Int?
+  // Approval
+  requiresApproval Boolean        @default(false)
+  approvedBy      String?         @db.VarChar(100)
+  approvedAt      DateTime?
+  // Terms
+  termsAndConditions String?       @db.Text
+  // Metadata
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  coupons     SlsCoupon[]
+  orderLines  SlsOrderLinePromotion[]
+
+  @@index([code])
+  @@index([promotionType])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("sls_promotions")
+}
+
+model SlsCoupon {
+  id            String          @id @default(uuid())
+  code          String          @unique @db.VarChar(50)
+  promotionId   String
+  promotion     SlsPromotion    @relation(fields: [promotionId], references: [id])
+  customerId    String?         @db.VarChar(36)
+  status        SlsCouponStatus @default(active)
+  discountType  SlsDiscountType @default(percentage)
+  discountValue Decimal         @default(0) @db.Decimal(19, 6)
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  maxDiscount   BigInt?
+  minOrderAmount BigInt?
+  validFrom     DateTime
+  validTo       DateTime
+  usageLimit    Int?
+  usageCount    Int             @default(0)
+  usedAt        DateTime?
+  usedBy        String?         @db.VarChar(100)
+  version       Int             @default(1)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  @@index([code])
+  @@index([promotionId])
+  @@index([customerId])
+  @@index([status])
+  @@map("sls_coupons")
+}
+
+// ─── Gift Card ───────────────────────────────────────────────────────────────────
+
+model SlsGiftCard {
+  id            String           @id @default(uuid())
+  cardNumber    String           @unique @db.VarChar(50)
+  pinCode       String?          @db.VarChar(10)
+  initialBalance BigInt          @default(0)
+  currentBalance BigInt          @default(0)
+  currencyCode  String           @default("VND") @db.VarChar(3)
+  status        SlsGiftCardStatus @default(active)
+  customerId    String?          @db.VarChar(36)
+  issuedBy      String           @db.VarChar(100)
+  issuedAt      DateTime
+  activatedAt   DateTime?
+  expiredAt     DateTime?
+  lastUsedAt    DateTime?
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+
+  transactions SlsGiftCardTransaction[]
+
+  @@index([cardNumber])
+  @@index([customerId])
+  @@index([status])
+  @@map("sls_gift_cards")
+}
+
+model SlsGiftCardTransaction {
+  id                String   @id @default(uuid())
+  giftCardId        String
+  giftCard          SlsGiftCard @relation(fields: [giftCardId], references: [id])
+  transactionNumber String   @unique @db.VarChar(50)
+  direction         String   @db.VarChar(10)
+  amount            BigInt   @default(0)
+  balanceBefore     BigInt   @default(0)
+  balanceAfter      BigInt   @default(0)
+  currencyCode      String   @default("VND") @db.VarChar(3)
+  referenceType     String?  @db.VarChar(50)
+  referenceId       String?  @db.VarChar(36)
+  description       String?  @db.Text
+  createdBy         String?  @db.VarChar(100)
+  createdAt         DateTime @default(now())
+
+  @@index([giftCardId])
+  @@index([referenceType, referenceId])
+  @@map("sls_gift_card_transactions")
+}
+
+// ─── Loyalty ─────────────────────────────────────────────────────────────────────
+
+model SlsLoyaltyAccount {
+  id              String          @id @default(uuid())
+  customerId      String          @unique
+  customer        SlsCustomer     @relation(fields: [customerId], references: [id])
+  tier            SlsLoyaltyTier  @default(bronze)
+  totalPoints     BigInt          @default(0)
+  currentPoints   BigInt          @default(0)
+  lifetimePoints  BigInt          @default(0)
+  lifetimeRevenue BigInt          @default(0)
+  currencyCode    String          @default("VND") @db.VarChar(3)
+  status          SlsLoyaltyStatus @default(active)
+  enrolledAt      DateTime        @default(now())
+  tierUpgradedAt  DateTime?
+  lastActivityAt  DateTime?
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  transactions SlsLoyaltyTransaction[]
+  tiers        SlsLoyaltyTierHistory[]
+
+  @@index([customerId])
+  @@index([tier])
+  @@index([status])
+  @@map("sls_loyalty_accounts")
+}
+
+model SlsLoyaltyTransaction {
+  id                String   @id @default(uuid())
+  accountId         String
+  account           SlsLoyaltyAccount @relation(fields: [accountId], references: [id])
+  transactionNumber String   @unique @db.VarChar(50)
+  direction         String   @db.VarChar(10)
+  points            BigInt   @default(0)
+  balanceBefore     BigInt   @default(0)
+  balanceAfter      BigInt   @default(0)
+  referenceType     String?  @db.VarChar(50)
+  referenceId       String?  @db.VarChar(36)
+  description       String?  @db.Text
+  createdBy         String?  @db.VarChar(100)
+  createdAt         DateTime @default(now())
+
+  @@index([accountId])
+  @@index([referenceType, referenceId])
+  @@map("sls_loyalty_transactions")
+}
+
+model SlsLoyaltyTierHistory {
+  id          String          @id @default(uuid())
+  accountId   String
+  account     SlsLoyaltyAccount @relation(fields: [accountId], references: [id])
+  oldTier     SlsLoyaltyTier
+  newTier     SlsLoyaltyTier
+  changedBy   String          @db.VarChar(100)
+  changedAt   DateTime        @default(now())
+  reason      String?         @db.Text
+
+  @@index([accountId])
+  @@map("sls_loyalty_tier_history")
+}
+
+model SlsMembership {
+  id              String             @id @default(uuid())
+  customerId      String
+  customer        SlsCustomer        @relation(fields: [customerId], references: [id])
+  membershipNumber String            @unique @db.VarChar(50)
+  membershipType  String             @default("standard") @db.VarChar(20)
+  status          SlsMembershipStatus @default(pending)
+  startDate       DateTime
+  endDate         DateTime?
+  renewCount      Int                @default(0)
+  lastRenewedAt   DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?            @db.Text
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+
+  @@index([customerId])
+  @@index([membershipNumber])
+  @@index([status])
+  @@map("sls_memberships")
+}
+
+// ─── Quotation ───────────────────────────────────────────────────────────────────
+
+model SlsQuotation {
+  id              String              @id @default(uuid())
+  quotationNumber String              @unique @db.VarChar(50)
+  companyId       String              @db.VarChar(36)
+  branchId        String?             @db.VarChar(36)
+  customerId      String
+  customer        SlsCustomer         @relation(fields: [customerId], references: [id])
+  customerName    String              @db.VarChar(255)
+  customerTaxCode String?             @db.VarChar(20)
+  storeId         String?             @db.VarChar(36)
+  salespersonId   String?             @db.VarChar(36)
+  orderSource     SlsOrderSource      @default(manual)
+  status          SlsQuotationStatus  @default(draft)
+  revisionNumber  Int                 @default(0)
+  // Pricing
+  currencyCode    String              @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal             @default(1) @db.Decimal(18, 6)
+  subtotal        BigInt              @default(0)
+  discountAmount  BigInt              @default(0)
+  taxAmount       BigInt              @default(0)
+  grandTotal      BigInt              @default(0)
+  // Dates
+  quotationDate   DateTime
+  validUntil      DateTime?
+  expectedDeliveryDate DateTime?
+  // Approval
+  approvedBy      String?             @db.VarChar(100)
+  approvedAt      DateTime?
+  rejectedBy      String?             @db.VarChar(100)
+  rejectedAt      DateTime?
+  rejectReason    String?             @db.Text
+  // Conversion
+  convertedToOrderId String?          @db.VarChar(36)
+  convertedAt     DateTime?
+  // Notes
+  notes           String?             @db.Text
+  termsAndConditions String?          @db.Text
+  // Audit
+  version         Int                 @default(1)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  lines SlsQuotationLine[]
+
+  @@index([quotationNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([companyId])
+  @@index([storeId])
+  @@index([validUntil])
+  @@map("sls_quotations")
+}
+
+model SlsQuotationLine {
+  id              String   @id @default(uuid())
+  quotationId     String
+  quotation       SlsQuotation @relation(fields: [quotationId], references: [id])
+  lineNumber      Int
+  itemId          String?  @db.VarChar(36)
+  itemCode        String   @db.VarChar(50)
+  itemName        String   @db.VarChar(255)
+  description     String?  @db.Text
+  quantity        Decimal  @db.Decimal(18, 4)
+  uom             String   @db.VarChar(10)
+  unitPrice       BigInt   @default(0)
+  totalPrice      BigInt   @default(0)
+  currencyCode    String   @default("VND") @db.VarChar(3)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount  BigInt   @default(0)
+  taxCode         String?  @db.VarChar(20)
+  taxRate         Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount       BigInt   @default(0)
+  netAmount       BigInt   @default(0)
+  // Dimensions
+  warehouseId     String?  @db.VarChar(36)
+  projectId       String?  @db.VarChar(36)
+  costCenterId    String?  @db.VarChar(36)
+  departmentId    String?  @db.VarChar(36)
+  // Dates
+  expectedDate    DateTime?
+  // Audit
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([quotationId])
+  @@index([itemId])
+  @@map("sls_quotation_lines")
+}
+
+// ─── Sales Order ─────────────────────────────────────────────────────────────────
+
+model SlsSalesOrder {
+  id                String           @id @default(uuid())
+  orderNumber       String           @unique @db.VarChar(50)
+  companyId         String           @db.VarChar(36)
+  branchId          String?          @db.VarChar(36)
+  storeId           String?          @db.VarChar(36)
+  store             SlsStore?        @relation(fields: [storeId], references: [id])
+  salespersonId     String?          @db.VarChar(36)
+  salesperson       SlsSalesperson?  @relation(fields: [salespersonId], references: [id])
+  customerId        String
+  customer          SlsCustomer      @relation(fields: [customerId], references: [id])
+  customerName      String           @db.VarChar(255)
+  customerTaxCode   String?          @db.VarChar(20)
+  customerAddress   String?          @db.VarChar(500)
+  customerPhone     String?          @db.VarChar(50)
+  customerEmail     String?          @db.VarChar(255)
+  // Type & Source
+  orderType         SlsOrderType     @default(standard)
+  orderSource       SlsOrderSource   @default(manual)
+  status            SlsOrderStatus   @default(draft)
+  // Pricing
+  currencyCode      String           @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal          BigInt           @default(0)
+  discountAmount    BigInt           @default(0)
+  taxAmount         BigInt           @default(0)
+  shippingAmount    BigInt           @default(0)
+  grandTotal        BigInt           @default(0)
+  totalPaid         BigInt           @default(0)
+  totalDue          BigInt           @default(0)
+  // Dates
+  orderDate         DateTime
+  requestedDate     DateTime?
+  promisedDate      DateTime?
+  deliveredDate     DateTime?
+  // Approval
+  approvedBy        String?          @db.VarChar(100)
+  approvedAt        DateTime?
+  rejectedBy        String?          @db.VarChar(100)
+  rejectedAt        DateTime?
+  rejectReason      String?          @db.Text
+  cancelledAt       DateTime?
+  cancelReason      String?          @db.Text
+  holdReason        String?          @db.Text
+  // Source
+  quotationId       String?          @db.VarChar(36)
+  quotationNumber   String?          @db.VarChar(50)
+  sourceOrderId     String?          @db.VarChar(36)
+  // Notes
+  notes             String?          @db.Text
+  internalNotes     String?          @db.Text
+  // Delivery
+  deliveryAddress   String?          @db.VarChar(500)
+  deliveryWard      String?          @db.VarChar(100)
+  deliveryDistrict  String?          @db.VarChar(100)
+  deliveryProvince  String?          @db.VarChar(100)
+  deliveryContact   String?          @db.VarChar(255)
+  deliveryPhone     String?          @db.VarChar(50)
+  // Payment
+  paymentTermCode   String?          @db.VarChar(20)
+  paymentMethod     SlsPaymentMethod? 
+  paymentStatus     SlsPaymentStatus @default(pending)
+  // Reservation
+  reservationStatus SlsReservationStatus?
+  // Audit
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  lines        SlsOrderLine[]
+  deliveries   SlsDeliveryOrder[]
+  invoices     SlsSalesInvoice[]
+  returns      SlsSalesReturn[]
+  payments     SlsCustomerReceipt[]
+  reservations SlsInventoryReservation[]
+
+  @@index([orderNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([companyId])
+  @@index([storeId])
+  @@index([salespersonId])
+  @@index([orderDate])
+  @@index([orderType])
+  @@index([orderSource])
+  @@map("sls_sales_orders")
+}
+
+model SlsOrderLine {
+  id                String   @id @default(uuid())
+  orderId           String
+  order             SlsSalesOrder @relation(fields: [orderId], references: [id])
+  lineNumber        Int
+  itemId            String?  @db.VarChar(36)
+  itemCode          String   @db.VarChar(50)
+  itemName          String   @db.VarChar(255)
+  description       String?  @db.Text
+  quantity          Decimal  @db.Decimal(18, 4)
+  uom               String   @db.VarChar(10)
+  unitPrice         BigInt   @default(0)
+  totalPrice        BigInt   @default(0)
+  currencyCode      String   @default("VND") @db.VarChar(3)
+  // Discount
+  discountPercent   Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount    BigInt   @default(0)
+  // Tax
+  taxCode           String?  @db.VarChar(20)
+  taxRate           Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount         BigInt   @default(0)
+  netAmount         BigInt   @default(0)
+  // Fulfillment
+  deliveredQuantity Decimal  @default(0) @db.Decimal(18, 4)
+  returnedQuantity  Decimal  @default(0) @db.Decimal(18, 4)
+  invoicedQuantity  Decimal  @default(0) @db.Decimal(18, 4)
+  reservedQuantity  Decimal  @default(0) @db.Decimal(18, 4)
+  // Cost
+  unitCost          BigInt   @default(0)
+  totalCost         BigInt   @default(0)
+  // Dimensions
+  warehouseId       String?  @db.VarChar(36)
+  projectId         String?  @db.VarChar(36)
+  costCenterId      String?  @db.VarChar(36)
+  departmentId      String?  @db.VarChar(36)
+  // Dates
+  expectedDate      DateTime?
+  promisedDate      DateTime?
+  // Audit
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  promotions SlsOrderLinePromotion[]
+
+  @@index([orderId])
+  @@index([itemId])
+  @@map("sls_order_lines")
+}
+
+model SlsOrderLinePromotion {
+  id          String      @id @default(uuid())
+  lineId      String
+  line        SlsOrderLine @relation(fields: [lineId], references: [id])
+  promotionId String
+  promotion   SlsPromotion @relation(fields: [promotionId], references: [id])
+  couponId    String?      @db.VarChar(36)
+  discountAmount BigInt    @default(0)
+  description String?     @db.Text
+  createdAt   DateTime     @default(now())
+
+  @@index([lineId])
+  @@index([promotionId])
+  @@map("sls_order_line_promotions")
+}
+
+// ─── Inventory Reservation ───────────────────────────────────────────────────────
+
+model SlsInventoryReservation {
+  id              String               @id @default(uuid())
+  orderId         String
+  order           SlsSalesOrder        @relation(fields: [orderId], references: [id])
+  orderLineId     String?              @db.VarChar(36)
+  itemId          String               @db.VarChar(36)
+  itemCode        String               @db.VarChar(50)
+  quantity        Decimal              @db.Decimal(18, 4)
+  uom             String               @db.VarChar(10)
+  warehouseId     String               @db.VarChar(36)
+  status          SlsReservationStatus @default(pending)
+  allocatedAt     DateTime?
+  pickedAt        DateTime?
+  shippedAt       DateTime?
+  expiredAt       DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?              @db.Text
+  version         Int                  @default(1)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deletedAt       DateTime?
+
+  @@index([orderId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("sls_inventory_reservations")
+}
+
+// ─── Delivery ────────────────────────────────────────────────────────────────────
+
+model SlsDeliveryOrder {
+  id                String             @id @default(uuid())
+  deliveryNumber    String             @unique @db.VarChar(50)
+  companyId         String             @db.VarChar(36)
+  branchId          String?            @db.VarChar(36)
+  orderId           String
+  order             SlsSalesOrder      @relation(fields: [orderId], references: [id])
+  orderNumber       String             @db.VarChar(50)
+  customerId        String
+  customerName      String             @db.VarChar(255)
+  deliveryAddress   String?            @db.VarChar(500)
+  deliveryWard      String?            @db.VarChar(100)
+  deliveryDistrict  String?            @db.VarChar(100)
+  deliveryProvince  String?            @db.VarChar(100)
+  deliveryContact   String?            @db.VarChar(255)
+  deliveryPhone     String?            @db.VarChar(50)
+  // Type & Status
+  deliveryType      String             @default("standard") @db.VarChar(20)
+  status            SlsDeliveryStatus  @default(draft)
+  // Dates
+  deliveryDate      DateTime
+  requestedDate     DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  confirmedAt       DateTime?
+  // Logistics
+  carrierId         String?            @db.VarChar(36)
+  carrierName       String?            @db.VarChar(255)
+  trackingNumber    String?            @db.VarChar(100)
+  shipmentMethod    String?            @db.VarChar(100)
+  // POD
+  podReceivedBy     String?            @db.VarChar(255)
+  podSignedAt       DateTime?
+  podImage          String?            @db.VarChar(500)
+  podNotes          String?            @db.Text
+  // Exception
+  exceptionType     String?            @db.VarChar(50)
+  exceptionReason   String?            @db.Text
+  // Notes
+  notes             String?            @db.Text
+  internalNotes     String?            @db.Text
+  // Audit
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
+
+  lines SlsDeliveryLine[]
+
+  @@index([deliveryNumber])
+  @@index([orderId])
+  @@index([customerId])
+  @@index([status])
+  @@index([deliveryDate])
+  @@index([trackingNumber])
+  @@index([companyId])
+  @@map("sls_delivery_orders")
+}
+
+model SlsDeliveryLine {
+  id                String   @id @default(uuid())
+  deliveryId        String
+  delivery          SlsDeliveryOrder @relation(fields: [deliveryId], references: [id])
+  orderLineId       String?  @db.VarChar(36)
+  lineNumber        Int
+  itemId            String?  @db.VarChar(36)
+  itemCode          String   @db.VarChar(50)
+  itemName          String   @db.VarChar(255)
+  quantityOrdered   Decimal  @default(0) @db.Decimal(18, 4)
+  quantityDelivered Decimal  @db.Decimal(18, 4)
+  quantityDamaged   Decimal  @default(0) @db.Decimal(18, 4)
+  quantityReturned  Decimal  @default(0) @db.Decimal(18, 4)
+  uom               String   @db.VarChar(10)
+  unitPrice         BigInt   @default(0)
+  totalPrice        BigInt   @default(0)
+  currencyCode      String   @default("VND") @db.VarChar(3)
+  batchNumber       String?  @db.VarChar(100)
+  serialNumber      String?  @db.VarChar(100)
+  expiryDate        DateTime?
+  warehouseId       String?  @db.VarChar(36)
+  notes             String?  @db.Text
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  @@index([deliveryId])
+  @@index([orderLineId])
+  @@index([itemId])
+  @@map("sls_delivery_lines")
+}
+
+// ─── Sales Invoice ────────────────────────────────────────────────────────────────
+
+model SlsSalesInvoice {
+  id                String           @id @default(uuid())
+  invoiceNumber     String           @unique @db.VarChar(100)
+  invoiceDate       DateTime
+  companyId         String           @db.VarChar(36)
+  branchId          String?          @db.VarChar(36)
+  // Customer
+  customerId        String
+  customer          SlsCustomer      @relation(fields: [customerId], references: [id])
+  customerName      String           @db.VarChar(255)
+  customerTaxCode   String?          @db.VarChar(20)
+  customerAddress   String?          @db.VarChar(500)
+  // Source
+  orderId           String?
+  order             SlsSalesOrder?   @relation(fields: [orderId], references: [id])
+  orderNumber       String?          @db.VarChar(50)
+  deliveryId        String?          @db.VarChar(36)
+  deliveryNumber    String?          @db.VarChar(50)
+  // Type
+  invoiceType       SlsInvoiceType   @default(sales_invoice)
+  status            SlsInvoiceStatus @default(draft)
+  // Pricing
+  currencyCode      String           @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal          BigInt           @default(0)
+  discountAmount    BigInt           @default(0)
+  taxAmount         BigInt           @default(0)
+  grandTotal        BigInt           @default(0)
+  amountPaid        BigInt           @default(0)
+  amountDue         BigInt           @default(0)
+  // E-Invoice
+  einvoiceNumber    String?          @db.VarChar(50)
+  einvoiceCode      String?          @db.VarChar(50)
+  einvoiceIssueDate DateTime?
+  einvoiceVerifyCode String?         @db.VarChar(100)
+  einvoiceStatus    String?          @db.VarChar(20)
+  // Approval
+  approvedBy        String?          @db.VarChar(100)
+  approvedAt        DateTime?
+  postedById        String?          @db.VarChar(100)
+  postedAt          DateTime?
+  // Cancellation/Replacement
+  cancelledAt       DateTime?
+  cancelReason      String?          @db.Text
+  replacedById      String?          @db.VarChar(36)
+  adjustedInvoiceId String?          @db.VarChar(36)
+  // Notes
+  notes             String?          @db.Text
+  // GL
+  glBatchId         String?          @db.VarChar(36)
+  postedToGL        Boolean          @default(false)
+  // Audit
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  lines SlsInvoiceLine[]
+
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([orderId])
+  @@index([companyId])
+  @@index([einvoiceNumber])
+  @@index([invoiceDate])
+  @@map("sls_sales_invoices")
+}
+
+model SlsInvoiceLine {
+  id                String   @id @default(uuid())
+  invoiceId         String
+  invoice           SlsSalesInvoice @relation(fields: [invoiceId], references: [id])
+  orderLineId       String?  @db.VarChar(36)
+  deliveryLineId    String?  @db.VarChar(36)
+  lineNumber        Int
+  itemId            String?  @db.VarChar(36)
+  itemCode          String   @db.VarChar(50)
+  itemName          String   @db.VarChar(255)
+  description       String?  @db.Text
+  quantity          Decimal  @db.Decimal(18, 4)
+  uom               String   @db.VarChar(10)
+  unitPrice         BigInt   @default(0)
+  totalPrice        BigInt   @default(0)
+  currencyCode      String   @default("VND") @db.VarChar(3)
+  discountPercent   Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount    BigInt   @default(0)
+  taxCode           String?  @db.VarChar(20)
+  taxRate           Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount         BigInt   @default(0)
+  netAmount         BigInt   @default(0)
+  // Dimensions
+  warehouseId       String?  @db.VarChar(36)
+  projectId         String?  @db.VarChar(36)
+  costCenterId      String?  @db.VarChar(36)
+  departmentId      String?  @db.VarChar(36)
+  // Audit
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  @@index([invoiceId])
+  @@index([orderLineId])
+  @@index([itemId])
+  @@map("sls_invoice_lines")
+}
+
+// ─── Sales Return ────────────────────────────────────────────────────────────────
+
+model SlsSalesReturn {
+  id                String           @id @default(uuid())
+  returnNumber      String           @unique @db.VarChar(50)
+  companyId         String           @db.VarChar(36)
+  branchId          String?          @db.VarChar(36)
+  customerId        String
+  customer          SlsCustomer      @relation(fields: [customerId], references: [id])
+  customerName      String           @db.VarChar(255)
+  // Source
+  orderId           String?
+  order             SlsSalesOrder?   @relation(fields: [orderId], references: [id])
+  orderNumber       String?          @db.VarChar(50)
+  invoiceId         String?          @db.VarChar(36)
+  invoiceNumber     String?          @db.VarChar(50)
+  deliveryId        String?          @db.VarChar(36)
+  deliveryNumber    String?          @db.VarChar(50)
+  // Return info
+  returnType        String           @default("standard") @db.VarChar(20)
+  returnReason      SlsReturnReason
+  reasonDetail      String?          @db.Text
+  status            SlsReturnStatus  @default(draft)
+  // Pricing
+  currencyCode      String           @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal          @default(1) @db.Decimal(18, 6)
+  subtotal          BigInt           @default(0)
+  discountAmount    BigInt           @default(0)
+  taxAmount         BigInt           @default(0)
+  grandTotal        BigInt           @default(0)
+  refundAmount      BigInt           @default(0)
+  // Approval
+  approvedBy        String?          @db.VarChar(100)
+  approvedAt        DateTime?
+  // Received goods
+  receivedAt        DateTime?
+  inspectedAt       DateTime?
+  inspectionResult  String?          @db.VarChar(20)
+  inspectionNotes   String?          @db.Text
+  // Notes
+  notes             String?          @db.Text
+  // GL
+  glBatchId         String?          @db.VarChar(36)
+  postedToGL        Boolean          @default(false)
+  // Audit
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  lines SlsReturnLine[]
+
+  @@index([returnNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([companyId])
+  @@map("sls_sales_returns")
+}
+
+model SlsReturnLine {
+  id                String   @id @default(uuid())
+  returnId          String
+  return_           SlsSalesReturn @relation(fields: [returnId], references: [id])
+  orderLineId       String?  @db.VarChar(36)
+  invoiceLineId     String?  @db.VarChar(36)
+  deliveryLineId    String?  @db.VarChar(36)
+  lineNumber        Int
+  itemId            String?  @db.VarChar(36)
+  itemCode          String   @db.VarChar(50)
+  itemName          String   @db.VarChar(255)
+  quantityOrdered   Decimal  @default(0) @db.Decimal(18, 4)
+  quantityReturned  Decimal  @db.Decimal(18, 4)
+  quantityAccepted  Decimal  @default(0) @db.Decimal(18, 4)
+  quantityRejected  Decimal  @default(0) @db.Decimal(18, 4)
+  uom               String   @db.VarChar(10)
+  unitPrice         BigInt   @default(0)
+  totalPrice        BigInt   @default(0)
+  currencyCode      String   @default("VND") @db.VarChar(3)
+  discountPercent   Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount    BigInt   @default(0)
+  taxCode           String?  @db.VarChar(20)
+  taxRate           Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount         BigInt   @default(0)
+  netAmount         BigInt   @default(0)
+  // Inspection
+  condition         String?  @db.VarChar(20)
+  damageDescription String?  @db.Text
+  // Disposition
+  disposition       String   @default("return_to_stock") @db.VarChar(20)
+  warehouseId       String?  @db.VarChar(36)
+  batchNumber       String?  @db.VarChar(100)
+  serialNumber      String?  @db.VarChar(100)
+  expiryDate        DateTime?
+  // Dimensions
+  projectId         String?  @db.VarChar(36)
+  costCenterId      String?  @db.VarChar(36)
+  departmentId      String?  @db.VarChar(36)
+  // Audit
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  @@index([returnId])
+  @@index([orderLineId])
+  @@index([itemId])
+  @@map("sls_return_lines")
+}
+
+// ─── Customer Receipt / Payment ──────────────────────────────────────────────────
+
+model SlsCustomerReceipt {
+  id                String           @id @default(uuid())
+  receiptNumber     String           @unique @db.VarChar(50)
+  companyId         String           @db.VarChar(36)
+  branchId          String?          @db.VarChar(36)
+  customerId        String
+  customer          SlsCustomer      @relation(fields: [customerId], references: [id])
+  customerName      String           @db.VarChar(255)
+  // Source
+  orderId           String?
+  order             SlsSalesOrder?   @relation(fields: [orderId], references: [id])
+  orderNumber       String?          @db.VarChar(50)
+  invoiceId         String?          @db.VarChar(36)
+  invoiceNumber     String?          @db.VarChar(50)
+  returnId          String?          @db.VarChar(36)
+  returnNumber      String?          @db.VarChar(50)
+  // Payment
+  paymentDate       DateTime
+  amount            BigInt           @default(0)
+  currencyCode      String           @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal          @default(1) @db.Decimal(18, 6)
+  vndAmount         BigInt           @default(0)
+  paymentMethod     SlsPaymentMethod
+  paymentRef        String?          @db.VarChar(100)
+  // Split payment
+  isSplitPayment    Boolean          @default(false)
+  splitCount        Int              @default(1)
+  // Status
+  status            SlsPaymentStatus @default(pending)
+  // Approval
+  approvedBy        String?          @db.VarChar(100)
+  approvedAt        DateTime?
+  // GL
+  glBatchId         String?          @db.VarChar(36)
+  postedToGL        Boolean          @default(false)
+  // Notes
+  notes             String?          @db.Text
+  // Audit
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  allocations SlsReceiptAllocation[]
+
+  @@index([receiptNumber])
+  @@index([customerId])
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@index([status])
+  @@index([companyId])
+  @@map("sls_customer_receipts")
+}
+
+model SlsReceiptAllocation {
+  id          String   @id @default(uuid())
+  receiptId   String
+  receipt     SlsCustomerReceipt @relation(fields: [receiptId], references: [id])
+  invoiceId   String   @db.VarChar(36)
+  invoiceNumber String @db.VarChar(100)
+  amount      BigInt   @default(0)
+  currencyCode String  @default("VND") @db.VarChar(3)
+  createdAt   DateTime @default(now())
+
+  @@index([receiptId])
+  @@index([invoiceId])
+  @@map("sls_receipt_allocations")
+}
+
+// ─── Accounts Receivable ─────────────────────────────────────────────────────────
+
+model SlsReceivableAccount {
+  id                String   @id @default(uuid())
+  customerId        String
+  invoiceId         String   @db.VarChar(36)
+  invoiceNumber     String   @db.VarChar(100)
+  companyId         String   @db.VarChar(36)
+  branchId          String?  @db.VarChar(36)
+  // Amounts
+  originalAmount    BigInt   @default(0)
+  outstandingAmount BigInt   @default(0)
+  paidAmount        BigInt   @default(0)
+  discountedAmount  BigInt   @default(0)
+  writtenOffAmount  BigInt   @default(0)
+  currencyCode      String   @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal  @default(1) @db.Decimal(18, 6)
+  // Dates
+  invoiceDate       DateTime
+  dueDate           DateTime
+  lastPaymentDate   DateTime?
+  // Aging
+  agingDays         Int      @default(0)
+  agingBucket       String?  @db.VarChar(20)
+  // Status
+  status            String   @default("outstanding") @db.VarChar(20)
+  isOverdue         Boolean  @default(false)
+  isDisputed        Boolean  @default(false)
+  // Dunning
+  dunningLevel      Int      @default(0)
+  lastDunningDate   DateTime?
+  dunningCount      Int      @default(0)
+  // Collection
+  assignedCollector String?  @db.VarChar(100)
+  promiseDate       DateTime?
+  promiseAmount     BigInt   @default(0)
+  // Write-off
+  writtenOffAt      DateTime?
+  writeOffReason    String?  @db.Text
+  approvedBy        String?  @db.VarChar(100)
+  // Bad Debt
+  isBadDebt         Boolean  @default(false)
+  badDebtAmount     BigInt   @default(0)
+  badDebtProvision  BigInt   @default(0)
+  // GL
+  glBatchId         String?  @db.VarChar(36)
+  postedToGL        Boolean  @default(false)
+  // Audit
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  @@index([customerId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([agingBucket])
+  @@index([companyId])
+  @@index([isOverdue])
+  @@map("sls_receivable_accounts")
+}
+
+model SlsDunningHistory {
+  id              String   @id @default(uuid())
+  receivableId    String
+  dunningLevel    Int
+  dunningDate     DateTime
+  dunningMethod   String   @db.VarChar(50)
+  dunningTemplate String?  @db.VarChar(255)
+  dunningResult   String?  @db.VarChar(20)
+  notes           String?  @db.Text
+  sentBy          String   @db.VarChar(100)
+  responseAt      DateTime?
+  responseNotes   String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([receivableId])
+  @@index([dunningDate])
+  @@map("sls_dunning_history")
+}
+
+// ─── Sales Dimension Master Data ─────────────────────────────────────────────────
+
+model SlsBranch {
+  id        String   @id @default(uuid())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(255)
+  address   String?  @db.VarChar(500)
+  phone     String?  @db.VarChar(50)
+  managerId String?  @db.VarChar(36)
+  isActive  Boolean  @default(true)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([code])
+  @@map("sls_branches")
+}

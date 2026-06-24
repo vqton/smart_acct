@@ -1,0 +1,424 @@
+enum AccountCategory {
+  short_term_asset
+  long_term_asset
+  short_term_liability
+  long_term_liability
+  equity
+  revenue
+  operating_expense
+  other_expense
+  other_income
+  cost_of_goods_sold
+  manufacturing_cost
+}
+
+enum AccountNature {
+  debit
+  credit
+}
+
+enum JournalEntryStatus {
+  draft
+  submitted
+  approved
+  posted
+  reversed
+  cancelled
+}
+
+enum JournalType {
+  standard
+  recurring
+  reversing
+  accrual
+  allocation
+  adjustment
+  closing
+  opening
+}
+
+enum PeriodStatus {
+  open
+  closed
+  locked
+}
+
+enum VoucherTypeCategory {
+  payment
+  receipt
+  journal
+  sales
+  purchase
+  payroll
+  inventory
+  fixed_asset
+  tax
+  other
+}
+
+enum SequenceMethod {
+  annual
+  monthly
+  continuous
+}
+
+enum BudgetStatus {
+  draft
+  submitted
+  approved
+  rejected
+  closed
+}
+
+enum BudgetType {
+  operational
+  capital
+  project
+  department
+}
+
+enum DimensionStatus {
+  active
+  inactive
+}
+
+enum ExchangeRateType {
+  buy
+  sell
+  transfer
+  reference
+}
+
+model Account {
+  id               String          @id @default(uuid())
+  code             String          @unique @db.VarChar(20)
+  name             String          @db.VarChar(255)
+  nameEn           String?         @db.VarChar(255)
+  category         AccountCategory
+  nature           AccountNature
+  parentId         String?
+  parent           Account?        @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children         Account[]       @relation("AccountHierarchy")
+  isActive         Boolean         @default(true)
+  isControl        Boolean         @default(false)
+  isPosting        Boolean         @default(true)
+  allowManualEntry Boolean         @default(true)
+  balance          BigInt          @default(0)
+  foreignBalance   BigInt          @default(0)
+  currencyCode     String?         @db.VarChar(3)
+  description      String?         @db.Text
+  version          Int             @default(1)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  journalLines  JournalEntryLine[]
+  budgetLines   BudgetLine[]
+  extensions    AccountExtension[]
+  mappings      AccountMapping[]
+  hierarchyChanges AccountHierarchyChange[]
+  codeChanges   AccountCodeChange[]
+  statusChanges AccountStatusChange[]
+
+  @@index([code])
+  @@index([parentId])
+  @@index([category])
+  @@index([isActive])
+}
+
+model FiscalYear {
+  id        String   @id @default(uuid())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(255)
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  isClosed  Boolean  @default(false)
+  closedAt  DateTime?
+  closedById String?
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  periods      Period[]
+  budgets      Budget[]
+  voucherSeries VoucherSeries[]
+  journalBatches JournalBatch[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model Period {
+  id           String       @id @default(uuid())
+  fiscalYearId String
+  fiscalYear   FiscalYear   @relation(fields: [fiscalYearId], references: [id])
+  periodNumber Int
+  name         String       @db.VarChar(100)
+  startDate    DateTime
+  endDate      DateTime
+  status       PeriodStatus @default(open)
+  openedAt     DateTime     @default(now())
+  closedAt     DateTime?
+  closedById   String?
+  version      Int          @default(1)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  journalBatches JournalBatch[]
+
+  @@unique([fiscalYearId, periodNumber])
+  @@index([fiscalYearId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+model VoucherType {
+  id                String              @id @default(uuid())
+  code              String              @unique @db.VarChar(20)
+  name              String              @db.VarChar(255)
+  category          VoucherTypeCategory
+  description       String?             @db.Text
+  requiresApproval  Boolean             @default(true)
+  requiresAttachment Boolean            @default(false)
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  version           Int                 @default(1)
+
+  voucherSeries VoucherSeries[]
+  journalBatches JournalBatch[]
+
+  @@index([code])
+}
+
+model VoucherSeries {
+  id              String         @id @default(uuid())
+  voucherTypeId   String
+  voucherType     VoucherType    @relation(fields: [voucherTypeId], references: [id])
+  code            String         @unique @db.VarChar(20)
+  name            String         @db.VarChar(255)
+  prefix          String         @db.VarChar(10)
+  suffix          String?        @db.VarChar(10)
+  currentNumber   Int            @default(0)
+  nextNumber      Int            @default(1)
+  minDigits       Int            @default(4)
+  sequenceMethod  SequenceMethod @default(annual)
+  fiscalYearId    String?
+  fiscalYear      FiscalYear?    @relation(fields: [fiscalYearId], references: [id])
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  version         Int            @default(1)
+
+  journalBatches JournalBatch[]
+
+  @@index([voucherTypeId])
+  @@index([code])
+}
+
+model JournalBatch {
+  id               String             @id @default(uuid())
+  batchNumber      String             @unique @db.VarChar(50)
+  journalType      JournalType        @default(standard)
+  status           JournalEntryStatus @default(draft)
+  periodId         String
+  period           Period             @relation(fields: [periodId], references: [id])
+  fiscalYearId     String
+  fiscalYear       FiscalYear         @relation(fields: [fiscalYearId], references: [id])
+  voucherTypeId    String?
+  voucherType      VoucherType?       @relation(fields: [voucherTypeId], references: [id])
+  voucherSeriesId  String?
+  voucherSeries    VoucherSeries?     @relation(fields: [voucherSeriesId], references: [id])
+  voucherNumber    String?            @db.VarChar(50)
+  voucherDate      DateTime
+  postingDate      DateTime
+  description      String             @db.Text
+  reference        String?            @db.VarChar(100)
+  source           String?            @db.VarChar(50)
+  totalDebit       BigInt             @default(0)
+  totalCredit      BigInt             @default(0)
+  foreignTotalDebit  BigInt           @default(0)
+  foreignTotalCredit BigInt           @default(0)
+  currencyCode     String             @default("VND") @db.VarChar(3)
+  exchangeRate     Decimal            @default(1.0) @db.Decimal(19, 6)
+  isForeignCurrency Boolean           @default(false)
+  approvedById     String?
+  approvedAt       DateTime?
+  postedById       String?
+  postedAt         DateTime?
+  reversedBatchId  String?
+  recurringTemplateId String?
+  attachmentCount  Int                @default(0)
+  commentCount     Int                @default(0)
+  createdById      String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  version          Int                @default(1)
+  deletedAt        DateTime?
+
+  lines JournalEntryLine[]
+
+  @@index([batchNumber])
+  @@index([periodId])
+  @@index([fiscalYearId])
+  @@index([status])
+  @@index([postingDate])
+  @@index([voucherDate])
+  @@index([createdById])
+  @@index([voucherTypeId])
+}
+
+model JournalEntryLine {
+  id            String  @id @default(uuid())
+  batchId       String
+  batch         JournalBatch @relation(fields: [batchId], references: [id])
+  accountId     String
+  account       Account @relation(fields: [accountId], references: [id])
+  debitAmount   BigInt  @default(0)
+  creditAmount  BigInt  @default(0)
+  foreignDebitAmount  BigInt  @default(0)
+  foreignCreditAmount BigInt  @default(0)
+  currencyCode  String  @default("VND") @db.VarChar(3)
+  exchangeRate  Decimal @default(1.0) @db.Decimal(19, 6)
+  description   String? @db.Text
+  costCenterId  String?
+  departmentId  String?
+  projectId     String?
+  lineOrder     Int
+
+  @@index([batchId])
+  @@index([accountId])
+  @@index([costCenterId])
+  @@index([departmentId])
+}
+
+model ExchangeRate {
+  id           String           @id @default(uuid())
+  fromCurrency String           @db.VarChar(3)
+  toCurrency   String           @db.VarChar(3)
+  rate         Decimal          @db.Decimal(19, 6)
+  rateType     ExchangeRateType @default(reference)
+  validFrom    DateTime
+  validTo      DateTime
+  source       String?          @db.VarChar(100)
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  version      Int              @default(1)
+
+  @@index([fromCurrency, toCurrency])
+  @@index([validFrom, validTo])
+}
+
+model CostCenter {
+  id            String          @id @default(uuid())
+  code          String          @unique @db.VarChar(20)
+  name          String          @db.VarChar(255)
+  parentId      String?
+  managerId     String?
+  budgetHolderId String?
+  status        DimensionStatus @default(active)
+  description   String?         @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  version       Int             @default(1)
+  deletedAt     DateTime?
+
+  @@index([code])
+  @@index([status])
+}
+
+model Department {
+  id          String          @id @default(uuid())
+  code        String          @unique @db.VarChar(20)
+  name        String          @db.VarChar(255)
+  parentId    String?
+  headId      String?
+  status      DimensionStatus @default(active)
+  description String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  version     Int             @default(1)
+  deletedAt   DateTime?
+
+  @@index([code])
+  @@index([status])
+}
+
+model Budget {
+  id                  String       @id @default(uuid())
+  code                String       @unique @db.VarChar(20)
+  name                String       @db.VarChar(255)
+  type                BudgetType   @default(operational)
+  status              BudgetStatus @default(draft)
+  fiscalYearId        String
+  fiscalYear          FiscalYear   @relation(fields: [fiscalYearId], references: [id])
+  costCenterId        String?
+  departmentId        String?
+  projectId           String?
+  totalOriginalAmount BigInt       @default(0)
+  totalCurrentAmount  BigInt       @default(0)
+  totalUsedAmount     BigInt       @default(0)
+  totalRemainingAmount BigInt      @default(0)
+  currencyCode        String       @default("VND") @db.VarChar(3)
+  description         String?      @db.Text
+  approvedById        String?
+  approvedAt          DateTime?
+  createdById         String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  version             Int          @default(1)
+  deletedAt           DateTime?
+
+  lines BudgetLine[]
+
+  @@index([fiscalYearId])
+  @@index([costCenterId])
+  @@index([status])
+}
+
+model BudgetLine {
+  id              String @id @default(uuid())
+  budgetId        String
+  budget          Budget @relation(fields: [budgetId], references: [id])
+  accountId       String
+  account         Account @relation(fields: [accountId], references: [id])
+  originalAmount  BigInt @default(0)
+  currentAmount   BigInt @default(0)
+  usedAmount      BigInt @default(0)
+  remainingAmount BigInt @default(0)
+  period1         BigInt @default(0)
+  period2         BigInt @default(0)
+  period3         BigInt @default(0)
+  period4         BigInt @default(0)
+  period5         BigInt @default(0)
+  period6         BigInt @default(0)
+  period7         BigInt @default(0)
+  period8         BigInt @default(0)
+  period9         BigInt @default(0)
+  period10        BigInt @default(0)
+  period11        BigInt @default(0)
+  period12        BigInt @default(0)
+
+  @@index([budgetId])
+  @@index([accountId])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  entityType    String   @db.VarChar(50)
+  entityId      String   @db.VarChar(36)
+  action        String   @db.VarChar(50)
+  changes       Json?
+  performedById String
+  performedAt   DateTime @default(now())
+  ipAddress     String?  @db.VarChar(45)
+  userAgent     String?  @db.VarChar(255)
+  batchId       String?
+
+  @@index([entityType, entityId])
+  @@index([performedById])
+  @@index([performedAt])
+  @@index([batchId])
+}
