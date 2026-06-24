@@ -38,5 +38,16 @@ services:
       db:
         condition: service_healthy
 
+  headroom:
+    image: ghcr.io/chopratejas/headroom:latest
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      HEADROOM_HOST: 0.0.0.0
+      HEADROOM_PORT: 8787
+      HEADROOM_TELEMETRY: "off"
+    command: ["headroom", "proxy", "--host", "0.0.0.0", "--port", "8787"]
+
 volumes:
   mariadb_data:

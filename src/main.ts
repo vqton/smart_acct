@@ -1,15 +1,31 @@
+import { resolve } from "node:path";
 import "reflect-metadata";
 import "dotenv/config";
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module.js";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<INestApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+
+  const frontendDir = process.env.FRONTEND_DIR;
+  if (frontendDir) {
+    app.use(express.static(resolve(frontendDir)));
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.method === "GET" && !req.path.startsWith("/api")) {
+        res.sendFile(resolve(frontendDir, "index.html"));
+      } else {
+        next();
+      }
+    });
+  }
 
   const config = new DocumentBuilder()
     .setTitle("smart_acct API")

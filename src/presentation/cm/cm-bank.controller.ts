@@ -8,7 +8,7 @@ import { BankStatement, BankReconciliation } from "../../domain/cm/cm-bank-state
 import { ChequeBook } from "../../domain/cm/cm-cheque.js";
 import { BankId, BankAccountId, BankTransferId, BankStatementId, BankReconciliationId, ChequeBookId } from "../../domain/cm/cm-ids.js";
 import { DomainError } from "../../shared/domain-error.js";
-import { CreateBankDto, CreateBankAccountDto, CreateBankTransferDto, ImportStatementDto, ApproveDto } from "./dto/cm.dto.js";
+import { CmCreateBankDto, CmCreateBankAccountDto, CreateBankTransferDto, CmImportStatementDto, ApproveDto } from "./dto/cm.dto.js";
 
 @ApiTags("CM - Bank Management")
 @Controller("api/cm/banks")
@@ -27,7 +27,7 @@ export class BankController {
 
   @Post()
   @ApiOperation({ summary: "Create a bank" })
-  async createBank(@Body() dto: CreateBankDto) {
+  async createBank(@Body() dto: CmCreateBankDto) {
     const bank = Bank.create(dto);
     await this.bankRepo.save(bank);
     return bank.toState();
@@ -51,7 +51,7 @@ export class BankController {
 
   @Post(":bankId/accounts")
   @ApiOperation({ summary: "Create bank account" })
-  async createAccount(@Param("bankId") bankId: string, @Body() dto: CreateBankAccountDto) {
+  async createAccount(@Param("bankId") bankId: string, @Body() dto: CmCreateBankAccountDto) {
     const account = await this.bankService.createAccount({
       ...dto,
       bankId,
@@ -137,7 +137,7 @@ export class BankController {
 
   @Post("statements/import")
   @ApiOperation({ summary: "Import bank statement" })
-  async importStatement(@Body() dto: ImportStatementDto) {
+  async importStatement(@Body() dto: CmImportStatementDto) {
     try {
       const statement = await this.bankService.importStatement({
         bankAccountId: dto.bankAccountId,

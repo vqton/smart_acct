@@ -21,8 +21,10 @@ npm run build         # tsc compile
 npm test              # vitest
 npm run lint          # tsc --noEmit
 npm run prisma:gen    # regenerate Prisma client
+npm run seed          # seed VAS reference data (prisma/seed.ts)
 npm run codegraph:sync   # incremental codegraph update
 npm run codegraph:status # codegraph index stats
+# headroom: see Headroom section below
 ```
 
 ## App entrypoint
@@ -46,8 +48,8 @@ Quick reference:
 
 ## Notes
 
-- No database or external services required at this stage.
 - Dependencies are added by editing `package.json` and running `npm install`.
+- MariaDB is required for the app to start. Run `docker compose up -d db` or start local MariaDB, then `npm run seed` for reference data.
 
 ## CodeGraph
 
@@ -63,7 +65,23 @@ Quick reference:
 
 The graph lives in `.codegraph/` (gitignored db). Auto-rebuilt via `postinstall` script.
 
-## Progress (as of Jun 23, 2026)
+## Headroom
+
+[Headroom](https://github.com/headroomlabs-ai/headroom) compresses tool outputs, logs, files, and RAG chunks before they reach the LLM (60-95% fewer tokens). Runs as a local proxy, MCP server, or inline library.
+
+- `headroom wrap opencode` — one-command setup: starts proxy + injects provider + registers MCP
+- `headroom unwrap opencode` — reverts wrap, restores config backup
+- `headroom proxy --port 8787` — standalone proxy (zero code changes)
+- `headroom perf` — benchmark compression on current session
+
+**Setup options:**
+1. **Docker** (recommended): `docker compose up -d headroom` — runs proxy on :8787
+2. **Local install**: `pip install "headroom-ai[proxy]"` then `headroom proxy --port 8787`
+3. **Wrap**: `headroom wrap opencode` — auto-configures everything
+
+The proxy is configured as an MCP server in `opencode.json` (provides `headroom_compress`, `headroom_retrieve`, `headroom_stats` tools). The TypeScript SDK is available as `headroom-ai` (npm) for programmatic use.
+
+## Progress (as of Jun 24, 2026)
 
 ### Done
 - **GL Domain + Application + Pipeline:** Full 14-step posting pipeline, BalanceEngine, IdempotencyEngine, AuditEngine (SHA-256), QueueEngine, RollbackEngine. 29 metadata rules. 40+ typed error codes. 20 domain events.
@@ -75,18 +93,16 @@ The graph lives in `.codegraph/` (gitignored db). Auto-rebuilt via `postinstall`
 - **Docker Compose:** `docker-compose.yml` + `Dockerfile` + `.env.example`.
 - **Old Express code removed:** All Express 5 handlers, middleware, old application services, old infrastructure (mariadb/in-memory), old tests, and `main-express.ts` deleted.
 - **COA Module (Enterprise Chart of Accounts):** Full domain model (AccountClass, AccountType, AccountMapping, AccountExtension), 4 aggregate roots with domain events, specification pattern validators (PostingAccountSpec, ActiveStatusSpec, EffectiveDateSpec, hierarchy cycle detection), Prisma schema with 7 new tables + audit trail tables, 4 Prisma repositories, CoaService, 4 REST controllers (classes, types, mappings, extensions), 29 new tests.
-- **Bank Module (Enterprise Bank Management):** Full domain model (35 enums, 30 identifiers, 20+ domain events, 12 VOs, 9 aggregates: BankGroup/Bank/Branch/Correspondent, BankAccount, BankTransaction, BankStatement, BankReconciliation, PaymentRequest/Batch/Recurring, CashPosition/Forecast/FX, ApprovalMatrix/Request), 15 business rule specifications, 20+ repository interfaces, 25 Prisma models (bnk_ prefix), 21 Prisma repository implementations, 3 application services (master, account, transaction), 1 REST controller (bank-master.controller.ts) with 50+ routes, DTOs with class-validator + Swagger, BankModule registered in AppModule. All 269 tests passing.
+- **Bank Module (Enterprise Bank Management):** Full domain model (35 enums, 30 identifiers, 20+ domain events, 12 VOs, 9 aggregates: BankGroup/Bank/Branch/Correspondent, BankAccount, BankTransaction, BankStatement, BankReconciliation, PaymentRequest/Batch/Recurring, CashPosition/Forecast/FX, ApprovalMatrix/Request), 15 business rule specifications, 20+ repository interfaces, 25 Prisma models (bnk_ prefix), 21 Prisma repository implementations, 3 application services (master, account, transaction), 1 REST controller (bank-master.controller.ts) with 50+ routes, DTOs with class-validator + Swagger, BankModule registered in AppModule. 106 bank tests pass.
 
 ### Pending
 - Full Money integration across domain entities (currently at repo boundary).
 - Auth module (RBAC).
-- Actual DB migration (prisma migrate dev).
-- Production seed data script.
 - COA import/export (Excel/CSV/JSON) bulk APIs.
-- COA seed data with VAS-standard account classes and types.
-- Bank module controller routes Swagger testing.
-- Bank module domain unit tests.
+- Controller Swagger verification (manual endpoint review).
+- Inventory accounting GL posting integration (GR/IR, COGS accrual, revaluation journals).
 - CONTEXT.md handoff doc.
 
 ### Stats
-- 37 test files, 269 tests, all passing. `tsc --noEmit` clean.
+- 49 test files, 443 tests, all passing. `tsc --noEmit` clean.
+- Inventory: 17 Prisma models (inv_ prefix), 8 Prisma repos, 1 application service, 1 controller (50+ routes), 33 domain tests.

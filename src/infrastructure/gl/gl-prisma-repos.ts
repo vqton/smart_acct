@@ -379,32 +379,34 @@ export class PrismaFiscalYearRepository implements FiscalYearRepository {
 
   async save(fy: FiscalYear): Promise<void> {
     const s = fy.toState();
+    const { periods: _periods, ...scalars } = s;
     await this.prisma.fiscalYear.upsert({
       where: { id: s.id },
-      create: { ...s } as any,
-      update: { ...s } as any,
+      create: scalars as any,
+      update: scalars as any,
     });
   }
 
   async findById(id: FiscalYearId): Promise<FiscalYear | null> {
-    const row = await this.prisma.fiscalYear.findUnique({ where: { id: id.value } });
+    const row = await this.prisma.fiscalYear.findUnique({ where: { id: id.value }, include: { periods: true } });
     return row ? FiscalYear.load(row as FiscalYearState) : null;
   }
 
   async findByCode(code: string): Promise<FiscalYear | null> {
-    const row = await this.prisma.fiscalYear.findUnique({ where: { code } });
+    const row = await this.prisma.fiscalYear.findUnique({ where: { code }, include: { periods: true } });
     return row ? FiscalYear.load(row as FiscalYearState) : null;
   }
 
   async findActive(): Promise<FiscalYear | null> {
     const row = await this.prisma.fiscalYear.findFirst({
       where: { isActive: true, isClosed: false },
+      include: { periods: true },
     });
     return row ? FiscalYear.load(row as FiscalYearState) : null;
   }
 
   async findAll(): Promise<FiscalYear[]> {
-    const rows = await this.prisma.fiscalYear.findMany({ orderBy: { startDate: "desc" } });
+    const rows = await this.prisma.fiscalYear.findMany({ orderBy: { startDate: "desc" }, include: { periods: true } });
     return rows.map(r => FiscalYear.load(r as FiscalYearState));
   }
 
@@ -693,10 +695,11 @@ export class PrismaBudgetRepository implements BudgetRepository {
 
   async save(budget: Budget): Promise<void> {
     const s = budget.toState();
+    const { lines: _lines, ...scalars } = s;
     await this.prisma.budget.upsert({
       where: { id: s.id },
-      create: { ...s } as any,
-      update: { ...s } as any,
+      create: scalars as any,
+      update: scalars as any,
     });
   }
 

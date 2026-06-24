@@ -80,14 +80,14 @@ export class CreatePaymentDto {
 
 // ─── Bank ──────────────────────────────────────────────────────────────────────
 
-export class CreateBankDto {
+export class CmCreateBankDto {
   @ApiProperty() @IsString() companyId!: string;
   @ApiProperty() @IsString() @MinLength(1) @MaxLength(20) code!: string;
   @ApiProperty() @IsString() @MinLength(1) @MaxLength(255) name!: string;
   @ApiPropertyOptional() @IsString() @IsOptional() swiftCode?: string;
 }
 
-export class CreateBankAccountDto {
+export class CmCreateBankAccountDto {
   @ApiProperty() @IsString() companyId!: string;
   @ApiProperty() @IsString() bankId!: string;
   @ApiProperty() @IsString() @MinLength(1) accountNumber!: string;
@@ -127,7 +127,7 @@ export class ImportStatementLineDto {
   @ApiProperty() @IsNumber() runningBalance!: number;
 }
 
-export class ImportStatementDto {
+export class CmImportStatementDto {
   @ApiProperty() @IsString() bankAccountId!: string;
   @ApiProperty() @IsString() statementNumber!: string;
   @ApiProperty() @IsDateString() periodStart!: string;

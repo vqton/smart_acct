@@ -66,35 +66,36 @@ export class PrismaTaxCodeRepository implements TaxCodeRepository {
 
   async save(tc: TaxCode): Promise<void> {
     const s = tc.toState();
+    const { rates: _rates, ...scalars } = s;
     await (this.prisma as any).taxCode.upsert({
       where: { id: s.id },
-      create: s,
-      update: s,
+      create: scalars,
+      update: scalars,
     });
   }
 
   async findById(id: TaxCodeId): Promise<TaxCode | null> {
-    const row = await (this.prisma as any).taxCode.findUnique({ where: { id: id.value } });
+    const row = await (this.prisma as any).taxCode.findUnique({ where: { id: id.value }, include: { rates: true } });
     return row ? TaxCode.load(row as TaxCodeState) : null;
   }
 
   async findByCode(code: string): Promise<TaxCode | null> {
-    const row = await (this.prisma as any).taxCode.findUnique({ where: { code } });
+    const row = await (this.prisma as any).taxCode.findUnique({ where: { code }, include: { rates: true } });
     return row ? TaxCode.load(row as TaxCodeState) : null;
   }
 
   async findByTaxType(taxTypeId: string): Promise<TaxCode[]> {
-    const rows = await (this.prisma as any).taxCode.findMany({ where: { taxTypeId } });
+    const rows = await (this.prisma as any).taxCode.findMany({ where: { taxTypeId }, include: { rates: true } });
     return rows.map((r: any) => TaxCode.load(r as TaxCodeState));
   }
 
   async findActive(): Promise<TaxCode[]> {
-    const rows = await (this.prisma as any).taxCode.findMany({ where: { isActive: true } });
+    const rows = await (this.prisma as any).taxCode.findMany({ where: { isActive: true }, include: { rates: true } });
     return rows.map((r: any) => TaxCode.load(r as TaxCodeState));
   }
 
   async findAll(): Promise<TaxCode[]> {
-    const rows = await (this.prisma as any).taxCode.findMany();
+    const rows = await (this.prisma as any).taxCode.findMany({ include: { rates: true } });
     return rows.map((r: any) => TaxCode.load(r as TaxCodeState));
   }
 }
@@ -264,55 +265,64 @@ export class PrismaTaxRegistrationRepository implements TaxRegistrationRepositor
 export class PrismaTaxReturnRepository implements TaxReturnRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toDomain(row: Record<string, unknown>): TaxReturn {
+    return TaxReturn.load({
+      ...row,
+      lines: (row as any).lines ?? [],
+      attachments: (row as any).attachments ?? [],
+    } as unknown as TaxReturnState);
+  }
+
   async save(tr: TaxReturn): Promise<void> {
     const s = tr.toState();
+    const { lines: _lines, attachments: _attachments, ...scalars } = s;
     await (this.prisma as any).taxReturn.upsert({
       where: { id: s.id },
-      create: { ...s, payments: undefined },
-      update: { ...s, payments: undefined },
+      create: scalars,
+      update: scalars,
     });
   }
 
   async findById(id: TaxReturnId): Promise<TaxReturn | null> {
     const row = await (this.prisma as any).taxReturn.findUnique({ where: { id: id.value } });
-    return row ? TaxReturn.load(row as TaxReturnState) : null;
+    return row ? this.toDomain(row as any) : null;
   }
 
   async findByReturnNumber(returnNumber: string): Promise<TaxReturn | null> {
     const row = await (this.prisma as any).taxReturn.findUnique({ where: { returnNumber } });
-    return row ? TaxReturn.load(row as TaxReturnState) : null;
+    return row ? this.toDomain(row as any) : null;
   }
 
   async findByTaxpayer(taxpayerId: string): Promise<TaxReturn[]> {
     const rows = await (this.prisma as any).taxReturn.findMany({ where: { taxpayerId } });
-    return rows.map((r: any) => TaxReturn.load(r as TaxReturnState));
+    return rows.map((r: any) => this.toDomain(r));
   }
 
   async findByPeriod(periodId: string): Promise<TaxReturn[]> {
     const rows = await (this.prisma as any).taxReturn.findMany({ where: { periodId } });
-    return rows.map((r: any) => TaxReturn.load(r as TaxReturnState));
+    return rows.map((r: any) => this.toDomain(r));
   }
 
   async findByStatus(status: TaxReturnStatus): Promise<TaxReturn[]> {
     const rows = await (this.prisma as any).taxReturn.findMany({ where: { status } });
-    return rows.map((r: any) => TaxReturn.load(r as TaxReturnState));
+    return rows.map((r: any) => this.toDomain(r));
   }
 
   async findByTaxType(taxTypeId: string): Promise<TaxReturn[]> {
     const rows = await (this.prisma as any).taxReturn.findMany({ where: { taxTypeId } });
-    return rows.map((r: any) => TaxReturn.load(r as TaxReturnState));
+    return rows.map((r: any) => this.toDomain(r));
   }
 
   async findPending(): Promise<TaxReturn[]> {
     const rows = await (this.prisma as any).taxReturn.findMany({
       where: { status: { in: ["draft", "prepared", "submitted"] } },
     });
-    return rows.map((r: any) => TaxReturn.load(r as TaxReturnState));
+    return rows.map((r: any) => this.toDomain(r));
   }
 
   async findAll(): Promise<TaxReturn[]> {
     const rows = await (this.prisma as any).taxReturn.findMany();
-    return rows.map((r: any) => TaxReturn.load(r as TaxReturnState));
+    return rows.map((r: any) => this.toDomain(r));
   }
 }
 

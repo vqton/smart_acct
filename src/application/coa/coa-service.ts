@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { DomainError } from "../../shared/domain-error.js";
 import { AccountState } from "../../domain/gl/account.js";
 import { AccountNature } from "../../domain/gl/account-category.js";
@@ -6,10 +7,7 @@ import { AccountType } from "../../domain/coa/account-type.js";
 import { AccountMapping } from "../../domain/coa/account-mapping.js";
 import { AccountExtension } from "../../domain/coa/account-extension.js";
 import { AccountClassId, AccountTypeId, AccountMappingId } from "../../domain/coa/coa-ids.js";
-import {
-  AccountClassRepository, AccountTypeRepository,
-  AccountMappingRepository, AccountExtensionRepository,
-} from "../../domain/coa/coa-repositories.js";
+import { PrismaAccountClassRepository, PrismaAccountTypeRepository, PrismaAccountMappingRepository, PrismaAccountExtensionRepository } from "../../infrastructure/coa/coa-prisma-repos.js";
 import { validateAccountCode, validateHierarchyCycle, validateAccountForPosting } from "../../domain/coa/coa-specifications.js";
 import {
   AccountClassType, AccountTypeCategory, AccountSubType,
@@ -100,12 +98,13 @@ export interface AccountTreeNode {
   children: AccountTreeNode[];
 }
 
+@Injectable()
 export class CoaService {
   constructor(
-    private readonly classRepo: AccountClassRepository,
-    private readonly typeRepo: AccountTypeRepository,
-    private readonly mappingRepo: AccountMappingRepository,
-    private readonly extRepo: AccountExtensionRepository,
+    private readonly classRepo: PrismaAccountClassRepository,
+    private readonly typeRepo: PrismaAccountTypeRepository,
+    private readonly mappingRepo: PrismaAccountMappingRepository,
+    private readonly extRepo: PrismaAccountExtensionRepository,
   ) {}
 
   // ─── Account Classes ──────────────────────────────────────────────────

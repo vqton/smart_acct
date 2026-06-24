@@ -160,6 +160,7 @@ export class CashForecast extends AggregateRoot<CashForecastId> {
   }
 
   get id(): CashForecastId { return this._id; }
+  get status(): CashPositionStatus { return this._status; }
 
   addProjection(inflow: number, outflow: number): void {
     this._projectedInflows += inflow; this._projectedOutflows += outflow;
