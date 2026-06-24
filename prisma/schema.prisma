@@ -7251,3 +7251,553 @@ model PrlPayrollJournalLine {
   @@index([journalId])
   @@map("prl_payroll_journal_lines")
 }
+
+// ─── E-Invoice Module ──────────────────────────────────────────────────────────
+
+enum EinvInvoiceCategory {
+  sales        @map("sales")
+  adjustment   @map("adjustment")
+  replacement  @map("replacement")
+  credit_note  @map("credit_note")
+  debit_note   @map("debit_note")
+  cancel       @map("cancel")
+}
+
+enum EinvInvoiceStatus {
+  draft             @map("draft")
+  pending_approval  @map("pending_approval")
+  approved          @map("approved")
+  signed            @map("signed")
+  issued            @map("issued")
+  submitted         @map("submitted")
+  accepted          @map("accepted")
+  rejected          @map("rejected")
+  replaced          @map("replaced")
+  adjusted          @map("adjusted")
+  cancelled         @map("cancelled")
+  archived          @map("archived")
+  expired           @map("expired")
+  restored          @map("restored")
+}
+
+enum EinvProviderType {
+  vnpt   @map("vnpt")
+  viettel @map("viettel")
+  misa   @map("misa")
+  fast   @map("fast")
+  BKAV   @map("bkav")
+  HHD    @map("hhd")
+  other  @map("other")
+}
+
+enum EinvTransmissionStatus {
+  pending    @map("pending")
+  sending    @map("sending")
+  sent       @map("sent")
+  acknowledged @map("acknowledged")
+  failed     @map("failed")
+  retrying   @map("retrying")
+}
+
+enum EinvSignatureMethod {
+  rsa_sha256  @map("rsa_sha256")
+  ecdsa_sha256 @map("ecdsa_sha256")
+  dsa_sha256   @map("dsa_sha256")
+}
+
+enum EinvDigestAlgorithm {
+  sha_256  @map("sha_256")
+  sha_512  @map("sha_512")
+}
+
+enum EinvDeliveryMethod {
+  email @map("email")
+  sms   @map("sms")
+  portal @map("portal")
+  api   @map("api")
+}
+
+enum EinvAdjustmentType {
+  replacement @map("replacement")
+  adjustment  @map("adjustment")
+  cancellation @map("cancellation")
+}
+
+enum EinvArchiveStatus {
+  active    @map("active")
+  archived  @map("archived")
+  destroyed @map("destroyed")
+}
+
+enum EinvCertStatus {
+  active   @map("active")
+  expired  @map("expired")
+  revoked  @map("revoked")
+  suspended @map("suspended")
+}
+
+// ─── E-Invoice Type ────────────────────────────────────────────────────────────
+
+model EinvInvoiceType {
+  id            String   @id @default(uuid())
+  code          String   @unique @db.VarChar(20)
+  name          String   @db.VarChar(255)
+  description   String?  @db.Text
+  category      EinvInvoiceCategory
+  isActive      Boolean  @default(true)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  series        EinvSeries[]
+  invoices      EinvInvoice[]
+
+  @@index([code])
+  @@index([category])
+  @@map("einv_invoice_types")
+}
+
+// ─── E-Invoice Template ────────────────────────────────────────────────────────
+
+model EinvTemplate {
+  id            String   @id @default(uuid())
+  code          String   @unique @db.VarChar(20)
+  name          String   @db.VarChar(255)
+  description   String?  @db.Text
+  templateFile  String?  @db.VarChar(500)
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  providerTemplates EinvProviderTemplate[]
+  invoices          EinvInvoice[]
+
+  @@index([code])
+  @@map("einv_templates")
+}
+
+// ─── E-Invoice Series ──────────────────────────────────────────────────────────
+
+model EinvSeries {
+  id            String   @id @default(uuid())
+  code          String   @db.VarChar(10)
+  name          String   @db.VarChar(255)
+  invoiceTypeId String
+  invoiceType   EinvInvoiceType @relation(fields: [invoiceTypeId], references: [id])
+  prefix        String   @db.VarChar(10)
+  suffix        String?  @db.VarChar(10)
+  currentNumber Int      @default(0)
+  nextNumber    Int      @default(1)
+  minDigits     Int      @default(7)
+  maxDigits     Int      @default(7)
+  fiscalYear    Int?
+  isActive      Boolean  @default(true)
+  validFrom     DateTime
+  validTo       DateTime?
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  invoices EinvInvoice[]
+
+  @@unique([code, invoiceTypeId])
+  @@index([invoiceTypeId])
+  @@index([code])
+  @@index([fiscalYear])
+  @@map("einv_series")
+}
+
+// ─── E-Invoice Provider ────────────────────────────────────────────────────────
+
+model EinvProvider {
+  id               String           @id @default(uuid())
+  code             String           @unique @db.VarChar(20)
+  name             String           @db.VarChar(255)
+  providerType     EinvProviderType
+  apiEndpoint      String           @db.VarChar(500)
+  apiVersion       String           @db.VarChar(20)
+  apiUsername      String?          @db.VarChar(100)
+  apiPassword      String?          @db.VarChar(500)
+  apiKey           String?          @db.VarChar(500)
+  apiSecret        String?          @db.VarChar(500)
+  timeout          Int              @default(30000)
+  maxRetries       Int              @default(3)
+  isActive         Boolean          @default(true)
+  config           Json?            @db.Json
+  version          Int              @default(1)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  providerTemplates EinvProviderTemplate[]
+  certificates       EinvDigitalCertificate[]
+  transmissions     EinvTransmission[]
+
+  @@index([code])
+  @@index([providerType])
+  @@map("einv_providers")
+}
+
+// ─── E-Invoice Provider Template Mapping ────────────────────────────────────────
+
+model EinvProviderTemplate {
+  id              String   @id @default(uuid())
+  providerId      String
+  provider        EinvProvider @relation(fields: [providerId], references: [id])
+  templateId      String
+  template        EinvTemplate @relation(fields: [templateId], references: [id])
+  providerTemplateCode String @db.VarChar(50)
+  providerTemplateName String? @db.VarChar(255)
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([providerId, providerTemplateCode])
+  @@index([providerId])
+  @@index([templateId])
+  @@map("einv_provider_templates")
+}
+
+// ─── E-Invoice Digital Certificate ─────────────────────────────────────────────
+
+model EinvDigitalCertificate {
+  id              String           @id @default(uuid())
+  providerId      String
+  provider        EinvProvider     @relation(fields: [providerId], references: [id])
+  serialNumber    String           @unique @db.VarChar(100)
+  subjectDN       String           @db.VarChar(500)
+  issuerDN        String           @db.VarChar(500)
+  issuedTo        String           @db.VarChar(255)
+  issuedBy        String           @db.VarChar(255)
+  validFrom       DateTime
+  validTo         DateTime
+  thumbprint      String           @unique @db.VarChar(100)
+  certificateData String?          @db.Text
+  privateKeyRef   String?          @db.VarChar(500)
+  algorithm       EinvSignatureMethod @default(rsa_sha256)
+  digestAlgorithm EinvDigestAlgorithm @default(sha_256)
+  status          EinvCertStatus   @default(active)
+  isDefault       Boolean          @default(false)
+  companyId       String?          @db.VarChar(36)
+  branchId        String?          @db.VarChar(36)
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  signatures EinvSignature[]
+
+  @@index([providerId])
+  @@index([status])
+  @@index([serialNumber])
+  @@index([validTo])
+  @@map("einv_digital_certificates")
+}
+
+// ─── E-Invoice Signature ───────────────────────────────────────────────────────
+
+model EinvSignature {
+  id              String               @id @default(uuid())
+  invoiceId       String
+  invoice         EinvInvoice          @relation(fields: [invoiceId], references: [id])
+  certificateId   String
+  certificate     EinvDigitalCertificate @relation(fields: [certificateId], references: [id])
+  signatureData   String               @db.Text
+  signatureValue  String               @db.Text
+  signedHash      String?              @db.VarChar(500)
+  signingTime     DateTime
+  isValid         Boolean              @default(true)
+  verificationLog String?              @db.Text
+  version         Int                  @default(1)
+  createdAt       DateTime             @default(now())
+
+  @@index([invoiceId])
+  @@index([certificateId])
+  @@index([signingTime])
+  @@map("einv_signatures")
+}
+
+// ─── E-Invoice Core ──────────────────────────────────────────────────────────
+
+model EinvInvoice {
+  id                String             @id @default(uuid())
+  // Business reference
+  salesInvoiceId    String?            @unique @db.VarChar(36)
+  // Invoice identity
+  invoiceNumber     String             @db.VarChar(50)
+  invoiceCode       String?            @db.VarChar(50)
+  invoiceSymbol     String?            @db.VarChar(10)
+  invoiceName       String?            @db.VarChar(255)
+  // Type/Template/Series
+  invoiceTypeId     String
+  invoiceType       EinvInvoiceType    @relation(fields: [invoiceTypeId], references: [id])
+  templateId        String
+  template          EinvTemplate       @relation(fields: [templateId], references: [id])
+  seriesId          String?
+  series            EinvSeries?        @relation(fields: [seriesId], references: [id])
+  // Provider
+  providerId        String?
+  provider          EinvProvider?      @relation(fields: [providerId], references: [id])
+  // Parties
+  sellerName        String             @db.VarChar(255)
+  sellerTaxCode     String             @db.VarChar(20)
+  sellerAddress     String?            @db.VarChar(500)
+  sellerPhone       String?            @db.VarChar(50)
+  sellerEmail       String?            @db.VarChar(255)
+  sellerBankName    String?            @db.VarChar(255)
+  sellerBankAccount String?            @db.VarChar(50)
+  buyerName         String             @db.VarChar(255)
+  buyerTaxCode      String?            @db.VarChar(20)
+  buyerAddress      String?            @db.VarChar(500)
+  buyerPhone        String?            @db.VarChar(50)
+  buyerEmail        String?            @db.VarChar(255)
+  buyerBankName     String?            @db.VarChar(255)
+  buyerBankAccount  String?            @db.VarChar(50)
+  // Pricing
+  currencyCode      String             @default("VND") @db.VarChar(3)
+  exchangeRate      Decimal            @default(1) @db.Decimal(18, 6)
+  subtotal          BigInt             @default(0)
+  discountAmount    BigInt             @default(0)
+  taxAmount         BigInt             @default(0)
+  grandTotal        BigInt             @default(0)
+  amountInWords     String?            @db.VarChar(500)
+  // Status
+  status            EinvInvoiceStatus  @default(draft)
+  category          EinvInvoiceCategory @default(sales)
+  // Dates
+  invoiceDate       DateTime
+  issueDate         DateTime?
+  signingDate       DateTime?
+  // Tax authority
+  taxAuthorityCode  String?            @db.VarChar(50)
+  taxAuthorityResponse Json?           @db.Json
+  verifyCode        String?            @db.VarChar(100)
+  // GL
+  glBatchId         String?            @db.VarChar(36)
+  postedToGL        Boolean            @default(false)
+  // Audit
+  xmlData           String?            @db.LongText
+  pdfData           String?            @db.LongText
+  version           Int                @default(1)
+  createdBy         String?            @db.VarChar(100)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
+
+  lines       EinvInvoiceLine[]
+  signatures  EinvSignature[]
+  transmissions EinvTransmission[]
+  adjustments EinvAdjustment[]
+  archives    EinvArchive[]
+  deliveries  EinvDeliveryLog[]
+  auditLogs   EinvAuditLog[]
+
+  @@index([invoiceNumber])
+  @@index([invoiceCode])
+  @@index([invoiceSymbol])
+  @@index([salesInvoiceId])
+  @@index([buyerTaxCode])
+  @@index([sellerTaxCode])
+  @@index([status])
+  @@index([invoiceDate])
+  @@index([issueDate])
+  @@index([templateId])
+  @@index([seriesId])
+  @@index([providerId])
+  @@map("einv_invoices")
+}
+
+// ─── E-Invoice Line ──────────────────────────────────────────────────────────
+
+model EinvInvoiceLine {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         EinvInvoice @relation(fields: [invoiceId], references: [id])
+  lineNumber      Int
+  itemCode        String   @db.VarChar(50)
+  itemName        String   @db.VarChar(255)
+  unit            String   @db.VarChar(10)
+  quantity        Decimal  @db.Decimal(18, 4)
+  unitPrice       BigInt   @default(0)
+  totalPrice      BigInt   @default(0)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount  BigInt   @default(0)
+  taxCode         String?  @db.VarChar(20)
+  taxRate         Decimal  @default(0) @db.Decimal(5, 2)
+  taxAmount       BigInt   @default(0)
+  netAmount       BigInt   @default(0)
+  // Optional references
+  salesLineId     String?  @db.VarChar(36)
+  itemId          String?  @db.VarChar(36)
+  description     String?  @db.Text
+
+  @@index([invoiceId])
+  @@index([itemCode])
+  @@map("einv_invoice_lines")
+}
+
+// ─── E-Invoice Transmission ──────────────────────────────────────────────────
+
+model EinvTransmission {
+  id              String                 @id @default(uuid())
+  invoiceId       String
+  invoice         EinvInvoice            @relation(fields: [invoiceId], references: [id])
+  providerId      String
+  provider        EinvProvider           @relation(fields: [providerId], references: [id])
+  transmissionId  String?                @db.VarChar(100)
+  status          EinvTransmissionStatus @default(pending)
+  requestData     String?                @db.LongText
+  responseData    String?                @db.LongText
+  statusCode      String?                @db.VarChar(10)
+  statusMessage   String?                @db.Text
+  retryCount      Int                    @default(0)
+  maxRetries      Int                    @default(3)
+  nextRetryAt     DateTime?
+  acknowledgedAt  DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+  errorDetail     String?                @db.Text
+  version         Int                    @default(1)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  logs EinvTransmissionLog[]
+
+  @@index([invoiceId])
+  @@index([providerId])
+  @@index([status])
+  @@index([transmissionId])
+  @@map("einv_transmissions")
+}
+
+// ─── E-Invoice Transmission Log ──────────────────────────────────────────────
+
+model EinvTransmissionLog {
+  id              String   @id @default(uuid())
+  transmissionId  String
+  transmission    EinvTransmission @relation(fields: [transmissionId], references: [id])
+  eventType       String   @db.VarChar(50)
+  eventData       String?  @db.LongText
+  eventMessage    String?  @db.Text
+  performedBy     String?  @db.VarChar(100)
+  occurredAt      DateTime @default(now())
+
+  @@index([transmissionId])
+  @@index([occurredAt])
+  @@map("einv_transmission_logs")
+}
+
+// ─── E-Invoice Adjustment ─────────────────────────────────────────────────────
+
+model EinvAdjustment {
+  id                String              @id @default(uuid())
+  invoiceId         String
+  invoice           EinvInvoice         @relation(fields: [invoiceId], references: [id])
+  adjustmentType    EinvAdjustmentType
+  originalInvoiceId String
+  originalInvoice   EinvInvoice         @relation("InvoiceAdjustments", fields: [originalInvoiceId], references: [id])
+  reasonCode        String?             @db.VarChar(20)
+  reasonDescription String?             @db.Text
+  adjustmentNumber  String?             @db.VarChar(50)
+  adjustmentDate    DateTime?
+  additionalData    Json?               @db.Json
+  version           Int                 @default(1)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([invoiceId])
+  @@index([originalInvoiceId])
+  @@index([adjustmentType])
+  @@map("einv_adjustments")
+}
+
+// ─── E-Invoice Archive ────────────────────────────────────────────────────────
+
+model EinvArchive {
+  id              String             @id @default(uuid())
+  invoiceId       String
+  invoice         EinvInvoice        @relation(fields: [invoiceId], references: [id])
+  archiveDate     DateTime
+  archiveType     String             @db.VarChar(20)
+  storagePath     String?            @db.VarChar(500)
+  xmlData         String?            @db.LongText
+  pdfData         String?            @db.LongText
+  checksum        String?            @db.VarChar(100)
+  fileSize        BigInt?            @default(0)
+  status          EinvArchiveStatus  @default(active)
+  retentionUntil  DateTime?
+  destroyedAt     DateTime?
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([invoiceId])
+  @@index([archiveDate])
+  @@index([status])
+  @@map("einv_archives")
+}
+
+// ─── E-Invoice Delivery Log ────────────────────────────────────────────────────
+
+model EinvDeliveryLog {
+  id          String             @id @default(uuid())
+  invoiceId   String
+  invoice     EinvInvoice        @relation(fields: [invoiceId], references: [id])
+  method      EinvDeliveryMethod
+  recipient   String             @db.VarChar(255)
+  subject     String?            @db.VarChar(255)
+  sentAt      DateTime?
+  openedAt    DateTime?
+  status      String             @db.VarChar(20)
+  errorLog    String?            @db.Text
+  version     Int                @default(1)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([invoiceId])
+  @@index([method])
+  @@map("einv_delivery_logs")
+}
+
+// ─── E-Invoice Reason Code ─────────────────────────────────────────────────────
+
+model EinvReasonCode {
+  id          String   @id @default(uuid())
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  category    String   @db.VarChar(20)
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@index([category])
+  @@map("einv_reason_codes")
+}
+
+// ─── E-Invoice Audit Log (Immutable) ─────────────────────────────────────────
+
+model EinvAuditLog {
+  id          String     @id @default(uuid())
+  invoiceId   String
+  invoice     EinvInvoice @relation(fields: [invoiceId], references: [id])
+  action      String     @db.VarChar(50)
+  entityType  String     @db.VarChar(50)
+  entityId    String?    @db.VarChar(36)
+  oldValue    String?    @db.LongText
+  newValue    String?    @db.LongText
+  changes     Json?      @db.Json
+  performedBy String?    @db.VarChar(100)
+  ipAddress   String?    @db.VarChar(45)
+  userAgent   String?    @db.VarChar(255)
+  occurredAt  DateTime   @default(now())
+
+  @@index([invoiceId])
+  @@index([action])
+  @@index([occurredAt])
+  @@map("einv_audit_logs")
+}
