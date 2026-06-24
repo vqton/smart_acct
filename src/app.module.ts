@@ -11,8 +11,9 @@ import { InventoryModule } from "./presentation/inventory/inventory.module.js";
 import { PrlModule } from "./presentation/prl/prl.module.js";
 import { EinvModule } from "./presentation/einvoice/einv.module.js";
 import { FrModule } from "./presentation/fr/fr.module.js";
+import { CstModule } from "./presentation/costing/cst.module.js";
 
 @Module({
-  imports: [PrismaModule, GlModule, TaxModule, CoaModule, CmModule, BankModule, PurchasingModule, SalesModule, InventoryModule, PrlModule, EinvModule, FrModule],
+  imports: [PrismaModule, GlModule, TaxModule, CoaModule, CmModule, BankModule, PurchasingModule, SalesModule, InventoryModule, PrlModule, EinvModule, FrModule, CstModule],
 })
 export class AppModule {}

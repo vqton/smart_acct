@@ -8469,3 +8469,733 @@ model FrReportApproval {
   @@index([status])
   @@map("fr_report_approvals")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COSTING MODULE (Enterprise Cost Management)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum CstCostMethod {
+  standard
+  actual
+  weighted_average
+  moving_average
+  fifo
+  specific_identification
+  batch
+  job_order
+  process
+  abc
+  absorption
+  marginal
+  hybrid
+}
+
+enum CstCostElementType {
+  material
+  labor
+  machine
+  overhead
+  subcontract
+  setup
+  tooling
+  energy
+  transportation
+  duty
+  administration
+  selling
+}
+
+enum CstCostPoolType {
+  production
+  service
+  administration
+  selling
+  material_overhead
+  labor_overhead
+  machine_overhead
+  general_overhead
+  it
+  hr
+  facility
+  quality
+  logistics
+  maintenance
+  utilities
+}
+
+enum CstAllocationMethod {
+  direct
+  step_down
+  reciprocal
+  driver_based
+  percentage
+  fixed
+  abc
+  statistical
+}
+
+enum CstAllocationBasis {
+  volume
+  value
+  labor_hours
+  machine_hours
+  headcount
+  area
+  power_consumption
+  material_cost
+  labor_cost
+  revenue
+  units_produced
+  orders
+  transactions
+  time
+  custom
+}
+
+enum CstProductionOrderStatus {
+  planned
+  released
+  in_progress
+  completed
+  closed
+  cancelled
+  on_hold
+}
+
+enum CstCostSnapshotType {
+  period_close
+  cost_freeze
+  pre_close
+  post_close
+  actual
+  budget
+  simulation
+  revaluation
+}
+
+enum CstVarianceType {
+  material_price
+  material_usage
+  labor_rate
+  labor_efficiency
+  machine_rate
+  machine_efficiency
+  overhead_volume
+  overhead_spending
+  overhead_efficiency
+  purchase_price
+  exchange_rate
+  production_volume
+  yield
+  mix
+  yield_quantity
+  revaluation
+}
+
+// ─── Cost Version ────────────────────────────────────────────────────────────────
+
+model CstCostVersion {
+  id            String     @id @default(uuid())
+  code          String     @unique @db.VarChar(20)
+  name          String     @db.VarChar(255)
+  costMethod    CstCostMethod @default(standard)
+  fiscalYearId  String     @db.VarChar(36)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive      Boolean    @default(true)
+  isLocked      Boolean    @default(false)
+  description   String?    @db.Text
+  version       Int        @default(1)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  @@index([code])
+  @@index([fiscalYearId])
+  @@index([isActive])
+  @@map("cst_cost_versions")
+}
+
+// ─── Work Center ─────────────────────────────────────────────────────────────────
+
+model CstWorkCenter {
+  id             String          @id @default(uuid())
+  code           String          @unique @db.VarChar(20)
+  name           String          @db.VarChar(255)
+  workCenterType String          @default("production") @db.VarChar(20)
+  costCenterId   String?         @db.VarChar(36)
+  departmentId   String?         @db.VarChar(36)
+  machineCount   Int             @default(1)
+  laborCount     Int             @default(1)
+  hourlyRate     Decimal         @default(0) @db.Decimal(19, 4)
+  machineRate    Decimal         @default(0) @db.Decimal(19, 4)
+  overheadRate   Decimal         @default(0) @db.Decimal(19, 4)
+  capacity       Decimal         @default(0) @db.Decimal(19, 4)
+  capacityUom    String          @default("hours") @db.VarChar(10)
+  efficiency     Decimal         @default(1) @db.Decimal(5, 2)
+  isActive       Boolean         @default(true)
+  description    String?         @db.Text
+  version        Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  @@index([code])
+  @@index([costCenterId])
+  @@map("cst_work_centers")
+}
+
+// ─── Bill of Materials ───────────────────────────────────────────────────────────
+
+model CstBom {
+  id          String   @id @default(uuid())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  itemId      String   @db.VarChar(36)
+  itemCode    String   @db.VarChar(50)
+  itemName    String   @db.VarChar(255)
+  bomType     String   @default("manufacturing") @db.VarChar(20)
+  quantity    Decimal  @default(1) @db.Decimal(19, 4)
+  uom         String   @default("pc") @db.VarChar(10)
+  scrapRate   Decimal  @default(0) @db.Decimal(5, 2)
+  yieldRate   Decimal  @default(100) @db.Decimal(5, 2)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  revision    Int      @default(0)
+  description String?  @db.Text
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  lines      CstBomLine[]
+  routings   CstBomRouting[]
+
+  @@index([code])
+  @@index([itemId])
+  @@index([itemCode])
+  @@index([isDefault])
+  @@index([effectiveFrom, effectiveTo])
+  @@map("cst_boms")
+}
+
+model CstBomLine {
+  id            String   @id @default(uuid())
+  bomId         String
+  bom           CstBom   @relation(fields: [bomId], references: [id])
+  lineNumber    Int
+  componentItemId   String   @db.VarChar(36)
+  componentCode     String   @db.VarChar(50)
+  componentName     String   @db.VarChar(255)
+  quantity      Decimal  @db.Decimal(19, 4)
+  uom           String   @default("pc") @db.VarChar(10)
+  scrapRate     Decimal  @default(0) @db.Decimal(5, 2)
+  yieldRate     Decimal  @default(100) @db.Decimal(5, 2)
+  costElement   CstCostElementType @default(material)
+  unitCost      Decimal  @default(0) @db.Decimal(19, 4)
+  extendedCost  Decimal  @default(0) @db.Decimal(19, 4)
+  costVersionId String?  @db.VarChar(36)
+  isPhantom     Boolean  @default(false)
+  effectivityStart DateTime?
+  effectivityEnd   DateTime?
+  notes         String?  @db.Text
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([bomId])
+  @@index([componentItemId])
+  @@index([costVersionId])
+  @@map("cst_bom_lines")
+}
+
+// ─── BOM Routing ─────────────────────────────────────────────────────────────────
+
+model CstBomRouting {
+  id            String   @id @default(uuid())
+  bomId         String
+  bom           CstBom   @relation(fields: [bomId], references: [id])
+  operationSeq  Int
+  workCenterId  String?  @db.VarChar(36)
+  operationDescription String @db.VarChar(255)
+  setupTime     Decimal  @default(0) @db.Decimal(19, 4)
+  runTime       Decimal  @default(0) @db.Decimal(19, 4)
+  queueTime     Decimal  @default(0) @db.Decimal(19, 4)
+  moveTime      Decimal  @default(0) @db.Decimal(19, 4)
+  laborCount    Int      @default(1)
+  machineCount  Int      @default(1)
+  laborRate     Decimal  @default(0) @db.Decimal(19, 4)
+  machineRate   Decimal  @default(0) @db.Decimal(19, 4)
+  overheadRate  Decimal  @default(0) @db.Decimal(19, 4)
+  setupCost     Decimal  @default(0) @db.Decimal(19, 4)
+  laborCost     Decimal  @default(0) @db.Decimal(19, 4)
+  machineCost   Decimal  @default(0) @db.Decimal(19, 4)
+  overheadCost  Decimal  @default(0) @db.Decimal(19, 4)
+  totalCost     Decimal  @default(0) @db.Decimal(19, 4)
+  costVersionId String?  @db.VarChar(36)
+  notes         String?  @db.Text
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([bomId])
+  @@index([workCenterId])
+  @@index([costVersionId])
+  @@map("cst_bom_routings")
+}
+
+// ─── Production Orders ───────────────────────────────────────────────────────────
+
+model CstProductionOrder {
+  id                  String                  @id @default(uuid())
+  orderNumber         String                  @unique @db.VarChar(50)
+  itemId              String                  @db.VarChar(36)
+  itemCode            String                  @db.VarChar(50)
+  itemName            String                  @db.VarChar(255)
+  bomId               String?                 @db.VarChar(36)
+  routingId           String?                 @db.VarChar(36)
+  workCenterId        String?                 @db.VarChar(36)
+  status              CstProductionOrderStatus @default(planned)
+  quantity            Decimal                 @db.Decimal(19, 4)
+  completedQty        Decimal                 @default(0) @db.Decimal(19, 4)
+  scrappedQty         Decimal                 @default(0) @db.Decimal(19, 4)
+  uom                 String                  @default("pc") @db.VarChar(10)
+  plannedStartDate    DateTime
+  plannedEndDate      DateTime?
+  actualStartDate     DateTime?
+  actualEndDate       DateTime?
+  companyId           String                  @db.VarChar(36)
+  branchId            String?                 @db.VarChar(36)
+  warehouseId         String?                 @db.VarChar(36)
+  currencyCode        String                  @default("VND") @db.VarChar(3)
+  exchangeRate        Decimal                 @default(1) @db.Decimal(19, 6)
+  // Cost accumulation
+  estimatedMaterialCost Decimal               @default(0) @db.Decimal(19, 4)
+  estimatedLaborCost    Decimal               @default(0) @db.Decimal(19, 4)
+  estimatedMachineCost  Decimal               @default(0) @db.Decimal(19, 4)
+  estimatedOverheadCost Decimal               @default(0) @db.Decimal(19, 4)
+  estimatedTotalCost    Decimal               @default(0) @db.Decimal(19, 4)
+  actualMaterialCost    Decimal               @default(0) @db.Decimal(19, 4)
+  actualLaborCost       Decimal               @default(0) @db.Decimal(19, 4)
+  actualMachineCost     Decimal               @default(0) @db.Decimal(19, 4)
+  actualOverheadCost    Decimal               @default(0) @db.Decimal(19, 4)
+  actualTotalCost       Decimal               @default(0) @db.Decimal(19, 4)
+  // Variance
+  materialVariance     Decimal                @default(0) @db.Decimal(19, 4)
+  laborVariance        Decimal                @default(0) @db.Decimal(19, 4)
+  machineVariance      Decimal                @default(0) @db.Decimal(19, 4)
+  overheadVariance     Decimal                @default(0) @db.Decimal(19, 4)
+  totalVariance        Decimal                @default(0) @db.Decimal(19, 4)
+  // GL
+  glBatchId           String?                 @db.VarChar(36)
+  postedToGL          Boolean                 @default(false)
+  // Audit
+  createdById         String?                 @db.VarChar(36)
+  approvedById        String?                 @db.VarChar(36)
+  approvedAt          DateTime?
+  closedById          String?                 @db.VarChar(36)
+  closedAt            DateTime?
+  notes               String?                 @db.Text
+  version             Int                     @default(1)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  deletedAt           DateTime?
+
+  components  CstProductionOrderComponent[]
+  operations  CstProductionOrderOperation[]
+  variances   CstProductionVariance[]
+  allocations CstCostAllocationEntry[]
+
+  @@index([orderNumber])
+  @@index([itemId])
+  @@index([status])
+  @@index([companyId])
+  @@index([warehouseId])
+  @@map("cst_production_orders")
+}
+
+model CstProductionOrderComponent {
+  id                String   @id @default(uuid())
+  orderId           String
+  order             CstProductionOrder @relation(fields: [orderId], references: [id])
+  lineNumber        Int
+  componentItemId   String   @db.VarChar(36)
+  componentCode     String   @db.VarChar(50)
+  componentName     String   @db.VarChar(255)
+  requiredQty       Decimal  @db.Decimal(19, 4)
+  issuedQty         Decimal  @default(0) @db.Decimal(19, 4)
+  scrappedQty       Decimal  @default(0) @db.Decimal(19, 4)
+  returnedQty       Decimal  @default(0) @db.Decimal(19, 4)
+  uom               String   @default("pc") @db.VarChar(10)
+  unitCost          Decimal  @default(0) @db.Decimal(19, 4)
+  totalCost         Decimal  @default(0) @db.Decimal(19, 4)
+  standardCost      Decimal  @default(0) @db.Decimal(19, 4)
+  costVariance      Decimal  @default(0) @db.Decimal(19, 4)
+  costElement       CstCostElementType @default(material)
+  bomLineId         String?  @db.VarChar(36)
+  warehouseId       String?  @db.VarChar(36)
+  inventoryTxId     String?  @db.VarChar(36)
+  notes             String?  @db.Text
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([componentItemId])
+  @@map("cst_production_order_components")
+}
+
+model CstProductionOrderOperation {
+  id                  String   @id @default(uuid())
+  orderId             String
+  order               CstProductionOrder @relation(fields: [orderId], references: [id])
+  operationSeq        Int
+  workCenterId        String?  @db.VarChar(36)
+  operationName       String   @db.VarChar(255)
+  setupTime           Decimal  @default(0) @db.Decimal(19, 4)
+  runTime             Decimal  @default(0) @db.Decimal(19, 4)
+  actualSetupTime     Decimal  @default(0) @db.Decimal(19, 4)
+  actualRunTime       Decimal  @default(0) @db.Decimal(19, 4)
+  laborCount          Int      @default(1)
+  machineCount        Int      @default(1)
+  laborRate           Decimal  @default(0) @db.Decimal(19, 4)
+  machineRate         Decimal  @default(0) @db.Decimal(19, 4)
+  overheadRate        Decimal  @default(0) @db.Decimal(19, 4)
+  estimatedLaborCost    Decimal @default(0) @db.Decimal(19, 4)
+  estimatedMachineCost  Decimal @default(0) @db.Decimal(19, 4)
+  estimatedOverheadCost Decimal @default(0) @db.Decimal(19, 4)
+  estimatedTotalCost    Decimal @default(0) @db.Decimal(19, 4)
+  actualLaborCost       Decimal @default(0) @db.Decimal(19, 4)
+  actualMachineCost     Decimal @default(0) @db.Decimal(19, 4)
+  actualOverheadCost    Decimal @default(0) @db.Decimal(19, 4)
+  actualTotalCost       Decimal @default(0) @db.Decimal(19, 4)
+  completedQty        Decimal  @default(0) @db.Decimal(19, 4)
+  isCompleted         Boolean  @default(false)
+  notes               String?  @db.Text
+  version             Int      @default(1)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([workCenterId])
+  @@map("cst_production_order_operations")
+}
+
+// ─── Overhead Rates ──────────────────────────────────────────────────────────────
+
+model CstOverheadRate {
+  id              String         @id @default(uuid())
+  code            String         @unique @db.VarChar(20)
+  name            String         @db.VarChar(255)
+  costPoolType    CstCostPoolType
+  costElement     CstCostElementType @default(overhead)
+  allocationBasis CstAllocationBasis
+  rate            Decimal        @db.Decimal(19, 6)
+  rateType        String         @default("percentage") @db.VarChar(20)
+  workCenterId    String?        @db.VarChar(36)
+  costCenterId    String?        @db.VarChar(36)
+  departmentId    String?        @db.VarChar(36)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  isActive        Boolean        @default(true)
+  fiscalYearId    String?        @db.VarChar(36)
+  costVersionId   String?        @db.VarChar(36)
+  description     String?        @db.Text
+  version         Int            @default(1)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  @@index([code])
+  @@index([costPoolType])
+  @@index([workCenterId])
+  @@index([costCenterId])
+  @@index([effectiveFrom, effectiveTo])
+  @@map("cst_overhead_rates")
+}
+
+// ─── Cost Pools ──────────────────────────────────────────────────────────────────
+
+model CstCostPool {
+  id              String          @id @default(uuid())
+  code            String          @unique @db.VarChar(20)
+  name            String          @db.VarChar(255)
+  poolType        CstCostPoolType
+  costCenterId    String?         @db.VarChar(36)
+  departmentId    String?         @db.VarChar(36)
+  totalAmount     Decimal         @default(0) @db.Decimal(19, 4)
+  allocatedAmount Decimal         @default(0) @db.Decimal(19, 4)
+  unallocatedAmount Decimal       @default(0) @db.Decimal(19, 4)
+  fiscalYearId    String?         @db.VarChar(36)
+  periodId        String?         @db.VarChar(36)
+  isActive        Boolean         @default(true)
+  description     String?         @db.Text
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  rules CstCostAllocationRule[]
+
+  @@index([code])
+  @@index([poolType])
+  @@index([costCenterId])
+  @@map("cst_cost_pools")
+}
+
+// ─── Cost Allocation Rules ───────────────────────────────────────────────────────
+
+model CstCostAllocationRule {
+  id              String              @id @default(uuid())
+  code            String              @unique @db.VarChar(20)
+  name            String              @db.VarChar(255)
+  poolId          String?
+  pool            CstCostPool?        @relation(fields: [poolId], references: [id])
+  sourceCostCenterId  String?         @db.VarChar(36)
+  targetCostCenterId  String?         @db.VarChar(36)
+  allocationMethod CstAllocationMethod @default(direct)
+  allocationBasis  CstAllocationBasis
+  basisValue       Decimal            @default(0) @db.Decimal(19, 4)
+  percentage       Decimal?           @db.Decimal(7, 4)
+  fixedAmount      Decimal?           @db.Decimal(19, 4)
+  driverId         String?            @db.VarChar(36)
+  effectiveFrom    DateTime
+  effectiveTo      DateTime?
+  isActive         Boolean            @default(true)
+  priority         Int                @default(0)
+  fiscalYearId     String?            @db.VarChar(36)
+  periodId         String?            @db.VarChar(36)
+  description      String?            @db.Text
+  version          Int                @default(1)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+
+  entries CstCostAllocationEntry[]
+
+  @@index([code])
+  @@index([poolId])
+  @@index([sourceCostCenterId])
+  @@index([targetCostCenterId])
+  @@index([allocationMethod])
+  @@map("cst_cost_allocation_rules")
+}
+
+// ─── Cost Allocation Entries (Executed) ──────────────────────────────────────────
+
+model CstCostAllocationEntry {
+  id              String              @id @default(uuid())
+  ruleId          String
+  rule            CstCostAllocationRule @relation(fields: [ruleId], references: [id])
+  productionOrderId String?           @db.VarChar(36)
+  batchId         String?             @db.VarChar(36)
+  periodId        String?             @db.VarChar(36)
+  sourceCostCenterId String?          @db.VarChar(36)
+  targetCostCenterId String?          @db.VarChar(36)
+  sourceAmount    Decimal             @default(0) @db.Decimal(19, 4)
+  allocatedAmount Decimal             @default(0) @db.Decimal(19, 4)
+  basisValue      Decimal             @default(0) @db.Decimal(19, 4)
+  allocationDate  DateTime
+  currencyCode    String              @default("VND") @db.VarChar(3)
+  exchangeRate    Decimal             @default(1) @db.Decimal(19, 6)
+  glBatchId       String?             @db.VarChar(36)
+  postedToGL      Boolean             @default(false)
+  createdById     String?             @db.VarChar(36)
+  version         Int                 @default(1)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  order CstProductionOrder? @relation(fields: [productionOrderId], references: [id])
+
+  @@index([ruleId])
+  @@index([productionOrderId])
+  @@index([periodId])
+  @@index([sourceCostCenterId])
+  @@index([targetCostCenterId])
+  @@map("cst_cost_allocation_entries")
+}
+
+// ─── Production Variances ────────────────────────────────────────────────────────
+
+model CstProductionVariance {
+  id                String          @id @default(uuid())
+  orderId           String
+  order             CstProductionOrder @relation(fields: [orderId], references: [id])
+  varianceType      CstVarianceType
+  costElement       CstCostElementType
+  standardAmount    Decimal         @default(0) @db.Decimal(19, 4)
+  actualAmount      Decimal         @default(0) @db.Decimal(19, 4)
+  varianceAmount    Decimal         @default(0) @db.Decimal(19, 4)
+  variancePercent   Decimal         @default(0) @db.Decimal(7, 2)
+  quantityVariance  Decimal?        @default(0) @db.Decimal(19, 4)
+  priceVariance     Decimal?        @default(0) @db.Decimal(19, 4)
+  description       String?         @db.Text
+  periodId          String?         @db.VarChar(36)
+  fiscalYearId      String?         @db.VarChar(36)
+  glBatchId         String?         @db.VarChar(36)
+  postedToGL        Boolean         @default(false)
+  version           Int             @default(1)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([orderId])
+  @@index([varianceType])
+  @@index([periodId])
+  @@map("cst_production_variances")
+}
+
+// ─── Cost Snapshots ──────────────────────────────────────────────────────────────
+
+model CstCostSnapshot {
+  id              String             @id @default(uuid())
+  snapshotNumber  String             @unique @db.VarChar(50)
+  snapshotType    CstCostSnapshotType
+  periodId        String?            @db.VarChar(36)
+  fiscalYearId    String?            @db.VarChar(36)
+  snapshotDate    DateTime
+  itemCount       Int                @default(0)
+  totalCost       Decimal            @default(0) @db.Decimal(19, 4)
+  totalQuantity   Decimal            @default(0) @db.Decimal(19, 4)
+  currencyCode    String             @default("VND") @db.VarChar(3)
+  isFrozen        Boolean            @default(false)
+  frozenAt        DateTime?
+  frozenById      String?            @db.VarChar(36)
+  notes           String?            @db.Text
+  createdById     String?            @db.VarChar(36)
+  version         Int                @default(1)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+
+  lines CstCostSnapshotLine[]
+
+  @@index([snapshotNumber])
+  @@index([periodId])
+  @@index([snapshotType])
+  @@index([snapshotDate])
+  @@map("cst_cost_snapshots")
+}
+
+model CstCostSnapshotLine {
+  id              String   @id @default(uuid())
+  snapshotId      String
+  snapshot        CstCostSnapshot @relation(fields: [snapshotId], references: [id])
+  itemId          String   @db.VarChar(36)
+  itemCode        String   @db.VarChar(50)
+  itemName        String   @db.VarChar(255)
+  warehouseId     String?  @db.VarChar(36)
+  uom             String   @default("pc") @db.VarChar(10)
+  quantity        Decimal  @default(0) @db.Decimal(19, 4)
+  unitCost        Decimal  @default(0) @db.Decimal(19, 4)
+  totalCost       Decimal  @default(0) @db.Decimal(19, 4)
+  previousCost    Decimal  @default(0) @db.Decimal(19, 4)
+  costChange      Decimal  @default(0) @db.Decimal(19, 4)
+  currencyCode    String   @default("VND") @db.VarChar(3)
+  costMethod      CstCostMethod @default(standard)
+  version         Int      @default(1)
+
+  @@index([snapshotId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@map("cst_cost_snapshot_lines")
+}
+
+// ─── Cost Rollup History ─────────────────────────────────────────────────────────
+
+model CstCostRollup {
+  id              String   @id @default(uuid())
+  rollupNumber    String   @unique @db.VarChar(50)
+  costVersionId   String?  @db.VarChar(36)
+  fiscalYearId    String?  @db.VarChar(36)
+  periodId        String?  @db.VarChar(36)
+  rolledUpAt      DateTime @default(now())
+  itemCount       Int      @default(0)
+  bomCount        Int      @default(0)
+  status          String   @default("completed") @db.VarChar(20)
+  errorMessage    String?  @db.Text
+  createdById     String?  @db.VarChar(36)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lines CstCostRollupLine[]
+
+  @@index([rollupNumber])
+  @@index([costVersionId])
+  @@map("cst_cost_rollups")
+}
+
+model CstCostRollupLine {
+  id              String   @id @default(uuid())
+  rollupId        String
+  rollup          CstCostRollup @relation(fields: [rollupId], references: [id])
+  itemId          String   @db.VarChar(36)
+  itemCode        String   @db.VarChar(50)
+  itemName        String   @db.VarChar(255)
+  bomId           String?  @db.VarChar(36)
+  uom             String   @default("pc") @db.VarChar(10)
+  materialCost    Decimal  @default(0) @db.Decimal(19, 4)
+  laborCost       Decimal  @default(0) @db.Decimal(19, 4)
+  machineCost     Decimal  @default(0) @db.Decimal(19, 4)
+  overheadCost    Decimal  @default(0) @db.Decimal(19, 4)
+  subcontractCost Decimal  @default(0) @db.Decimal(19, 4)
+  totalCost       Decimal  @default(0) @db.Decimal(19, 4)
+  previousCost    Decimal  @default(0) @db.Decimal(19, 4)
+  costChange      Decimal  @default(0) @db.Decimal(19, 4)
+  currencyCode    String   @default("VND") @db.VarChar(3)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+
+  @@index([rollupId])
+  @@index([itemId])
+  @@map("cst_cost_rollup_lines")
+}
+
+// ─── Cost Period Close ───────────────────────────────────────────────────────────
+
+model CstPeriodClose {
+  id              String   @id @default(uuid())
+  periodId        String   @db.VarChar(36)
+  fiscalYearId    String   @db.VarChar(36)
+  closeType       String   @default("monthly") @db.VarChar(20)
+  status          String   @default("pending") @db.VarChar(20)
+  snapshotId      String?  @db.VarChar(36)
+  allocationRunId String?  @db.VarChar(36)
+  varianceRunId   String?  @db.VarChar(36)
+  glBatchId       String?  @db.VarChar(36)
+  postedToGL      Boolean  @default(false)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?  @db.Text
+  createdById     String?  @db.VarChar(36)
+  notes           String?  @db.Text
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  steps CstPeriodCloseStep[]
+
+  @@index([periodId])
+  @@index([fiscalYearId])
+  @@index([status])
+  @@map("cst_period_closes")
+}
+
+model CstPeriodCloseStep {
+  id              String   @id @default(uuid())
+  closeId         String
+  close           CstPeriodClose @relation(fields: [closeId], references: [id])
+  stepOrder       Int
+  stepName        String   @db.VarChar(100)
+  status          String   @default("pending") @db.VarChar(20)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?  @db.Text
+  createdById     String?  @db.VarChar(36)
+
+  @@index([closeId])
+  @@map("cst_period_close_steps")
+}

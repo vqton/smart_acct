@@ -95,14 +95,18 @@ The proxy is configured as an MCP server in `opencode.json` (provides `headroom_
 - **COA Module (Enterprise Chart of Accounts):** Full domain model (AccountClass, AccountType, AccountMapping, AccountExtension), 4 aggregate roots with domain events, specification pattern validators (PostingAccountSpec, ActiveStatusSpec, EffectiveDateSpec, hierarchy cycle detection), Prisma schema with 7 new tables + audit trail tables, 4 Prisma repositories, CoaService, 4 REST controllers (classes, types, mappings, extensions), 29 new tests.
 - **Bank Module (Enterprise Bank Management):** Full domain model (35 enums, 30 identifiers, 20+ domain events, 12 VOs, 9 aggregates: BankGroup/Bank/Branch/Correspondent, BankAccount, BankTransaction, BankStatement, BankReconciliation, PaymentRequest/Batch/Recurring, CashPosition/Forecast/FX, ApprovalMatrix/Request), 15 business rule specifications, 20+ repository interfaces, 25 Prisma models (bnk_ prefix), 21 Prisma repository implementations, 3 application services (master, account, transaction), 1 REST controller (bank-master.controller.ts) with 50+ routes, DTOs with class-validator + Swagger, BankModule registered in AppModule. 106 bank tests pass.
 
+- **Costing Module (Enterprise Costing Engine):** 40+ Prisma models (`cst_` prefix), full domain layer (9 aggregates: CostVersion/WorkCenter/Bom/ProductionOrder/CostPool/AllocationRule/OverheadRate/CostSnapshot/ProductionVariance), 15 IDs, 20+ domain events, DDD value objects, 9 repository interfaces, 9 Prisma repository implementations, 3 application services (CostingEngine, AllocationEngine, PeriodClose), 1 REST controller (25+ routes), CstModule registered in AppModule. Prisma client regenerated, `tsc --noEmit` clean, 566 tests pass.
+
 ### Pending
 - Full Money integration across domain entities (currently at repo boundary).
 - Auth module (RBAC).
 - COA import/export (Excel/CSV/JSON) bulk APIs.
 - Controller Swagger verification (manual endpoint review).
 - Inventory accounting GL posting integration (GR/IR, COGS accrual, revaluation journals).
+- Costing domain tests.
 - CONTEXT.md handoff doc.
 
 ### Stats
-- 49 test files, 443 tests, all passing. `tsc --noEmit` clean.
+- 69 test files, 566 tests, all passing. `tsc --noEmit` clean.
 - Inventory: 17 Prisma models (inv_ prefix), 8 Prisma repos, 1 application service, 1 controller (50+ routes), 33 domain tests.
+- Costing: 19 Prisma models (cst_ prefix), 9 Prisma repos, 3 application services, 1 controller (25+ routes).
