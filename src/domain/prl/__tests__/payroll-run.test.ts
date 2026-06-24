@@ -61,7 +61,7 @@ describe("PayrollRun", () => {
     TaxBracket.create({ name: "Bậc 4", effectiveFrom: new Date("2024-01-01"), bracketOrder: 4, fromAmount: 18000000n, toAmount: 32000000n, rate: 0.2, deductAmount: 1650000n }),
     TaxBracket.create({ name: "Bậc 5", effectiveFrom: new Date("2024-01-01"), bracketOrder: 5, fromAmount: 32000000n, toAmount: 52000000n, rate: 0.25, deductAmount: 3250000n }),
     TaxBracket.create({ name: "Bậc 6", effectiveFrom: new Date("2024-01-01"), bracketOrder: 6, fromAmount: 52000000n, toAmount: 80000000n, rate: 0.3, deductAmount: 5850000n }),
-    TaxBracket.create({ name: "Bậc 7", effectiveFrom: new Date("2024-01-01"), bracketOrder: 7, fromAmount: 80000000n, toAmount: null, rate: 0.35, deductAmount: 9850000n }),
+    TaxBracket.create({ name: "Bậc 7", effectiveFrom: new Date("2024-01-01"), bracketOrder: 7, fromAmount: 80000000n, toAmount: undefined, rate: 0.35, deductAmount: 9850000n }),
   ];
 
   it("creates with draft status", () => {
