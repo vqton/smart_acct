@@ -8,8 +8,9 @@ import { BankModule } from "./presentation/bank/bank.module.js";
 import { PurchasingModule } from "./presentation/purchasing/purchasing.module.js";
 import { SalesModule } from "./presentation/sales/sales.module.js";
 import { InventoryModule } from "./presentation/inventory/inventory.module.js";
+import { PrlModule } from "./presentation/prl/prl.module.js";
 
 @Module({
-  imports: [PrismaModule, GlModule, TaxModule, CoaModule, CmModule, BankModule, PurchasingModule, SalesModule, InventoryModule],
+  imports: [PrismaModule, GlModule, TaxModule, CoaModule, CmModule, BankModule, PurchasingModule, SalesModule, InventoryModule, PrlModule],
 })
 export class AppModule {}
