@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 import { AccountId } from "../../../domain/gl/account-id.js";
 import { Account } from "../../../domain/gl/account.js";
+import { Money } from "../../../domain/shared/money.js";
 import { JournalBatch, JournalType, JournalEntryStatus } from "../../../domain/gl/journal.js";
 import { AccountRepository, JournalBatchRepository, UnitOfWork } from "../../../domain/gl/repositories.js";
 import { createPostingError } from "../../../domain/gl/errors/error-catalogue.js";
@@ -27,7 +28,7 @@ export class RollbackEngine {
         const account = await this.accountRepo.findById(new AccountId(accountId));
         if (!account) continue;
 
-        account.updateBalance(-change.debitTotal, -change.creditTotal);
+        account.updateBalance(Money.fromVnd(change.debitTotal).negate(), Money.fromVnd(change.creditTotal).negate());
         await this.accountRepo.save(account);
       }
       await this.uow.commit();

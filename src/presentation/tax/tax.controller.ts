@@ -2,12 +2,13 @@ import { Controller, Get, Post, Param, Body, NotFoundException, ConflictExceptio
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { PrismaTaxTypeRepository, PrismaTaxCodeRepository, PrismaTaxRateRepository, PrismaTaxAuthorityRepository, PrismaTaxRegionRepository, PrismaTaxRegistrationRepository, PrismaTaxReturnRepository, PrismaTaxExemptionRepository, PrismaTaxPaymentRepository } from "../../infrastructure/tax/tax-prisma-repos.js";
 import { TaxType, TaxTypeId } from "../../domain/tax/tax-type.js";
-import { TaxCode, TaxCodeId, TaxRate } from "../../domain/tax/tax-code.js";
+import { TaxCode, TaxCodeId, TaxRate, TaxRateType } from "../../domain/tax/tax-code.js";
 import { TaxAuthority, TaxAuthorityId, TaxRegion, TaxRegionId } from "../../domain/tax/tax-jurisdiction.js";
 import { TaxRegistration, TaxRegistrationId } from "../../domain/tax/tax-registration.js";
 import { TaxReturn, TaxReturnId } from "../../domain/tax/tax-return.js";
 import { TaxExemption, TaxExemptionId } from "../../domain/tax/tax-incentive.js";
 import { TaxPayment, TaxPaymentId } from "../../domain/tax/tax-payment.js";
+import { CreateTaxTypeDto, CreateTaxCodeDto, CreateTaxAuthorityDto, CreateTaxRegionDto, CreateTaxRegistrationDto, CreateTaxReturnDto, CreateTaxExemptionDto, CreateTaxPaymentDto, CalculateTaxDto } from "./dto/tax.dto.js";
 
 @ApiTags("Tax")
 @Controller("api/tax")
@@ -27,7 +28,7 @@ export class TaxController {
   // --- Tax Types ---
   @Post("types")
   @ApiOperation({ summary: "Create a tax type" })
-  async createTaxType(@Body() dto: any) {
+  async createTaxType(@Body() dto: CreateTaxTypeDto) {
     const c = await this.taxTypeRepo.findByCode(dto.code);
     if (c) throw new ConflictException(`Tax type ${dto.code} already exists`);
     const e = new TaxType(dto);
@@ -50,12 +51,12 @@ export class TaxController {
   // --- Tax Codes ---
   @Post("codes")
   @ApiOperation({ summary: "Create a tax code" })
-  async createTaxCode(@Body() dto: any) {
+  async createTaxCode(@Body() dto: CreateTaxCodeDto) {
     const c = await this.taxCodeRepo.findByCode(dto.code);
     if (c) throw new ConflictException(`Tax code ${dto.code} already exists`);
     const e = new TaxCode(dto.code, dto.name, dto.taxTypeId, dto.taxRateType, dto.application, new Date(dto.effectiveFrom ?? new Date()));
     if (dto.rate !== undefined) {
-      const r = TaxRate.create(dto.taxTypeId ?? "", dto.rate, dto.rateType ?? "percentage", new Date(dto.effectiveFrom ?? new Date()));
+      const r = TaxRate.create(dto.taxTypeId ?? "", dto.rate, dto.rateType ?? TaxRateType.Percentage, new Date(dto.effectiveFrom ?? new Date()));
       (e as any).addRate(r);
     }
     await this.taxCodeRepo.save(e);
@@ -80,7 +81,7 @@ export class TaxController {
   // --- Authorities ---
   @Post("authorities")
   @ApiOperation({ summary: "Create a tax authority" })
-  async createTaxAuthority(@Body() dto: any) {
+  async createTaxAuthority(@Body() dto: CreateTaxAuthorityDto) {
     const c = await this.taxAuthorityRepo.findByCode(dto.code);
     if (c) throw new ConflictException(`Authority ${dto.code} already exists`);
     const e = new TaxAuthority(dto.code, dto.name, dto.taxOfficeCode, dto.jurisdictionLevel);
@@ -106,7 +107,7 @@ export class TaxController {
   // --- Regions ---
   @Post("regions")
   @ApiOperation({ summary: "Create a tax region" })
-  async createRegion(@Body() dto: any) {
+  async createRegion(@Body() dto: CreateTaxRegionDto) {
     const c = await this.taxRegionRepo.findByCode(dto.code);
     if (c) throw new ConflictException(`Region ${dto.code} already exists`);
     const e = new TaxRegion(dto.code, dto.name, dto.type, dto.countryCode ?? "VN");
@@ -129,7 +130,7 @@ export class TaxController {
   // --- Registrations ---
   @Post("registrations")
   @ApiOperation({ summary: "Create a tax registration" })
-  async createRegistration(@Body() dto: any) {
+  async createRegistration(@Body() dto: CreateTaxRegistrationDto) {
     const c = await this.taxRegistrationRepo.findByTaxpayerAndType(dto.taxpayerId, dto.taxTypeId);
     if (c) throw new ConflictException("Registration already exists");
     const e = TaxRegistration.create({ registrationNumber: dto.registrationNumber, taxpayerId: dto.taxpayerId, taxTypeId: dto.taxTypeId, taxAuthorityId: dto.taxAuthorityId });
@@ -155,7 +156,7 @@ export class TaxController {
   // --- Returns ---
   @Post("returns")
   @ApiOperation({ summary: "Create a tax return" })
-  async createReturn(@Body() dto: any) {
+  async createReturn(@Body() dto: CreateTaxReturnDto) {
     const e = TaxReturn.create({ returnNumber: dto.returnNumber, returnType: dto.returnType, taxTypeId: dto.taxTypeId, taxpayerId: dto.taxpayerId, taxAuthorityId: dto.taxAuthorityId, periodId: dto.periodId, fiscalYearId: dto.fiscalYearId, filingDate: new Date(dto.filingDate ?? new Date()), dueDate: new Date(dto.dueDate ?? new Date()), createdById: dto.createdById ?? "system" });
     await this.taxReturnRepo.save(e);
     return e.toState();
@@ -180,7 +181,7 @@ export class TaxController {
   // --- Exemptions ---
   @Post("exemptions")
   @ApiOperation({ summary: "Create a tax exemption" })
-  async createExemption(@Body() dto: any) {
+  async createExemption(@Body() dto: CreateTaxExemptionDto) {
     const c = await this.taxExemptionRepo.findByCode(dto.code);
     if (c) throw new ConflictException(`Exemption ${dto.code} already exists`);
     const e = new TaxExemption(dto.code, dto.name, dto.exemptionType, dto.taxTypeId, dto.applicationLevel, new Date(dto.validFrom ?? new Date()));
@@ -203,8 +204,8 @@ export class TaxController {
   // --- Payments ---
   @Post("payments")
   @ApiOperation({ summary: "Create a tax payment" })
-  async createPayment(@Body() dto: any) {
-    const e = TaxPayment.create({ taxReturnId: dto.taxReturnId, taxpayerId: dto.taxpayerId, taxTypeId: dto.taxTypeId, amount: dto.amount, paymentMethod: dto.paymentMethod, paymentDate: new Date(dto.paymentDate ?? new Date()), referenceNumber: dto.referenceNumber ?? dto.paymentNumber, paidById: dto.paidById ?? "system" });
+  async createPayment(@Body() dto: CreateTaxPaymentDto) {
+    const e = TaxPayment.create({ taxReturnId: dto.taxReturnId, taxpayerId: dto.taxpayerId, taxTypeId: dto.taxTypeId, amount: dto.amount, paymentMethod: dto.paymentMethod, paymentDate: new Date(dto.paymentDate ?? new Date()), referenceNumber: dto.referenceNumber ?? "", paidById: dto.paidById ?? "system" });
     await this.taxPaymentRepo.save(e);
     return e.toState();
   }
@@ -228,10 +229,10 @@ export class TaxController {
   // --- Calculation ---
   @Post("calculation/calculate")
   @ApiOperation({ summary: "Calculate tax" })
-  async calculate(@Body() dto: { taxCodeId: string; amount: number; date: string }) {
+  async calculate(@Body() dto: CalculateTaxDto) {
     const tc = await this.taxCodeRepo.findById(new TaxCodeId(dto.taxCodeId));
     if (!tc) throw new NotFoundException("Tax code not found");
-    const rate = await this.taxRateRepo.findEffective(dto.taxCodeId, new Date(dto.date));
+    const rate = await this.taxRateRepo.findEffective(dto.taxCodeId, new Date(dto.date ?? new Date()));
     if (!rate) throw new NotFoundException("No effective rate found");
     const taxAmount = (dto.amount * Number(rate.rate)) / 100;
     return { grossAmount: dto.amount, taxRate: Number(rate.rate), taxAmount, netAmount: dto.amount + taxAmount };

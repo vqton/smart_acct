@@ -2,7 +2,7 @@
 
 ## 1. Database
 - [x] SQL DDL generated (`src/infrastructure/gl/schema.sql`)
-- [x] Prisma schema generated (`prisma/schema.prisma`)
+- [x] Prisma schema generated (`prisma/schemas/*.prisma` — 14 per-module files)
 - [ ] Run migration in staging environment
 - [ ] Set up partitioning for `journal_entry_lines` (yearly by posting_date)
 - [ ] Create read replicas for reporting queries

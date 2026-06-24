@@ -3,6 +3,7 @@ import { DomainError } from "../../shared/domain-error.js";
 import { DomainEvent } from "../../shared/domain-event.js";
 import { AccountId } from "./account-id.js";
 import { AccountCategory, AccountNature } from "./account-category.js";
+import { Money } from "../shared/money.js";
 
 export interface AccountState {
   id: string;
@@ -65,8 +66,8 @@ export class Account extends AggregateRoot<AccountId> {
   private _isControl: boolean;
   private _isPosting: boolean;
   private _allowManualEntry: boolean;
-  private _balance: number;
-  private _foreignBalance: number;
+  private _balance: Money;
+  private _foreignBalance: Money;
   private _currencyCode: string | null;
   private _description: string | null;
   private _createdAt: Date;
@@ -97,8 +98,8 @@ export class Account extends AggregateRoot<AccountId> {
     this._isControl = false;
     this._isPosting = true;
     this._allowManualEntry = true;
-    this._balance = 0;
-    this._foreignBalance = 0;
+    this._balance = Money.zero();
+    this._foreignBalance = Money.zero();
     this._createdAt = new Date();
     this._updatedAt = new Date();
     this._version = 1;
@@ -164,8 +165,8 @@ export class Account extends AggregateRoot<AccountId> {
     a._isControl = state.isControl;
     a._isPosting = state.isPosting;
     a._allowManualEntry = state.allowManualEntry;
-    a._balance = state.balance;
-    a._foreignBalance = state.foreignBalance;
+    a._balance = Money.fromVnd(state.balance);
+    a._foreignBalance = Money.fromVnd(state.foreignBalance);
     a._createdAt = state.createdAt;
     a._updatedAt = state.updatedAt;
     a._version = state.version;
@@ -184,8 +185,8 @@ export class Account extends AggregateRoot<AccountId> {
   get isControl(): boolean { return this._isControl; }
   get isPosting(): boolean { return this._isPosting; }
   get allowManualEntry(): boolean { return this._allowManualEntry; }
-  get balance(): number { return this._balance; }
-  get foreignBalance(): number { return this._foreignBalance; }
+  get balance(): Money { return this._balance; }
+  get foreignBalance(): Money { return this._foreignBalance; }
   get currencyCode(): string | null { return this._currencyCode; }
   get description(): string | null { return this._description; }
   get createdAt(): Date { return this._createdAt; }
@@ -210,19 +211,19 @@ export class Account extends AggregateRoot<AccountId> {
     this.addEvent(new AccountDeactivated(this._id.value, new Date(), {}));
   }
 
-  updateBalance(debitAmount: number, creditAmount: number): void {
+  updateBalance(debitAmount: Money, creditAmount: Money): void {
     if (this._nature === AccountNature.Debit) {
-      this._balance += debitAmount - creditAmount;
+      this._balance = this._balance.add(debitAmount).subtract(creditAmount);
     } else {
-      this._balance += creditAmount - debitAmount;
+      this._balance = this._balance.add(creditAmount).subtract(debitAmount);
     }
   }
 
-  updateForeignBalance(debitAmount: number, creditAmount: number): void {
+  updateForeignBalance(debitAmount: Money, creditAmount: Money): void {
     if (this._nature === AccountNature.Debit) {
-      this._foreignBalance += debitAmount - creditAmount;
+      this._foreignBalance = this._foreignBalance.add(debitAmount).subtract(creditAmount);
     } else {
-      this._foreignBalance += creditAmount - debitAmount;
+      this._foreignBalance = this._foreignBalance.add(creditAmount).subtract(debitAmount);
     }
   }
 
@@ -280,8 +281,8 @@ export class Account extends AggregateRoot<AccountId> {
       isControl: this._isControl,
       isPosting: this._isPosting,
       allowManualEntry: this._allowManualEntry,
-      balance: this._balance,
-      foreignBalance: this._foreignBalance,
+      balance: this._balance.toNumber(),
+      foreignBalance: this._foreignBalance.toNumber(),
       currencyCode: this._currencyCode,
       description: this._description,
       createdAt: this._createdAt,

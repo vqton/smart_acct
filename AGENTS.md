@@ -6,6 +6,7 @@
 - Runtime: Node.js 20+.
 - Web framework: **NestJS 11** (Express platform). Old Express 5 code fully removed.
 - ORM: **Prisma 7** with `@prisma/adapter-mariadb` (driver adapter).
+- Schema: per-module files in `prisma/schemas/` (14 files, <1.6k lines each). Configured via `prisma.config.ts`.
 - Money: `decimal.js` (via `Money` value object in `src/domain/shared/money.ts`).
 - Validation: `class-validator` + `class-transformer`.
 - API docs: Swagger/OpenAPI at `/api/docs`.
@@ -96,6 +97,8 @@ The proxy is configured as an MCP server in `opencode.json` (provides `headroom_
 - **Bank Module (Enterprise Bank Management):** Full domain model (35 enums, 30 identifiers, 20+ domain events, 12 VOs, 9 aggregates: BankGroup/Bank/Branch/Correspondent, BankAccount, BankTransaction, BankStatement, BankReconciliation, PaymentRequest/Batch/Recurring, CashPosition/Forecast/FX, ApprovalMatrix/Request), 15 business rule specifications, 20+ repository interfaces, 25 Prisma models (bnk_ prefix), 21 Prisma repository implementations, 3 application services (master, account, transaction), 1 REST controller (bank-master.controller.ts) with 50+ routes, DTOs with class-validator + Swagger, BankModule registered in AppModule. 106 bank tests pass.
 
 - **Costing Module (Enterprise Costing Engine):** 40+ Prisma models (`cst_` prefix), full domain layer (9 aggregates: CostVersion/WorkCenter/Bom/ProductionOrder/CostPool/AllocationRule/OverheadRate/CostSnapshot/ProductionVariance), 15 IDs, 20+ domain events, DDD value objects, 9 repository interfaces, 9 Prisma repository implementations, 3 application services (CostingEngine, AllocationEngine, PeriodClose), 1 REST controller (25+ routes), CstModule registered in AppModule. Prisma client regenerated, `tsc --noEmit` clean, 566 tests pass.
+- **Budget Module (Enterprise Budget Management):** 26 Prisma models (`bgt_` prefix), 17 enums, 9 aggregates (BudgetPlan/Version/Detail/Scenario/Forecast/Allocation/Control/Reservation/Transfer/Approval/Snapshot), 20+ domain events, 12 repository interfaces, 12 Prisma repository implementations, 5 application services (BudgetEngine/ForecastEngine/AllocationEngine/ControlEngine/ApprovalEngine), 1 REST controller (60+ routes), BudgetModule registered in AppModule. `tsc --noEmit` clean.
+- **Prisma schema split:** Monolithic 10,248-line `schema.prisma` → 14 per-module files in `prisma/schemas/`. Each file <1.6k lines. Configured via `prisma.config.ts` (`schema: prisma/schemas/`).
 
 ### Pending
 - Full Money integration across domain entities (currently at repo boundary).

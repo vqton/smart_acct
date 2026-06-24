@@ -116,7 +116,7 @@ export class AccountService {
         name: a.name,
         category: a.category,
         nature: a.nature,
-        balance: a.balance,
+        balance: a.balance.toNumber(),
         children: [],
       });
     }

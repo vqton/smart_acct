@@ -58,7 +58,7 @@ export class TaxReconciliationService {
       const account = await this.accountRepo.findByCode(mapping.accountCode);
       if (!account) continue;
 
-      const glBalance = account.balance;
+      const glBalance = account.balance.toNumber();
       const taxReturns = returns.filter(r => r.taxTypeId.includes(mapping.taxTypeCode) || r.toState().taxTypeId.includes(mapping.taxTypeCode));
       const declaredAmount = taxReturns.reduce((sum, tr) => {
         const s = tr.toState();

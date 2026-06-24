@@ -7,7 +7,7 @@ describe("OverheadRate", () => {
     const rate = OverheadRate.create({
       code: "OHR-001", name: "Labor Overhead Rate",
       costPoolType: CstCostPoolType.LaborOverhead,
-      allocationBasis: CstAllocationBasis.DirectLaborHours,
+      allocationBasis: CstAllocationBasis.LaborHours,
       rate: 1.5, rateType: "percentage",
     });
     expect(rate.code).toBe("OHR-001");

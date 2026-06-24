@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Account } from "../account.js";
 import { AccountCategory, AccountNature } from "../account-category.js";
+import { Money } from "../../shared/money.js";
 
 describe("Account", () => {
   it("creates account with valid params", () => {
@@ -14,7 +15,7 @@ describe("Account", () => {
     expect(a.name).toBe("Tiền mặt VND");
     expect(a.isActive).toBe(true);
     expect(a.isPosting).toBe(true);
-    expect(a.balance).toBe(0);
+    expect(a.balance.toNumber()).toBe(0);
     expect(a.version).toBe(1);
   });
 
@@ -46,10 +47,10 @@ describe("Account", () => {
       category: AccountCategory.ShortTermAsset,
       nature: AccountNature.Debit,
     });
-    a.updateBalance(1000, 0);
-    expect(a.balance).toBe(1000);
-    a.updateBalance(0, 500);
-    expect(a.balance).toBe(500);
+    a.updateBalance(Money.fromVnd(1000), Money.zero());
+    expect(a.balance.toNumber()).toBe(1000);
+    a.updateBalance(Money.zero(), Money.fromVnd(500));
+    expect(a.balance.toNumber()).toBe(500);
   });
 
   it("updates balance correctly for credit-nature account", () => {
@@ -59,8 +60,8 @@ describe("Account", () => {
       category: AccountCategory.ShortTermLiability,
       nature: AccountNature.Credit,
     });
-    a.updateBalance(0, 1000);
-    expect(a.balance).toBe(1000);
+    a.updateBalance(Money.zero(), Money.fromVnd(1000));
+    expect(a.balance.toNumber()).toBe(1000);
   });
 
   it("prevents posting to inactive account", () => {

@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Param, Body, Query, HttpCode, HttpStatus, NotFoundException, ConflictException } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { EinvService } from "../../application/einvoice/einv-service.js";
 import { PrismaEinvInvoiceRepository, PrismaEinvTemplateRepository, PrismaEinvSeriesRepository, PrismaEinvInvoiceTypeRepository, PrismaEinvProviderRepository, PrismaEinvReasonCodeRepository, PrismaEinvCertificateRepository } from "../../infrastructure/einvoice/einv-prisma-repos.js";
 import { EinvInvoiceStatus, EinvInvoiceCategory } from "../../domain/einvoice/einv-enums.js";
@@ -7,31 +7,55 @@ import { EinvInvoiceStatus, EinvInvoiceCategory } from "../../domain/einvoice/ei
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
 
 class CreateInvoiceDto {
-  invoiceNumber!: string; invoiceTypeId!: string; templateId!: string;
-  sellerName!: string; sellerTaxCode!: string; buyerName!: string;
-  invoiceDate!: Date; category?: EinvInvoiceCategory;
-  salesInvoiceId?: string; invoiceCode?: string; invoiceSymbol?: string;
-  seriesId?: string; providerId?: string;
-  sellerAddress?: string; sellerPhone?: string; sellerEmail?: string;
-  sellerBankName?: string; sellerBankAccount?: string;
-  buyerTaxCode?: string; buyerAddress?: string; buyerPhone?: string; buyerEmail?: string;
-  buyerBankName?: string; buyerBankAccount?: string;
-  currencyCode?: string; exchangeRate?: number;
-  createdBy?: string;
+  @ApiProperty() invoiceNumber!: string;
+  @ApiProperty() invoiceTypeId!: string;
+  @ApiProperty() templateId!: string;
+  @ApiProperty() sellerName!: string;
+  @ApiProperty() sellerTaxCode!: string;
+  @ApiProperty() buyerName!: string;
+  @ApiProperty() invoiceDate!: Date;
+  @ApiPropertyOptional({ enum: EinvInvoiceCategory }) category?: EinvInvoiceCategory;
+  @ApiPropertyOptional() salesInvoiceId?: string;
+  @ApiPropertyOptional() invoiceCode?: string;
+  @ApiPropertyOptional() invoiceSymbol?: string;
+  @ApiPropertyOptional() seriesId?: string;
+  @ApiPropertyOptional() providerId?: string;
+  @ApiPropertyOptional() sellerAddress?: string;
+  @ApiPropertyOptional() sellerPhone?: string;
+  @ApiPropertyOptional() sellerEmail?: string;
+  @ApiPropertyOptional() sellerBankName?: string;
+  @ApiPropertyOptional() sellerBankAccount?: string;
+  @ApiPropertyOptional() buyerTaxCode?: string;
+  @ApiPropertyOptional() buyerAddress?: string;
+  @ApiPropertyOptional() buyerPhone?: string;
+  @ApiPropertyOptional() buyerEmail?: string;
+  @ApiPropertyOptional() buyerBankName?: string;
+  @ApiPropertyOptional() buyerBankAccount?: string;
+  @ApiPropertyOptional() currencyCode?: string;
+  @ApiPropertyOptional() exchangeRate?: number;
+  @ApiPropertyOptional() createdBy?: string;
 }
 
 class AddLineDto {
-  lineNumber!: number; itemCode!: string; itemName!: string; unit!: string;
-  quantity!: number; unitPrice!: string;
-  discountPercent?: number; discountAmount?: string;
-  taxCode?: string; taxRate?: number;
-  salesLineId?: string; itemId?: string; description?: string;
+  @ApiProperty() lineNumber!: number;
+  @ApiProperty() itemCode!: string;
+  @ApiProperty() itemName!: string;
+  @ApiProperty() unit!: string;
+  @ApiProperty() quantity!: number;
+  @ApiProperty() unitPrice!: string;
+  @ApiPropertyOptional() discountPercent?: number;
+  @ApiPropertyOptional() discountAmount?: string;
+  @ApiPropertyOptional() taxCode?: string;
+  @ApiPropertyOptional() taxRate?: number;
+  @ApiPropertyOptional() salesLineId?: string;
+  @ApiPropertyOptional() itemId?: string;
+  @ApiPropertyOptional() description?: string;
 }
 
-class CancelInvoiceDto { reason!: string; }
-class RejectInvoiceDto { reason!: string; }
-class AcceptInvoiceDto { taxAuthorityCode!: string; verifyCode!: string; }
-class PostToGLDto { glBatchId!: string; }
+class CancelInvoiceDto { @ApiProperty() reason!: string; }
+class RejectInvoiceDto { @ApiProperty() reason!: string; }
+class AcceptInvoiceDto { @ApiProperty() taxAuthorityCode!: string; @ApiProperty() verifyCode!: string; }
+class PostToGLDto { @ApiProperty() glBatchId!: string; }
 
 // ─── Invoice Controller ───────────────────────────────────────────────────────
 

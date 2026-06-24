@@ -5,7 +5,6 @@ export class Money {
 
   private constructor(amount: Decimal.Value) {
     const d = amount instanceof Decimal ? amount : new Decimal(amount);
-    if (d.isNegative()) throw new Error("Money cannot be negative");
     this._amount = d.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
   }
 
@@ -21,12 +20,47 @@ export class Money {
     return this._amount;
   }
 
+  get isNegative(): boolean {
+    return this._amount.isNegative();
+  }
+
+  negate(): Money {
+    return new Money(this._amount.negated());
+  }
+
   add(other: Money): Money {
     return new Money(this._amount.plus(other._amount));
   }
 
   subtract(other: Money): Money {
     return new Money(this._amount.minus(other._amount));
+  }
+
+  multiply(factor: Decimal.Value): Money {
+    const f = factor instanceof Decimal ? factor : new Decimal(factor);
+    return new Money(this._amount.times(f));
+  }
+
+  divide(divisor: Decimal.Value): Money {
+    const d = divisor instanceof Decimal ? divisor : new Decimal(divisor);
+    if (d.isZero()) throw new Error("Division by zero");
+    return new Money(this._amount.div(d));
+  }
+
+  greaterThan(other: Money): boolean {
+    return this._amount.greaterThan(other._amount);
+  }
+
+  lessThan(other: Money): boolean {
+    return this._amount.lessThan(other._amount);
+  }
+
+  greaterThanOrEqual(other: Money): boolean {
+    return this._amount.greaterThanOrEqualTo(other._amount);
+  }
+
+  lessThanOrEqual(other: Money): boolean {
+    return this._amount.lessThanOrEqualTo(other._amount);
   }
 
   equals(other: Money): boolean {

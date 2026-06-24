@@ -6,7 +6,7 @@ describe("CostPool", () => {
   it("creates cost pool", () => {
     const pool = CostPool.create({
       code: "OH-MFG", name: "Manufacturing Overhead",
-      poolType: CstCostPoolType.ManufacturingOverhead,
+      poolType: CstCostPoolType.Production,
       totalAmount: 100000000,
     });
     expect(pool.code).toBe("OH-MFG");
@@ -17,7 +17,7 @@ describe("CostPool", () => {
   it("allocates amount", () => {
     const pool = CostPool.create({
       code: "OH-ADMIN", name: "Admin Overhead",
-      poolType: CstCostPoolType.AdministrativeOverhead,
+      poolType: CstCostPoolType.Administration,
       totalAmount: 50000000,
     });
     pool.allocate(20000000);
@@ -28,7 +28,7 @@ describe("CostPool", () => {
   it("serializes and loads", () => {
     const pool = CostPool.create({
       code: "OH-SALES", name: "Selling Overhead",
-      poolType: CstCostPoolType.SellingOverhead,
+      poolType: CstCostPoolType.Selling,
       totalAmount: 30000000,
     });
     const state = pool.toState();

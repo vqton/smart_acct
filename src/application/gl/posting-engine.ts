@@ -1,4 +1,5 @@
 import { DomainError } from "../../shared/domain-error.js";
+import { Money } from "../../domain/shared/money.js";
 import { Account } from "../../domain/gl/account.js";
 import { AccountId } from "../../domain/gl/account-id.js";
 import {
@@ -206,8 +207,8 @@ export class PostingEngine {
           isPosting: account.isPosting,
           isControl: account.isControl,
           allowManualEntry: account.allowManualEntry,
-          balance: account.balance,
-          foreignBalance: account.foreignBalance,
+          balance: account.balance.toNumber(),
+          foreignBalance: account.foreignBalance.toNumber(),
           version: account.version,
         });
       }
@@ -287,7 +288,7 @@ export class PostingEngine {
         if (!account) continue;
         const change = ctx.balanceChanges.get(accountId);
         if (change) {
-          account.updateBalance(change.debitTotal, change.creditTotal);
+          account.updateBalance(Money.fromVnd(change.debitTotal), Money.fromVnd(change.creditTotal));
         }
         await this.accountRepo.save(account);
 
@@ -388,7 +389,7 @@ export class PostingEngine {
       for (const line of reverseBatch.lines) {
         const account = await this.accountRepo.findById(new AccountId(line.accountId));
         if (!account) continue;
-        account.updateBalance(line.debitAmount, line.creditAmount);
+        account.updateBalance(Money.fromVnd(line.debitAmount), Money.fromVnd(line.creditAmount));
         await this.accountRepo.save(account);
       }
 

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { DomainError } from "../../shared/domain-error.js";
+import { Money } from "../../domain/shared/money.js";
 import { PrismaService } from "../../prisma/prisma.service.js";
 import { PrismaJournalBatchRepository, PrismaAccountRepository, PrismaPeriodRepository, PrismaFiscalYearRepository } from "../../infrastructure/gl/gl-prisma-repos.js";
 import { JournalBatch, JournalType } from "../../domain/gl/journal.js";
@@ -80,7 +81,7 @@ export class SalesGlService {
       const account = await this.accountRepo.findById(new AccountId(line.accountId));
       if (!account) throw new DomainError("NotFound", `Account ${line.accountId} not found`);
       account.canPost();
-      account.updateBalance(line.debitAmount, line.creditAmount);
+      account.updateBalance(Money.fromVnd(line.debitAmount), Money.fromVnd(line.creditAmount));
       await this.accountRepo.save(account);
     }
 
@@ -137,7 +138,7 @@ export class SalesGlService {
       const account = await this.accountRepo.findById(new AccountId(line.accountId));
       if (!account) throw new DomainError("NotFound", `Account ${line.accountId} not found`);
       account.canPost();
-      account.updateBalance(line.debitAmount, line.creditAmount);
+      account.updateBalance(Money.fromVnd(line.debitAmount), Money.fromVnd(line.creditAmount));
       await this.accountRepo.save(account);
     }
 
@@ -207,7 +208,7 @@ export class SalesGlService {
       const account = await this.accountRepo.findById(new AccountId(line.accountId));
       if (!account) throw new DomainError("NotFound", `Account ${line.accountId} not found`);
       account.canPost();
-      account.updateBalance(line.debitAmount, line.creditAmount);
+      account.updateBalance(Money.fromVnd(line.debitAmount), Money.fromVnd(line.creditAmount));
       await this.accountRepo.save(account);
     }
 

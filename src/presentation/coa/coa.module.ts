@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CoaService } from "../../application/coa/coa-service.js";
+import { CoaBulkService } from "../../application/coa/coa-bulk-service.js";
 import {
   PrismaAccountClassRepository,
   PrismaAccountTypeRepository,
@@ -10,6 +11,7 @@ import { CoaAccountClassController } from "./coa-class.controller.js";
 import { CoaAccountTypeController } from "./coa-type.controller.js";
 import { CoaAccountMappingController } from "./coa-mapping.controller.js";
 import { CoaAccountExtensionController } from "./coa-extension.controller.js";
+import { CoaBulkController } from "./coa-bulk.controller.js";
 
 @Module({
   controllers: [
@@ -17,9 +19,11 @@ import { CoaAccountExtensionController } from "./coa-extension.controller.js";
     CoaAccountTypeController,
     CoaAccountMappingController,
     CoaAccountExtensionController,
+    CoaBulkController,
   ],
   providers: [
     CoaService,
+    CoaBulkService,
     PrismaAccountClassRepository,
     PrismaAccountTypeRepository,
     PrismaAccountMappingRepository,
@@ -27,6 +31,7 @@ import { CoaAccountExtensionController } from "./coa-extension.controller.js";
   ],
   exports: [
     CoaService,
+    CoaBulkService,
     PrismaAccountClassRepository,
     PrismaAccountTypeRepository,
     PrismaAccountMappingRepository,

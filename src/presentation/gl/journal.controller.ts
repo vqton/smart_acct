@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { PrismaJournalBatchRepository, PrismaAccountRepository, PrismaPeriodRepository, PrismaFiscalYearRepository, PrismaVoucherTypeRepository, PrismaVoucherSeriesRepository } from "../../infrastructure/gl/gl-prisma-repos.js";
 import { JournalBatch, JournalBatchId, JournalEntryStatus } from "../../domain/gl/journal.js";
 import { AccountId } from "../../domain/gl/account-id.js";
+import { Money } from "../../domain/shared/money.js";
 import { PeriodId, FiscalYearId } from "../../domain/gl/period.js";
 import { VoucherSeriesId } from "../../domain/gl/voucher.js";
 import { CreateJournalBatchDto, ApproveBatchDto, PostBatchDto, ReverseBatchDto } from "./dto/journal.dto.js";
@@ -142,7 +143,7 @@ export class JournalController {
       const account = await this.accountRepo.findById(new AccountId(line.accountId));
       if (!account) throw new NotFoundException(`Account ${line.accountId} not found`);
       account.canPost();
-      account.updateBalance(line.debitAmount, line.creditAmount);
+      account.updateBalance(Money.fromVnd(line.debitAmount), Money.fromVnd(line.creditAmount));
       await this.accountRepo.save(account);
     }
 
@@ -195,7 +196,7 @@ export class JournalController {
       const account = await this.accountRepo.findById(new AccountId(line.accountId));
       if (!account) throw new NotFoundException(`Account ${line.accountId} not found`);
       account.canPost();
-      account.updateBalance(line.debitAmount, line.creditAmount);
+      account.updateBalance(Money.fromVnd(line.debitAmount), Money.fromVnd(line.creditAmount));
       await this.accountRepo.save(account);
     }
 

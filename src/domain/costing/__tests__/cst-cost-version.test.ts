@@ -40,7 +40,7 @@ describe("CostVersion", () => {
   it("serializes to state and loads back", () => {
     const cv = CostVersion.create({
       code: "STD-2026-D", name: "Standard Cost 2026 D",
-      costMethod: CstCostMethod.Average,
+      costMethod: CstCostMethod.WeightedAverage,
       fiscalYearId: "fy-2026",
       effectiveFrom: new Date("2026-01-01"),
       effectiveTo: new Date("2026-12-31"),
@@ -49,6 +49,6 @@ describe("CostVersion", () => {
     const state = cv.toState();
     const loaded = CostVersion.load(state);
     expect(loaded.code).toBe("STD-2026-D");
-    expect(loaded.costMethod).toBe(CstCostMethod.Average);
+    expect(loaded.costMethod).toBe(CstCostMethod.WeightedAverage);
   });
 });

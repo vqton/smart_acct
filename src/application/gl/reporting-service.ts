@@ -111,16 +111,17 @@ export class ReportingService {
       let openingDebit = 0;
       let openingCredit = 0;
 
+      const bal = account.balance.toNumber();
       if (account.nature === AccountNature.Debit) {
-        openingDebit = account.balance - (pDebit - pCredit);
+        openingDebit = bal - (pDebit - pCredit);
       } else {
-        openingCredit = account.balance - (pCredit - pDebit);
+        openingCredit = bal - (pCredit - pDebit);
       }
 
       if (openingDebit < 0) { openingCredit += Math.abs(openingDebit); openingDebit = 0; }
       if (openingCredit < 0) { openingDebit += Math.abs(openingCredit); openingCredit = 0; }
 
-      const closingBalance = account.balance;
+      const closingBalance = bal;
       let closingDebit = 0;
       let closingCredit = 0;
       if (account.nature === AccountNature.Debit) {

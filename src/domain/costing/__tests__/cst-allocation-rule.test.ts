@@ -8,7 +8,7 @@ describe("AllocationRule", () => {
       code: "ALLOC-001", name: "Manufacturing OH to Prod Dept",
       poolId: "pool-1",
       allocationMethod: CstAllocationMethod.Percentage,
-      allocationBasis: CstAllocationBasis.DirectLaborHours,
+      allocationBasis: CstAllocationBasis.LaborHours,
       percentage: 80,
     });
     expect(rule.code).toBe("ALLOC-001");
