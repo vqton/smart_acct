@@ -5,8 +5,10 @@ import { TaxModule } from "./presentation/tax/tax.module.js";
 import { CoaModule } from "./presentation/coa/coa.module.js";
 import { CmModule } from "./presentation/cm/cm.module.js";
 import { BankModule } from "./presentation/bank/bank.module.js";
+import { PurchasingModule } from "./presentation/purchasing/purchasing.module.js";
+import { SalesModule } from "./presentation/sales/sales.module.js";
 
 @Module({
-  imports: [PrismaModule, GlModule, TaxModule, CoaModule, CmModule, BankModule],
+  imports: [PrismaModule, GlModule, TaxModule, CoaModule, CmModule, BankModule, PurchasingModule, SalesModule],
 })
 export class AppModule {}
