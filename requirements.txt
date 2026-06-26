@@ -1,0 +1,36 @@
+# SmartACCT - Vietnamese ERP Accounting Application
+# Production dependencies for on-premise deployment
+
+# --- FLASK FRAMEWORK ---
+Flask==3.0.0
+Werkzeug==3.0.0
+click==8.1.0
+
+# --- SQLALCHEMY ORM ---
+SQLAlchemy==2.0.0
+psycopg2-binary==2.9.9
+
+# --- AUTHENTICATION & SECURITY ---
+PyJWT==2.10.0
+python-jose==3.3.0
+cryptography==3.4.8
+Casbin==1.37.0
+python-dotenv==1.0.0
+
+# --- REPORTS & DOCUMENTS ---
+openpyxl==3.1.0
+WeasyPrint==62.0.0
+
+# --- TESTING & TDD ---
+pytest==8.3.0
+pytest-cov==4.1.0
+pytest-watch==4.2.0
+pydantic==2.7.0
+
+# --- CODE QUALITY ---
+ruff==0.4.10
+mypy==1.10.1
+
+# --- DATABASE TOOLS ---
+Flask-Migrate==4.0.7
+sqlparse==0.5.0

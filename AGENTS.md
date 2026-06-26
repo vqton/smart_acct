@@ -1,115 +1,235 @@
-# smart_acct
+# SmartACCT | AGENTS.md
 
-## Stack
+Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no `/app/` directory.
 
-- TypeScript, single package (non-monorepo).
-- Runtime: Node.js 20+.
-- Web framework: **NestJS 11** (Express platform). Old Express 5 code fully removed.
-- ORM: **Prisma 7** with `@prisma/adapter-mariadb` (driver adapter).
-- Schema: per-module files in `prisma/schemas/` (14 files, <1.6k lines each). Configured via `prisma.config.ts`.
-- Money: `decimal.js` (via `Money` value object in `src/domain/shared/money.ts`).
-- Validation: `class-validator` + `class-transformer`.
-- API docs: Swagger/OpenAPI at `/api/docs`.
-- Test: Vitest.
-- DB: MariaDB 11.4 (InnoDB).
+---
 
-## Commands
+## 1. Project Overview
 
-```sh
-npm run dev           # dev server with hot reload (tsx watch src/main.ts)
-npm start             # run compiled dist/main.js
-npm run build         # tsc compile
-npm test              # vitest
-npm run lint          # tsc --noEmit
-npm run prisma:gen    # regenerate Prisma client
-npm run seed          # seed VAS reference data (prisma/seed.ts)
-npm run codegraph:sync   # incremental codegraph update
-npm run codegraph:status # codegraph index stats
-# headroom: see Headroom section below
+```
+/home/projects/smart_acct/
+├── config.py              # Pydantic config, env vars, connection pooling
+├── run.py                 # Flask entry point
+├── domain/                # Pure domain models (Pydantic, no framework deps)
+├── infrastructure/        # DB manager, JWT auth, formatters, repositories
+├── use_cases/             # Business logic (posting, VAT, month-end)
+├── presentation/          # Flask blueprints, Jinja2 templates
+├── services/              # Reports (openpyxl Excel, WeasyPrint PDF)
+├── migrations/            # Alembic schema migrations
+├── tests/                 # TDD test suites
+└── requirements.txt
 ```
 
-## App entrypoint
+**Tech Stack**: Flask 3.0, SQLAlchemy 2.0, PostgreSQL 16, PyJWT, Casbin, openpyxl, WeasyPrint, pytest.
 
-- `src/main.ts` — NestJS bootstrap (Swagger + ValidationPipe + CORS).
-- `src/app.module.ts` — root module, imports `PrismaModule`, `GlModule`, `TaxModule`, `CoaModule`.
-- DDD structure: `domain/`, `application/`, `infrastructure/`, `presentation/`.
+---
 
-## Skill selection
+## 2. Setup & Configuration
 
-See [docs/skill-decisions.md](docs/skill-decisions.md) for a 4W-H (What/Why/When/Where/How) decision tree mapping task types to the right skill.
+### Environment Variables
+```bash
+DATABASE_URL=postgresql+psycopg2://smartacct:smartacct123@localhost:5432/smartacct
+SECRET_KEY=dev-secret-key-change-in-production
+JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production
+FLASK_DEBUG=false
+HOST=0.0.0.0
+PORT=5000
+```
 
-Quick reference:
-- Bug → `/diagnose`
-- Feature → `/to-issues` → `/tdd` per slice
-- Architecture → `/improve-codebase-architecture`
-- Unclear → `/grill-with-docs` or `/grill-me`
-- First time in area → `/zoom-out`
-- Triage → `/triage`
-- Edit prose → `/edit-article`
+### Quick Start
+```bash
+mv .venv venv
+./venv/bin/pip install -r requirements.txt
+./venv/bin/python run.py          # http://0.0.0.0:5000
+```
 
-## Notes
+### Database Pooling
+- Pool size: 20, max overflow: 30, recycle: 3600s
+- PostgreSQL 16 required (Docker recommended)
+- Never create separate `SQLAlchemy` instances — use `infrastructure/database.py` manager
+- Dispose connections in teardown
 
-- Dependencies are added by editing `package.json` and running `npm install`.
-- MariaDB is required for the app to start. Run `docker compose up -d db` or start local MariaDB, then `npm run seed` for reference data.
+### Production
+- TLS/HTTPS required
+- Regular PostgreSQL backups
+- Connection pool monitoring (nest 80/tcp)
 
-## CodeGraph
+---
 
-[CodeGraph](https://github.com/colbymchenry/codegraph) pre-indexes the codebase for AI agents. It runs as an MCP server (configured in `opencode.json`) and auto-syncs on file changes.
+## 3. Architecture
 
-- `codegraph status` — check index health
-- `codegraph sync` — force incremental sync
-- `codegraph explore <query>` — semantic code search
-- `codegraph context <task>` — build AI context
-- `codegraph callers <symbol>` — find callers
-- `codegraph callees <symbol>` — find callees
-- `codegraph impact <symbol>` — blast radius analysis
+### Layer Rules
+| Layer | Depends On | Responsibility |
+|-------|-----------|----------------|
+| `domain/` | Nothing | Pure Pydantic entities, no framework/DB imports |
+| `use_cases/` | domain | Application logic (journal posting, VAT, month-end close) |
+| `infrastructure/` | domain | DB, auth, formatting, repositories |
+| `presentation/` | use_cases | Flask blueprints, Jinja2 templates |
+| `services/` | domain, infrastructure | Report generation |
 
-The graph lives in `.codegraph/` (gitignored db). Auto-rebuilt via `postinstall` script.
+### Vietnam (VAS) Conventions
+- **Account codes**: Circular 133/2016 format (`1.1.1`, `2.1.1`, `4.1.1`). Valid: `1`, `1.1`, `1.1.1`, `12345`. Invalid: `0`, `A1`, `>4 levels`.
+- **DCR Direction**: Debit normal = ASSET, CASH, INVENTORY, EXPENSE. Credit normal = LIABILITY, EQUITY, REVENUE.
+- **Double-entry**: Must balance within 0.001 VND tolerance
+- **Currency**: VND preferred. Locale: `1.500.000,50 đ`. Also USD, EUR, JPY, GBP.
+- **Dates**: Vietnamese month names (`15 tháng 1 năm 2024`)
+- **Account types**: 33+ from Circular 133/2016
+- **Monthly balances**: Table for fast financial statements
 
-## Headroom
+### Code Conventions
+- **Imports**: `from domain.models import JournalEntry`
+- **Type hints**: Required everywhere
+- **Errors**: Raise `VASValidationError` or `ValidationError`
+- **No hardcoded currency symbols**
 
-[Headroom](https://github.com/headroomlabs-ai/headroom) compresses tool outputs, logs, files, and RAG chunks before they reach the LLM (60-95% fewer tokens). Runs as a local proxy, MCP server, or inline library.
+---
 
-- `headroom wrap opencode` — one-command setup: starts proxy + injects provider + registers MCP
-- `headroom unwrap opencode` — reverts wrap, restores config backup
-- `headroom proxy --port 8787` — standalone proxy (zero code changes)
-- `headroom perf` — benchmark compression on current session
+## 4. Development Workflow (TDD)
 
-**Setup options:**
-1. **Docker** (recommended): `docker compose up -d headroom` — runs proxy on :8787
-2. **Local install**: `pip install "headroom-ai[proxy]"` then `headroom proxy --port 8787`
-3. **Wrap**: `headroom wrap opencode` — auto-configures everything
+### Feature Flow
+```
+interview-me → spec-driven-development → planning-and-task-breakdown
+→ incremental-implementation + test-driven-development
+→ code-review-and-quality → code-simplification
+→ shipping-and-launch
+```
 
-The proxy is configured as an MCP server in `opencode.json` (provides `headroom_compress`, `headroom_retrieve`, `headroom_stats` tools). The TypeScript SDK is available as `headroom-ai` (npm) for programmatic use.
+### Implementation Steps
+1. Write failing test in `tests/` (Red)
+2. Implement minimal code in `use_cases/` (Green)
+3. Refactor while tests stay green
+4. Add repository in `infrastructure/repositories/` (if needed)
+5. Update domain in `domain/` (if needed)
+6. Add route in `presentation/routes.py`
 
-## Progress (as of Jun 24, 2026)
+### Testing
+```bash
+./venv/bin/pytest tests/                    # All
+./venv/bin/pytest tests/test_domain.py      # Domain
+./venv/bin/pytest tests/test_integration.py  # Integration
+./venv/bin/pytest tests/ -v                 # Verbose
+```
 
-### Done
-- **GL Domain + Application + Pipeline:** Full 14-step posting pipeline, BalanceEngine, IdempotencyEngine, AuditEngine (SHA-256), QueueEngine, RollbackEngine. 29 metadata rules. 40+ typed error codes. 20 domain events.
-- **GL NestJS rewrite:** `PrismaAccountRepository`, `PrismaJournalBatchRepository`, `PrismaFiscalYearRepository`, `PrismaPeriodRepository` + controllers (account CRUD, journal create/submit/approve/post/reverse, period/FY management). Swagger docs at `/api/docs`. All 26 routes mapped.
-- **Tax NestJS rewrite:** `PrismaTaxTypeRepository`, `PrismaTaxCodeRepository`, `PrismaTaxRateRepository`, `PrismaTaxAuthorityRepository`, `PrismaTaxRegionRepository`, `PrismaTaxRegistrationRepository`, `PrismaTaxReturnRepository`, `PrismaTaxExemptionRepository`, `PrismaTaxPaymentRepository`, `PrismaTaxDeterminationRuleRepository` + controller (26 routes for types/codes/authorities/regions/registrations/returns/exemptions/payments/calculation).
-- **Prisma 7 migration:** Adapter-based client (`@prisma/adapter-mariadb`), `prisma.config.ts`, generator output to `src/generated/prisma/`.
-- **Critical fixes applied:** Account code validation expanded to `/^\d{1,7}$/` (TT 99 compliance). `DEBIT_EPSILON` removed — strict Nợ=Có enforcement.
-- **Money value object:** `src/domain/shared/money.ts` wraps `Decimal` for precise arithmetic.
-- **Docker Compose:** `docker-compose.yml` + `Dockerfile` + `.env.example`.
-- **Old Express code removed:** All Express 5 handlers, middleware, old application services, old infrastructure (mariadb/in-memory), old tests, and `main-express.ts` deleted.
-- **COA Module (Enterprise Chart of Accounts):** Full domain model (AccountClass, AccountType, AccountMapping, AccountExtension), 4 aggregate roots with domain events, specification pattern validators (PostingAccountSpec, ActiveStatusSpec, EffectiveDateSpec, hierarchy cycle detection), Prisma schema with 7 new tables + audit trail tables, 4 Prisma repositories, CoaService, 4 REST controllers (classes, types, mappings, extensions), 29 new tests.
-- **Bank Module (Enterprise Bank Management):** Full domain model (35 enums, 30 identifiers, 20+ domain events, 12 VOs, 9 aggregates: BankGroup/Bank/Branch/Correspondent, BankAccount, BankTransaction, BankStatement, BankReconciliation, PaymentRequest/Batch/Recurring, CashPosition/Forecast/FX, ApprovalMatrix/Request), 15 business rule specifications, 20+ repository interfaces, 25 Prisma models (bnk_ prefix), 21 Prisma repository implementations, 3 application services (master, account, transaction), 1 REST controller (bank-master.controller.ts) with 50+ routes, DTOs with class-validator + Swagger, BankModule registered in AppModule. 106 bank tests pass.
+**Test categories**: Unit (domain validation), Integration (use cases + DB), Edge cases (invalid codes, amounts, dates).
 
-- **Costing Module (Enterprise Costing Engine):** 40+ Prisma models (`cst_` prefix), full domain layer (9 aggregates: CostVersion/WorkCenter/Bom/ProductionOrder/CostPool/AllocationRule/OverheadRate/CostSnapshot/ProductionVariance), 15 IDs, 20+ domain events, DDD value objects, 9 repository interfaces, 9 Prisma repository implementations, 3 application services (CostingEngine, AllocationEngine, PeriodClose), 1 REST controller (25+ routes), CstModule registered in AppModule. Prisma client regenerated, `tsc --noEmit` clean, 566 tests pass.
-- **Budget Module (Enterprise Budget Management):** 26 Prisma models (`bgt_` prefix), 17 enums, 9 aggregates (BudgetPlan/Version/Detail/Scenario/Forecast/Allocation/Control/Reservation/Transfer/Approval/Snapshot), 20+ domain events, 12 repository interfaces, 12 Prisma repository implementations, 5 application services (BudgetEngine/ForecastEngine/AllocationEngine/ControlEngine/ApprovalEngine), 1 REST controller (60+ routes), BudgetModule registered in AppModule. `tsc --noEmit` clean.
-- **Prisma schema split:** Monolithic 10,248-line `schema.prisma` → 14 per-module files in `prisma/schemas/`. Each file <1.6k lines. Configured via `prisma.config.ts` (`schema: prisma/schemas/`).
+### Security
+- JWT Bearer tokens for API auth
+- bcrypt password hashing
+- Flask-JWT session management
+- Rate limiting on endpoints
 
-### Pending
-- Full Money integration across domain entities (currently at repo boundary).
-- Auth module (RBAC).
-- COA import/export (Excel/CSV/JSON) bulk APIs.
-- Controller Swagger verification (manual endpoint review).
-- Inventory accounting GL posting integration (GR/IR, COGS accrual, revaluation journals).
-- Costing domain tests.
-- CONTEXT.md handoff doc.
+---
 
-### Stats
-- 69 test files, 566 tests, all passing. `tsc --noEmit` clean.
-- Inventory: 17 Prisma models (inv_ prefix), 8 Prisma repos, 1 application service, 1 controller (50+ routes), 33 domain tests.
-- Costing: 19 Prisma models (cst_ prefix), 9 Prisma repos, 3 application services, 1 controller (25+ routes).
+## 5. Tooling & Navigation
+
+### CodeGraph (Primary Navigation)
+**Always use CodeGraph first** — pre-built knowledge graph, faster than grep/read.
+
+| Intent | Tool |
+|--------|------|
+| "How does X work?" / Architecture / Bug / "Where is X?" | `codegraph_explore` **(PRIMARY)** |
+| "What calls X?" / "What does X call?" / Blast radius | `codegraph_callers` / `codegraph_callees` / `codegraph_impact` |
+| Symbol location only | `codegraph_search` |
+| One symbol full source (overloaded names) | `codegraph_node` with `includeCode=true` |
+| Directory tree | `codegraph_files` |
+| Index health | `codegraph_status` |
+
+**Anti-patterns**: Don't grep first. Don't chain search+node — one `explore` does it. Don't loop `node` over many symbols. Don't re-verify CodeGraph results.
+
+**Staleness**: If banner says "edited since last sync", read those files. Others are fresh.
+
+### Skills Reference
+**Always check skills before non-trivial work.** Load with: `skill <name>`
+
+| When | Skill |
+|------|-------|
+| Vague request ("build X") | `interview-me` |
+| Rough idea, need options | `idea-refine` |
+| New project, no spec | `spec-driven-development` |
+| Have spec, need tasks | `planning-and-task-breakdown` |
+| Implementing | `incremental-implementation` |
+| API design | `api-and-interface-design` |
+| UI work | `frontend-ui-engineering` |
+| Writing tests | `test-driven-development` |
+| Bug | `debugging-and-error-recovery` |
+| Code quality | `karpathy-guidelines` |
+| Code review | `code-review-and-quality` |
+| Too complex | `code-simplification` |
+| Security | `security-and-hardening` |
+| Performance | `performance-optimization` |
+| Deploy | `shipping-and-launch` |
+| Docs/ADRs | `documentation-and-adrs` |
+| Git | `git-workflow-and-versioning` |
+| CI/CD | `ci-cd-and-automation` |
+
+### Karpathy Principles (Load at session start: `skill karpathy-guidelines`)
+
+1. **Think before coding** — State assumptions, name confusion, ask.
+2. **Simplicity first** — "Is this the minimum that solves the problem?"
+3. **Surgical changes** — Match existing style. Touch only what's requested. Every line traces to the request.
+4. **Goal-driven execution** — Transform tasks into verifiable goals. Tests pass before AND after.
+
+### Session Initialization
+```bash
+skill caveman              # 75% token reduction (auto-active, off with "normal mode")
+codegraph status           # Verify index is fresh
+skill <skill-name>         # Load task-appropriate skill
+```
+
+---
+
+## 6. Validation & Verification
+
+### Health Checks
+```bash
+curl http://localhost:5000/api/v1/health
+./venv/bin/python -c "from infrastructure.database import SmartACCTDatabase; print('DB OK')"
+./venv/bin/pytest tests/test_vietnamese_formatting.py -v
+```
+
+### Architecture Validation
+```bash
+# Domain layer isolation
+./venv/bin/python -c "
+from domain.entities import Account, JournalEntry
+assert 'app' not in str(Account.__module__)
+assert 'app' not in str(JournalEntry.__module__)
+print('Domain layer clean')
+"
+
+# Infrastructure import check
+./venv/bin/python -c "
+from infrastructure.database import SmartACCTDatabase
+print('Infrastructure imports domain correctly')
+"
+```
+
+---
+
+## 7. Gotchas & Anti-Patterns
+
+### Gotchas
+- **Currency formatting**: `1000000.50` → `1.000.000,50 đ` (VND), `1,000,000.50 ¥` (JPY)
+- **DCR Direction**: Commit to memory — wrong direction = invalid entries
+- **Connection pooling**: Single manager instance only. No raw `SQLAlchemy()` calls.
+- **CodeGraph stale?**: Check the sync banner. Read listed files, trust others.
+
+### What NOT to Do
+❌ Create `app/` subdirectory
+❌ Bypass domain validation in use_cases
+❌ Mix presentation logic with domain logic
+❌ Hardcode currency symbols
+❌ Skip TDD red-green cycle
+❌ Implement without checking applicable skill first
+❌ Guess when confused — surface the confusion
+
+---
+
+## 8. Clarifying Questions
+
+When requirements are unclear, ask about:
+- Team conventions (contribution process)
+- Performance requirements (concurrent users, transaction volume)
+- Compliance scope (GST, CIT, PIT, VAT modules)
+- Deployment infrastructure (Docker, k8s, AWS/GCP)
+- Reporting requirements (Excel vs PDF, SLA deadlines)
