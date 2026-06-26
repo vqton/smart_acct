@@ -6,6 +6,7 @@ load_dotenv()
 
 from infrastructure.database import SmartACCTDatabaseManager, SmartACCTDatabaseConfig
 from presentation.coa_routes import coa_bp
+from presentation.tax_routes import tax_bp
 
 
 def create_app() -> Flask:
@@ -19,6 +20,7 @@ def create_app() -> Flask:
     app.db_manager = db_manager
 
     app.register_blueprint(coa_bp, url_prefix="/api/v1/coa")
+    app.register_blueprint(tax_bp, url_prefix="/api/v1/tax")
 
     @app.route("/api/v1/health")
     def health():
