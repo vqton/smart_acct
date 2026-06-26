@@ -8,6 +8,7 @@ from pydantic import ValidationError as PydanticValidationError
 from domain import (
     TaxType, DeclarationType, DeclarationStatus, TaxPaymentStatus,
     InvoiceStatus, TaxAdjustmentType, TaxIncentiveType,
+    InvoiceType, EInvoiceAdjustmentType, IncentiveStatus,
     TaxDeclaration, TaxLine, TaxPayment, TaxAdjustment, TaxIncentive,
     EInvoice, EInvoiceLine, TaxSchedule,
     VASValidationError,
@@ -79,6 +80,7 @@ class TestTaxDeclaration:
             tax_type=TaxType.CIT,
             form_code="03/TNDN",
             period_year=2026,
+            period_quarter=1,
             declaration_type=DeclarationType.FINALIZATION,
         )
         assert decl.tax_type == TaxType.CIT
@@ -90,10 +92,10 @@ class TestTaxDeclaration:
             tax_type=TaxType.PIT,
             form_code="02/KK-TNCN",
             period_year=2026,
-            period_quarter=1,
+            period_month=3,
         )
         assert decl.tax_type == TaxType.PIT
-        assert decl.period_quarter == 1
+        assert decl.period_month == 3
 
     def test_rejects_invalid_year(self):
         with pytest.raises(PydanticValidationError):
@@ -174,37 +176,40 @@ class TestTaxPayment:
 class TestTaxAdjustment:
     def test_create_adjustment(self):
         adj = TaxAdjustment(
-            original_declaration_id=1,
+            declaration_id=1,
             supplemental_declaration_id=2,
             adjustment_type=TaxAdjustmentType.INCREASE,
             reason="Khai bổ sung hóa đơn đầu vào quên kê khai tháng 11",
             original_amount=Decimal("1000000"),
             adjusted_amount=Decimal("1500000"),
+            difference_amount=Decimal("500000"),
         )
-        assert adj.difference == Decimal("500000")
-        assert adj.approval_status == "pending"
+        assert adj.difference_amount == Decimal("500000")
+        assert adj.status.value == "pending"
         assert adj.adjustment_type == TaxAdjustmentType.INCREASE
 
     def test_decrease_adjustment(self):
         adj = TaxAdjustment(
-            original_declaration_id=1,
+            declaration_id=1,
             supplemental_declaration_id=3,
             adjustment_type=TaxAdjustmentType.DECREASE,
             reason="Điều chỉnh giảm do hủy hóa đơn",
             original_amount=Decimal("2000000"),
             adjusted_amount=Decimal("1000000"),
+            difference_amount=Decimal("-1000000"),
         )
-        assert adj.difference == Decimal("-1000000")
+        assert adj.difference_amount == Decimal("-1000000")
 
     def test_rejects_empty_reason(self):
         with pytest.raises((VASValidationError, PydanticValidationError)):
             TaxAdjustment(
-                original_declaration_id=1,
+                declaration_id=1,
                 supplemental_declaration_id=2,
                 adjustment_type=TaxAdjustmentType.CORRECTION,
                 reason="",
                 original_amount=Decimal("1000000"),
                 adjusted_amount=Decimal("1000000"),
+                difference_amount=Decimal("0"),
             )
 
 
@@ -218,7 +223,7 @@ class TestEInvoice:
             seller_name="Công ty TNHH ABC",
             buyer_name="Công ty XYZ",
             subtotal=Decimal("10000000"),
-            vat_rate=Decimal("10"),
+            vat_rate=Decimal("0.1"),
             vat_amount=Decimal("1000000"),
             grand_total=Decimal("11000000"),
         )
@@ -238,7 +243,7 @@ class TestEInvoice:
             buyer_tax_code="0207654321",
             buyer_name="Công ty TNHH XYZ",
             subtotal=Decimal("5000000"),
-            vat_rate=Decimal("8"),
+            vat_rate=Decimal("0.08"),
             vat_amount=Decimal("400000"),
             grand_total=Decimal("5400000"),
         )
@@ -249,22 +254,22 @@ class TestEInvoice:
             invoice_number="ADJ001",
             invoice_series="1C26TAA",
             invoice_date=date(2026, 7, 1),
-            invoice_type="adjustment",
+            invoice_type=InvoiceType.ADJUSTMENT,
             seller_tax_code="0101234567",
             seller_name="Công ty TNHH ABC",
             buyer_tax_code="0207654321",
             buyer_name="Công ty TNHH XYZ",
             subtotal=Decimal("-1000000"),
-            vat_rate=Decimal("10"),
+            vat_rate=Decimal("0.1"),
             vat_amount=Decimal("-100000"),
             grand_total=Decimal("-1100000"),
             adjustment_ref_id=1,
-            adjustment_type="decrease",
+            adjustment_type=EInvoiceAdjustmentType.DECREASE,
             adjustment_reason="Hàng bán bị trả lại",
             original_invoice_ref="0000001",
         )
-        assert inv.invoice_type == "adjustment"
-        assert inv.adjustment_type == "decrease"
+        assert inv.invoice_type == InvoiceType.ADJUSTMENT
+        assert inv.adjustment_type == EInvoiceAdjustmentType.DECREASE
         assert inv.original_invoice_ref == "0000001"
 
     def test_rejects_empty_seller_tax_code(self):
@@ -288,7 +293,7 @@ class TestEInvoice:
                 seller_tax_code="0101234567",
                 seller_name="Test Co",
                 subtotal=Decimal("1000000"),
-                vat_rate=Decimal("150"),
+                vat_rate=Decimal("1.5"),
                 grand_total=Decimal("1000000"),
             )
 
@@ -305,9 +310,9 @@ class TestTaxIncentive:
             valid_from=date(2026, 1, 1),
         )
         assert inc.code == "UT_CNC"
-        assert inc.rate_value == Decimal("10")
+        assert inc.rate_value == Decimal("10.00")
         assert inc.is_percentage is True
-        assert inc.status == "active"
+        assert inc.status == IncentiveStatus.ACTIVE
 
     def test_tax_holiday_incentive(self):
         inc = TaxIncentive(
