@@ -1,5 +1,57 @@
-.codegraph/
-.env
+# Python
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
-.pytest_cache
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+.pytest_cache/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets & credentials
+*.pem
+*.key
+*.cert
+**/secrets/
+
+# Database
+*.db
+*.sqlite3
+
+# Codegraph
+.codegraph/
+daemon.pid
+
+# Flask / server
+instance/
+
+# Reports / output
+*.xlsx
+*.pdf
+*.csv
