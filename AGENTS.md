@@ -11,29 +11,38 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 ├── config.py              # Pydantic config, env vars, connection pooling
 ├── run.py                 # Flask entry point
 ├── alembic.ini            # Alembic config (reads DATABASE_URL from .env)
+├── CHANGELOG.md           # Release notes
 ├── domain/                # Pure domain models (Pydantic v2, no framework deps)
 │   └── __init__.py        # All domain entities + enums (TT99/2025, TT133/2016)
 ├── infrastructure/
 │   ├── database.py        # DB manager, JWT auth, formatters
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── coa_models.py  # SQLAlchemy models for COA
+│   │   ├── coa_models.py         # SQLAlchemy models for COA
+│   │   └── tax_models.py         # SQLAlchemy models for tax (8 tables)
 │   └── repositories/
 │       ├── __init__.py
-│       └── coa_repository.py  # COA CRUD repo (domain↔DB mapping)
+│       ├── coa_repository.py     # COA CRUD repo (domain↔DB mapping)
+│       └── tax_repository.py     # Tax CRUD repo (7 entity types)
 ├── use_cases/
 │   ├── __init__.py
-│   ├── coa_use_cases.py        # COA CRUD use cases
-│   └── coa_validate_use_case.py # VAS compliance validation
+│   ├── coa_use_cases.py          # COA CRUD use cases
+│   ├── coa_validate_use_case.py  # VAS compliance validation
+│   └── tax_use_cases.py          # Tax CRUD + VAT calc + schedule gen
 ├── presentation/
 │   ├── __init__.py
-│   └── coa_routes.py     # Flask blueprint (/api/v1/coa/*)
-├── services/              # Reports (openpyxl Excel, WeasyPrint PDF)
+│   ├── coa_routes.py     # Flask blueprint (/api/v1/coa/*)
+│   └── tax_routes.py     # Flask blueprint (/api/v1/tax/*, 40 endpoints)
+├── services/
+│   ├── gdt_client.py     # GDT eTax API client stub
+│   └── signing_service.py# RSA-SHA256 e-invoice signing stub
 ├── migrations/
-│   └── versions/          # Alembic migration scripts
+│   └── versions/          # Alembic migration scripts (COA + tax)
 ├── tests/
 │   ├── __init__.py
-│   └── test_coa_domain.py # Domain unit tests
+│   ├── test_coa_domain.py        # COA domain unit tests
+│   ├── test_tax_domain.py        # Tax domain unit tests
+│   └── test_tax_integration.py   # Tax repository + use case integration
 └── requirements.txt
 ```
 
