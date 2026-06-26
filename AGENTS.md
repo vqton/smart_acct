@@ -10,13 +10,30 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 /home/projects/smart_acct/
 ├── config.py              # Pydantic config, env vars, connection pooling
 ├── run.py                 # Flask entry point
-├── domain/                # Pure domain models (Pydantic, no framework deps)
-├── infrastructure/        # DB manager, JWT auth, formatters, repositories
-├── use_cases/             # Business logic (posting, VAT, month-end)
-├── presentation/          # Flask blueprints, Jinja2 templates
+├── alembic.ini            # Alembic config (reads DATABASE_URL from .env)
+├── domain/                # Pure domain models (Pydantic v2, no framework deps)
+│   └── __init__.py        # All domain entities + enums (TT99/2025, TT133/2016)
+├── infrastructure/
+│   ├── database.py        # DB manager, JWT auth, formatters
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── coa_models.py  # SQLAlchemy models for COA
+│   └── repositories/
+│       ├── __init__.py
+│       └── coa_repository.py  # COA CRUD repo (domain↔DB mapping)
+├── use_cases/
+│   ├── __init__.py
+│   ├── coa_use_cases.py        # COA CRUD use cases
+│   └── coa_validate_use_case.py # VAS compliance validation
+├── presentation/
+│   ├── __init__.py
+│   └── coa_routes.py     # Flask blueprint (/api/v1/coa/*)
 ├── services/              # Reports (openpyxl Excel, WeasyPrint PDF)
-├── migrations/            # Alembic schema migrations
-├── tests/                 # TDD test suites
+├── migrations/
+│   └── versions/          # Alembic migration scripts
+├── tests/
+│   ├── __init__.py
+│   └── test_coa_domain.py # Domain unit tests
 └── requirements.txt
 ```
 

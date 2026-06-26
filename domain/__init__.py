@@ -1,5 +1,5 @@
-from typing import List, Dict, Optional, Any, Union
-from pydantic import BaseModel, Field, validator
+from typing import List, Dict, Optional, Any, Union, ClassVar
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
@@ -137,7 +137,8 @@ class AccountType(str, Enum):
     # Type 3: Equity accounts (always have positive balance)
     EQUITY = "equity"
     CAPITAL_CONTRIBUTED = "capital_contributed"
-    CAPITAL_SURPLUS = "capital_surplus"\n    RETAINED_EARNINGS = "retained_earnings"
+    CAPITAL_SURPLUS = "capital_surplus"
+    RETAINED_EARNINGS = "retained_earnings"
     REVALUATION_SURPLUS = "revaluation_surplus"
     CAPITAL_SUBSIDIARY_ACCOUNT = "capital_subsidiary_account"
     CORPORATE_BOND_SURPLUS = "corporate_bond_surplus"
@@ -234,16 +235,26 @@ class DCRDirection(str, Enum):
             return cls.CREDIT
         else:
             return cls.DEBIT  # Default to debit for undefined types
+class AccountingRegime(str, Enum):
+    """Accounting regime/standard applicable to the Chart of Accounts"""
+    TT99_2025 = "tt99_2025"
+    TT133_2016 = "tt133_2016"
+class AccountStatus(str, Enum):
+    """Lifecycle status of an account in the COA"""
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    CLOSED = "closed"
 class ChartOfAccounts(BaseModel):
     """
-    Chart of Accounts according to Vietnamese Accounting Standards (Circular 133/2016/TT-BTC)
-    This defines the complete taxonomy of accounts from Type 1 to Type 9
+    Chart of Accounts according to Vietnamese Accounting Standards
+    Supports TT 99/2025/TT-BTC (primary) and TT 133/2016/TT-BTC (SME)
+    Defines the complete taxonomy of accounts from Type 1 to Type 9
     """
     code: str = Field(
         ...,
         min_length=1,
         max_length=20,
-        pattern=r'^[1-9][.][0-9]*$',
+        pattern=r'^[1-9]([.][0-9]+)*$',
         description="VAS account code (Type.Level.Sublevel...)"
     )
     name: str = Field(
@@ -256,9 +267,13 @@ class ChartOfAccounts(BaseModel):
         ...,
         description="Account type per VAS (Type 1-9)"
     )
+    regime: AccountingRegime = Field(
+        default=AccountingRegime.TT99_2025,
+        description="Accounting regime (TT99/2025 or TT133/2016)"
+    )
     vas_compliant: bool = Field(
         default=True,
-        description="Whether the account code follows VAS Circular 133/2016/TT-BTC rules"
+        description="Whether the account code follows VAS rules"
     )
     drcr_direction: DCRDirection = Field(
         ...,
@@ -270,9 +285,9 @@ class ChartOfAccounts(BaseModel):
         le=4,
         description="Hierarchy level (1-4 levels supported in Vietnam)"
     )
-    is_active: bool = Field(
-        default=True,
-        description="Whether this account is currently active and usable"
+    status: AccountStatus = Field(
+        default=AccountStatus.ACTIVE,
+        description="Account lifecycle status"
     )
     currency: str = Field(
         default="VND",
@@ -300,7 +315,8 @@ class ChartOfAccounts(BaseModel):
         description="Last update timestamp"
     )
 
-    @validator('code')
+    @field_validator('code')
+    @classmethod
     def validate_account_code(cls, v):
         """
         Validate Vietnamese account code format according to Circular 133/2016/TT-BTC
@@ -340,7 +356,8 @@ class ChartOfAccounts(BaseModel):
 
         return v
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_account_name(cls, v):
         """
         Validate Vietnamese account name
@@ -349,7 +366,8 @@ class ChartOfAccounts(BaseModel):
             raise ValidationError("Account name cannot be empty")
         return v.strip()
 
-    @validator('currency')
+    @field_validator('currency')
+    @classmethod
     def validate_currency(cls, v):
         """
         Validate currency for Vietnamese accounting (VND is standard)
@@ -361,7 +379,8 @@ class ChartOfAccounts(BaseModel):
             )
         return v.upper()
 
-    @validator('unit')
+    @field_validator('unit')
+    @classmethod
     def validate_unit(cls, v):
         """
         Validate accounting unit
@@ -405,7 +424,9 @@ class ChartOfAccounts(BaseModel):
     def is_equity_type(self) -> bool:
         """Check if account is an equity type (Type 3)"""
         return self.account_type in [
-            AccountType.EQUITY, AccountType.REVENUE, AccountType.EXPENSE
+            AccountType.EQUITY, AccountType.CAPITAL_CONTRIBUTED,
+            AccountType.CAPITAL_SURPLUS, AccountType.RETAINED_EARNINGS,
+            AccountType.REVALUATION_SURPLUS, AccountType.EQUITY_DISTRIBUTION,
         ]
 
     def is_revenue_type(self) -> bool:
@@ -438,7 +459,7 @@ class ChartOfAccounts(BaseModel):
             return "other"
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "code": "1.1.1",
@@ -545,10 +566,11 @@ class Account(BaseModel):
     )
 
     # Vietnamese locale formatting constants
-    VIETNAMESE_CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"]
-    VIETNAMESE_LOCALE = "vi_VN"
+    VIETNAMESE_CURRENCIES: ClassVar[list] = ["VND", "USD", "EUR", "JPY", "GBP"]
+    VIETNAMESE_LOCALE: ClassVar[str] = "vi_VN"
 
-    @validator('account_number')
+    @field_validator('account_number')
+    @classmethod
     def validate_account_number(cls, v):
         """
         Validate Vietnamese account number format
@@ -567,7 +589,8 @@ class Account(BaseModel):
 
         return v
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """
         Validate Vietnamese account name
@@ -576,7 +599,8 @@ class Account(BaseModel):
             raise ValidationError("Account name cannot be empty")
         return v.strip()
 
-    @validator('currency')
+    @field_validator('currency')
+    @classmethod
     def validate_currency(cls, v):
         """
         Validate currency for Vietnamese market
@@ -597,7 +621,8 @@ class Account(BaseModel):
 
         return v_upper
 
-    @validator('opening_balance', 'balance')
+    @field_validator('opening_balance', 'balance')
+    @classmethod
     def validate_balance_precision(cls, v):
         """
         Validate balance precision for Vietnamese accounting (2 decimal places for VND)
@@ -610,7 +635,8 @@ class Account(BaseModel):
 
         return v.quantize(Decimal("0.01"))
 
-    @validator('exchange_rate')
+    @field_validator('exchange_rate')
+    @classmethod
     def validate_exchange_rate(cls, v):
         """
         Validate exchange rate for multi-currency support
@@ -620,7 +646,8 @@ class Account(BaseModel):
 
         return v.quantize(Decimal("0.001"))
 
-    @validator('drcr_direction')
+    @field_validator('drcr_direction')
+    @classmethod
     def validate_drcr_direction(cls, v):
         """
         Validate DCR direction based on account type and Vietnamese standards
@@ -634,8 +661,9 @@ class Account(BaseModel):
 
         return DCRDirection(v.lower()).value
 
-    @validator('chart_code')
-    def validate_chart_code(cls, v, values):
+    @field_validator('chart_code')
+    @classmethod
+    def validate_chart_code(cls, v):
         """
         Validate chart code and ensure account type matches chart code type
         """
@@ -650,7 +678,8 @@ class Account(BaseModel):
 
         return v
 
-    @validator('last_updated', 'updated_at')
+    @field_validator('last_updated', 'updated_at')
+    @classmethod
     def validate_date_format(cls, v):
         """
         Validate date format for Vietnamese business operations
@@ -846,7 +875,7 @@ class Account(BaseModel):
             Decimal: str,
         }
 
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "account_number": "1111",
@@ -888,7 +917,7 @@ class JournalEntry(BaseModel):
         pattern=r'^JV\d{6,8}$',
         description="Journal entry number with JV prefix and 6-8 digits"
     )
-    date: date = Field(..., description="Transaction date in ISO format (YYYY-MM-DD)")
+    transaction_date: date = Field(..., description="Transaction date in ISO format (YYYY-MM-DD)")
     description: str = Field(
         ...,
         min_length=1,
@@ -941,13 +970,14 @@ class JournalEntry(BaseModel):
     )
 
     # Vietnamese document constants
-    VIETNAMESE_CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"]
-    MAX_VAT_RATE = Decimal("1.00")
-    MAX_VAT_RATE_PERCENT = 100.00
-    DOUBLE_ENTRY_TOLERANCE = Decimal("0.001")
-    MAX_JOURNAL_DESCRIPTION_LENGTH = 500
+    VIETNAMESE_CURRENCIES: ClassVar[list] = ["VND", "USD", "EUR", "JPY", "GBP"]
+    MAX_VAT_RATE: ClassVar[Decimal] = Decimal("1.00")
+    MAX_VAT_RATE_PERCENT: ClassVar[float] = 100.00
+    DOUBLE_ENTRY_TOLERANCE: ClassVar[Decimal] = Decimal("0.001")
+    MAX_JOURNAL_DESCRIPTION_LENGTH: ClassVar[int] = 500
 
-    @validator('journal_number')
+    @field_validator('journal_number')
+    @classmethod
     def validate_journal_number(cls, v):
         """
         Validate Vietnamese journal entry number format
@@ -961,7 +991,8 @@ class JournalEntry(BaseModel):
 
         return v
 
-    @validator('date')
+    @field_validator('transaction_date')
+    @classmethod
     def validate_date(cls, v):
         """
         Validate transaction date for Vietnamese business operations
@@ -974,7 +1005,8 @@ class JournalEntry(BaseModel):
 
         return v
 
-    @validator('description')
+    @field_validator('description')
+    @classmethod
     def validate_description(cls, v):
         """
         Validate Vietnamese journal entry description
@@ -989,7 +1021,8 @@ class JournalEntry(BaseModel):
 
         return v.strip()
 
-    @validator('vat_rate')
+    @field_validator('vat_rate')
+    @classmethod
     def validate_vat_rate(cls, v):
         """
         Validate VAT rate for Vietnamese tax compliance
@@ -1004,7 +1037,8 @@ class JournalEntry(BaseModel):
 
         return v
 
-    @validator('period')
+    @field_validator('period')
+    @classmethod
     def validate_period(cls, v):
         """
         Validate accounting period format (YYYY-MM)
@@ -1148,7 +1182,7 @@ class JournalEntry(BaseModel):
             raise VASValidationError(f"Unexpected error during VAS compliance validation: {e}")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "journal_number": "JV001",
@@ -1224,13 +1258,14 @@ class JournalLine(BaseModel):
         description="Last update timestamp"
     )
 
-    MAX_VAT_RATE = Decimal("1.00")
-    MAX_VAT_RATE_PERCENT = 100.00
-    JOURNAL_LINE_TOLERANCE = Decimal("0.001")
-    VIETNAMESE_CURRENCIES = ["VND", "USD", "EUR", "JPY", "GBP"]
+    MAX_VAT_RATE: ClassVar[Decimal] = Decimal("1.00")
+    MAX_VAT_RATE_PERCENT: ClassVar[float] = 100.00
+    JOURNAL_LINE_TOLERANCE: ClassVar[Decimal] = Decimal("0.001")
+    VIETNAMESE_CURRENCIES: ClassVar[list] = ["VND", "USD", "EUR", "JPY", "GBP"]
 
-    @validator('debit', 'credit')
-    def validate_amount_precision(cls, v, values, field):
+    @field_validator('debit', 'credit')
+    @classmethod
+    def validate_amount_precision(cls, v):
         """
         Validate monetary amounts with Vietnamese precision standards (2 decimal places)
         """
@@ -1240,12 +1275,10 @@ class JournalLine(BaseModel):
         if abs(v) > Decimal("1000000000.00"):
             raise ValidationError("Amount cannot exceed 1 billion VND")
 
-        if field.name in ('debit', 'credit'):
-            return v.quantize(Decimal("0.01"))
+        return v.quantize(Decimal("0.01"))
 
-        return v
-
-    @validator('vat_rate')
+    @field_validator('vat_rate')
+    @classmethod
     def validate_vat_rate(cls, v):
         """
         Validate VAT rate for Vietnamese tax compliance
@@ -1260,7 +1293,8 @@ class JournalLine(BaseModel):
 
         return v
 
-    @validator('account_id')
+    @field_validator('account_id')
+    @classmethod
     def validate_account_id(cls, v):
         """
         Validate account identifier for Vietnamese accounting system
@@ -1328,7 +1362,7 @@ class JournalLine(BaseModel):
         return f"{formatted_integer},{decimal_part}"
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "account_id": "1111",
@@ -1401,11 +1435,12 @@ class FinancialStatement(BaseModel):
     )
 
     # Vietnamese financial statement constants
-    VIETNAMESE_CURRENCY = "VND"
-    VIETNAMESE_LOCALE = "vi_VN"
-    STATEMENT_TYPES = ["balance_sheet", "income_statement", "cash_flow"]
+    VIETNAMESE_CURRENCY: ClassVar[str] = "VND"
+    VIETNAMESE_LOCALE: ClassVar[str] = "vi_VN"
+    STATEMENT_TYPES: ClassVar[list] = ["balance_sheet", "income_statement", "cash_flow"]
 
-    @validator('period')
+    @field_validator('period')
+    @classmethod
     def validate_period(cls, v):
         """
         Validate accounting period format
@@ -1425,7 +1460,8 @@ class FinancialStatement(BaseModel):
 
         return v
 
-    @validator('statement_type')
+    @field_validator('statement_type')
+    @classmethod
     def validate_statement_type(cls, v):
         """
         Validate statement type
@@ -1578,7 +1614,7 @@ class FinancialStatement(BaseModel):
             raise VASValidationError(f"Unexpected error during VAS compliance validation: {e}")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "period": "2024-01",

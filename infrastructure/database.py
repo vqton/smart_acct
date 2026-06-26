@@ -4,16 +4,13 @@ Implements database connection management, authentication middleware, and system
 """
 
 from flask import Flask, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
-from sqlalchemy.pool import QueuePool, PoolResetter
+from sqlalchemy.pool import QueuePool
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-from cryptography.fernet import Fernet
 import os
 import json
 import logging
@@ -177,7 +174,7 @@ class JWTAuthenticationMiddleware:
 
         path = request.path
         return any(
-            path.startswith protected_path.replace("*", "")
+            path.startswith(protected_path.replace("*", ""))
             for protected_path in self.protected_paths
         )
 class SmartACCTCurrencyFormatter:

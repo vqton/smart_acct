@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field, validator
+from pydantic.v1 import BaseModel, Field, validator
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 from sqlalchemy.pool import QueuePool
