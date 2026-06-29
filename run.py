@@ -26,12 +26,32 @@ def _check_db(db_manager) -> dict:
         return {"status": "error", "detail": str(e)}
 
 
+def _get_remote_addr() -> str:
+    from flask import request
+    return request.remote_addr or "127.0.0.1"
+
+
+def _get_user_from_jwt() -> str:
+    from flask import request
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return "anonymous"
+    try:
+        import jwt
+        token = auth[7:]
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return payload.get("sub") or payload.get("username", "unknown")
+    except Exception:
+        return "anonymous"
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["JSON_AS_ASCII"] = False
     app.config["BABEL_DEFAULT_LOCALE"] = "vi"
     app.config["BABEL_DEFAULT_DOMAIN"] = "messages"
+    is_debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
 
     init_babel(app)
 
@@ -40,12 +60,21 @@ def create_app() -> Flask:
     db_manager.initialize()
     app.db_manager = db_manager
 
-    app.register_blueprint(coa_bp, url_prefix="/api/v1/coa")
-    app.register_blueprint(tax_bp, url_prefix="/api/v1/tax")
-    app.register_blueprint(gl_bp, url_prefix="/api/v1/gl")
-    app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
+    # ── Flask-CORS ────────────────────────────────────────────────────────
+    from flask_cors import CORS
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+    # ── Flask-Limiter ─────────────────────────────────────────────────────
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    limiter = Limiter(
+        app=app,
+        key_func=_get_user_from_jwt,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://",
+    )
     @app.route("/api/v1/health")
+    @limiter.exempt
     def health():
         db_status = _check_db(app.db_manager)
         return jsonify({
@@ -56,10 +85,31 @@ def create_app() -> Flask:
             "database": db_status,
         })
 
+    # ── Flask-APScheduler ─────────────────────────────────────────────────
+    from flask_apscheduler import APScheduler
+    scheduler = APScheduler()
+    scheduler.init_app(app)
+    scheduler.start()
+    app.scheduler = scheduler
+
+    app.register_blueprint(coa_bp, url_prefix="/api/v1/coa")
+    app.register_blueprint(tax_bp, url_prefix="/api/v1/tax")
+    app.register_blueprint(gl_bp, url_prefix="/api/v1/gl")
+    app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
+
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         if hasattr(app, "db_manager"):
             app.db_manager.close()
+
+    # ── Flask-DebugToolbar (dev only) ─────────────────────────────────────
+    if is_debug:
+        from flask_debugtoolbar import DebugToolbarExtension
+        DebugToolbarExtension(app)
+
+    # ── Flask-Talisman ────────────────────────────────────────────────────
+    from flask_talisman import Talisman
+    Talisman(app, content_security_policy=None, force_https=False)
 
     return app
 
