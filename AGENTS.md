@@ -25,18 +25,19 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 │       ├── coa_repository.py     # COA CRUD repo (domain↔DB mapping)
 │       └── tax_repository.py     # Tax CRUD repo (7 entity types)
 ├── use_cases/
-│   ├── __init__.py
-│   ├── coa_use_cases.py          # COA CRUD use cases
-│   ├── coa_validate_use_case.py  # VAS compliance validation
-│   ├── coa_import_use_case.py    # Excel import
-│   ├── coa_export_use_case.py    # Excel/CSV/JSON export
-│   ├── coa_versioning_use_case.py# COA versioning & audit
-│   ├── coa_ifrs_use_case.py      # VAS↔IFRS mapping
-│   ├── coa_usage_use_case.py     # Account usage tracking
-│   ├── coa_template_use_case.py  # TT99/TT133 templates
-│   ├── gl_use_cases.py           # GL posting, period close, carry-forward
-│   ├── tax_use_cases.py          # Tax CRUD + VAT calc + schedule gen
-│   └── cash_use_cases.py         # Cash CRUD + reports + bank features
+│   ├── __init__.py               # Re-exports all use case classes
+│   ├── coa/                      # 8 modules: use_cases, validate, import, export, versioning, ifrs, usage, template
+│   │   └── __init__.py
+│   ├── gl/                       # GLUseCases (gl_use_cases.py shim for backward compat)
+│   │   └── __init__.py
+│   ├── tax/                      # TaxUseCases (tax_use_cases.py shim for backward compat)
+│   │   └── __init__.py
+│   ├── cash/                     # CashUseCases (cash_use_cases.py shim for backward compat)
+│   │   └── __init__.py
+│   ├── coa_use_cases.py          # → shim: imported from use_cases.coa.use_cases
+│   ├── gl_use_cases.py           # → shim: from use_cases.gl import GLUseCases
+│   ├── tax_use_cases.py          # → shim: from use_cases.tax import TaxUseCases
+│   └── cash_use_cases.py         # → shim: from use_cases.cash import CashUseCases
 ├── presentation/
 │   ├── __init__.py
 │   ├── coa_routes.py     # Flask blueprint (/api/v1/coa/*)
@@ -114,7 +115,7 @@ PORT=5000
 - **Monthly balances**: Table for fast financial statements
 
 ### Code Conventions
-- **Imports**: `from domain.models import JournalEntry`
+- **Imports**: `from use_cases.coa import COAUseCases`, `from use_cases.gl import GLUseCases`
 - **Type hints**: Required everywhere
 - **Errors**: Raise `VASValidationError` or `ValidationError`
 - **No hardcoded currency symbols**
@@ -318,6 +319,7 @@ When requirements are unclear, ask about:
 ### COA Module — Completed (UC-01 through UC-08, 87 tests)
 - Account CRUD, Excel import/export, CSV/JSON export, versioning & audit, VAS↔IFRS mapping (5 mapping types), account usage check, full VAS compliance scan (incl. DCR direction), TT99/2025 + TT133/2016 templates, API integration tests
 - `code` regex fix: `^[1-9](?:\.[0-9]+)*$|^[1-9][0-9]{3,5}$`
+- 8 use case classes consolidated in `use_cases/coa/` subpackage
 
 ### Fiscal Period Management — Completed (UC-FP-01 through UC-FP-08)
 - BRD: `docs/brd/fiscal_period_management.md`
@@ -367,14 +369,14 @@ When requirements are unclear, ask about:
 `9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables)
 
 ### Key files
-- `use_cases/gl_use_cases.py` — period close/reopen/create/get_current/get_audit_log/carry_forward with validation
+- `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements)
 - `infrastructure/repositories/gl_repository.py` — `_count_unposted_entries`, `_has_unbalanced_entries`, `_has_tax_declarations_blocking_reopen`, `_log_audit`, `_auto_create_period`, `carry_forward`, `_period_to_dict`
 - `infrastructure/models/gl_models.py` — `AccountingPeriodModel` (upgraded), `PeriodAuditLogModel`
 - `presentation/gl_routes.py` — `POST/GET /periods`, `POST .../close`, `POST .../reopen`, `GET .../audit-log`, `POST .../carry-forward`
 - `tests/test_gl_integration.py` — 47 tests covering all period operations
 - `domain/__init__.py` — All domain entities (COA, GL, Tax, Cash, Bank)
 - `infrastructure/repositories/cash_repository.py` — Cash CRUD + balance + book + cheque lifecycle
-- `use_cases/cash_use_cases.py` — CashUseCases (UC-CASH-01 through UC-CASH-11)
+- `use_cases/cash/__init__.py` — CashUseCases (UC-CASH-01 through UC-CASH-11)
 - `presentation/cash_routes.py` — 23 endpoints: cash receipts/payments/bank/cheque/balance/reports
 - `tests/test_cash_integration.py` — 64 tests covering all cash + edge cases
 - `domain/i18n.py` — Central error code registry (200+ constants), `ERROR_CODE_MAP`, `resolve()` helper
