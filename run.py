@@ -12,6 +12,7 @@ from presentation.coa_routes import coa_bp
 from presentation.tax_routes import tax_bp
 from presentation.gl_routes import gl_bp
 from presentation.cash_routes import cash_bp
+from presentation.ar import ar_bp
 
 _start_time = time()
 
@@ -95,6 +96,7 @@ def create_app() -> Flask:
     app.register_blueprint(coa_bp, url_prefix="/api/v1/coa")
     app.register_blueprint(tax_bp, url_prefix="/api/v1/tax")
     app.register_blueprint(gl_bp, url_prefix="/api/v1/gl")
+    app.register_blueprint(ar_bp, url_prefix="/api/v1/ar")
     app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
 
     @app.teardown_appcontext
