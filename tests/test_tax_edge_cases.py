@@ -69,7 +69,7 @@ class TestTaxDeclarationPeriodEnforcement:
             )
 
     def test_rejects_both_month_and_quarter(self):
-        with pytest.raises(ValidationError, match="Cannot set both"):
+        with pytest.raises(ValidationError, match="TAX_BOTH_PERIOD"):
             TaxDeclaration(
                 tax_type=TaxType.VAT_DEDUCTION,
                 declaration_type=DeclarationType.ORIGINAL,

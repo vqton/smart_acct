@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from domain import (
     ChartOfAccounts, AccountingRegime, AccountStatus, Result, ChartError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.coa_repository import COARepository
 from infrastructure.models.coa_models import COAVersionModel
 
@@ -67,7 +68,7 @@ class COAVersioningUseCase:
     def get_version(self, version_id: int) -> Result:
         model = self.session.get(COAVersionModel, version_id)
         if not model:
-            return Result.failure(ChartError(f"Version {version_id} not found"))
+            return Result.failure(ChartError(ErrorCodes.VERSION_NOT_FOUND, version_id=version_id))
         return Result.success({
             "id": model.id,
             "account_count": model.account_count,
@@ -81,9 +82,9 @@ class COAVersioningUseCase:
         v1 = self.session.get(COAVersionModel, v1_id)
         v2 = self.session.get(COAVersionModel, v2_id)
         if not v1:
-            return Result.failure(ChartError(f"Version {v1_id} not found"))
+            return Result.failure(ChartError(ErrorCodes.VERSION_NOT_FOUND, version_id=v1_id))
         if not v2:
-            return Result.failure(ChartError(f"Version {v2_id} not found"))
+            return Result.failure(ChartError(ErrorCodes.VERSION_NOT_FOUND, version_id=v2_id))
 
         snap1 = {a["code"]: a for a in v1.snapshot}
         snap2 = {a["code"]: a for a in v2.snapshot}

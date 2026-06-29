@@ -1,8 +1,9 @@
 from datetime import date, datetime
 from decimal import Decimal
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 
 from use_cases.cash_use_cases import CashUseCases
+from presentation import resolve_error
 from domain import (
     CashReceiptType, CashPaymentType, CashVoucherStatus, BankAccountStatus,
     ChequeStatus, PettyCashFundStatus, ReconciliationDiscrepancyType,
@@ -84,6 +85,34 @@ def _json_bank_account(ba) -> dict:
         "authorization_limit": str(ba.authorization_limit),
         "created_at": ba.created_at.isoformat() if ba.created_at else None,
         "updated_at": ba.updated_at.isoformat() if ba.updated_at else None,
+    }
+
+
+def _json_bank_transaction(t) -> dict:
+    return {
+        "id": t.id,
+        "bank_account_id": t.bank_account_id,
+        "statement_id": t.statement_id,
+        "transaction_date": t.transaction_date.isoformat(),
+        "value_date": t.value_date.isoformat() if t.value_date else None,
+        "amount": str(t.amount),
+        "is_debit": t.is_debit,
+        "reference": t.reference,
+        "description": t.description,
+        "matched_entry_id": t.matched_entry_id,
+    }
+
+
+def _json_statement(s) -> dict:
+    return {
+        "id": s.id,
+        "bank_account_id": s.bank_account_id,
+        "statement_date": s.statement_date.isoformat(),
+        "opening_balance": str(s.opening_balance),
+        "closing_balance": str(s.closing_balance),
+        "source": s.source,
+        "imported_at": s.imported_at.isoformat() if s.imported_at else None,
+        "transactions": [_json_bank_transaction(t) for t in s.transactions],
     }
 
 
@@ -218,12 +247,12 @@ def create_receipt():
             reference_number=data.get("reference_number"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_receipt(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -247,7 +276,7 @@ def get_receipt(receipt_id):
         uc = CashUseCases(session)
         result = uc.get_receipt(receipt_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_receipt(result.get_data()))
     finally:
         session.close()
@@ -261,12 +290,12 @@ def approve_receipt(receipt_id):
         uc = CashUseCases(session)
         result = uc.approve_receipt(receipt_id, data.get("approved_by", "system"))
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_receipt(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -278,12 +307,12 @@ def cancel_receipt(receipt_id):
         uc = CashUseCases(session)
         result = uc.cancel_receipt(receipt_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": "Receipt cancelled"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -315,12 +344,12 @@ def create_payment():
             supporting_doc_ref=data.get("supporting_doc_ref"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_payment(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -344,7 +373,7 @@ def get_payment(payment_id):
         uc = CashUseCases(session)
         result = uc.get_payment(payment_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_payment(result.get_data()))
     finally:
         session.close()
@@ -358,12 +387,12 @@ def approve_payment(payment_id):
         uc = CashUseCases(session)
         result = uc.approve_payment(payment_id, data.get("approved_by", "system"))
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_payment(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -375,12 +404,12 @@ def cancel_payment(payment_id):
         uc = CashUseCases(session)
         result = uc.cancel_payment(payment_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": "Payment cancelled"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -410,12 +439,12 @@ def create_bank_account():
             authorization_limit=Decimal(str(data.get("authorization_limit", "0"))),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_bank_account(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -439,7 +468,7 @@ def get_bank_account(ba_id):
         uc = CashUseCases(session)
         result = uc.get_bank_account(ba_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_bank_account(result.get_data()))
     finally:
         session.close()
@@ -469,12 +498,12 @@ def create_reconciliation():
             reconciled_by=data.get("reconciled_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_reconciliation(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -486,8 +515,63 @@ def get_reconciliation(recon_id):
         uc = CashUseCases(session)
         result = uc.get_reconciliation(recon_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_reconciliation(result.get_data()))
+    finally:
+        session.close()
+
+
+# ── UC-CASH-05: Bank Statements ──────────────────────────────────────────
+
+
+@cash_bp.route("/statements", methods=["POST"])
+def import_statement():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body required"}), 400
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        result = uc.import_bank_statement(
+            bank_account_id=data["bank_account_id"],
+            statement_date=date.fromisoformat(data["statement_date"]),
+            opening_balance=Decimal(str(data["opening_balance"])),
+            closing_balance=Decimal(str(data["closing_balance"])),
+            transactions=data.get("transactions", []),
+            source=data.get("source", "csv"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_statement(result.get_data())), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@cash_bp.route("/statements", methods=["GET"])
+def list_statements():
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        bank_account_id = request.args.get("bank_account_id", type=int)
+        stmts = uc.repo.list_statements(bank_account_id=bank_account_id)
+        return jsonify({"statements": [_json_statement(s) for s in stmts], "total": len(stmts)})
+    finally:
+        session.close()
+
+
+@cash_bp.route("/statements/<int:stmt_id>", methods=["GET"])
+def get_statement(stmt_id):
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        stmt = uc.repo.get_statement(stmt_id)
+        if not stmt:
+            return jsonify({"error": "Statement not found"}), 404
+        return jsonify(_json_statement(stmt))
     finally:
         session.close()
 
@@ -510,12 +594,12 @@ def create_petty_cash():
             currency=data.get("currency", "VND"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_petty_cash(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -527,7 +611,7 @@ def get_petty_cash(fund_id):
         uc = CashUseCases(session)
         result = uc.get_petty_cash_fund(fund_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_petty_cash(result.get_data()))
     finally:
         session.close()
@@ -563,12 +647,12 @@ def create_advance():
             settlement_deadline=date.fromisoformat(data["settlement_deadline"]) if data.get("settlement_deadline") else None,
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_advance(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -580,7 +664,7 @@ def get_advance(advance_id):
         uc = CashUseCases(session)
         result = uc.get_advance(advance_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_advance(result.get_data()))
     finally:
         session.close()
@@ -596,12 +680,12 @@ def settle_advance(advance_id):
         uc = CashUseCases(session)
         result = uc.settle_advance(advance_id, Decimal(str(data["settlement_amount"])))
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_advance(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -626,12 +710,12 @@ def create_transfer():
             created_by=data.get("created_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_transfer(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -643,7 +727,7 @@ def get_transfer(transfer_id):
         uc = CashUseCases(session)
         result = uc.get_transfer(transfer_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_transfer(result.get_data()))
     finally:
         session.close()
@@ -670,12 +754,12 @@ def create_daily_count():
             witnessed_by=data.get("witnessed_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_daily_cash_count(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -711,12 +795,12 @@ def create_cheque():
             bank_account_id=data["bank_account_id"],
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_cheque(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -728,7 +812,7 @@ def get_cheque(cheque_id):
         uc = CashUseCases(session)
         result = uc.get_cheque(cheque_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_cheque(result.get_data()))
     finally:
         session.close()
@@ -745,7 +829,7 @@ def get_cash_balance():
         account_code = request.args.get("account_code", "1111")
         result = uc.get_cash_balance(account_code=account_code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -769,10 +853,10 @@ def get_cash_book_report():
             to_date=to_date,
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         data = result.get_data()
         if fmt == "html":
-            return data["html"], 200, {"Content-Type": "text/html; charset=utf-8"}
+            return render_template("cash_book_report.html", **data), 200, {"Content-Type": "text/html; charset=utf-8"}
         return jsonify(data)
     finally:
         session.close()
@@ -789,10 +873,235 @@ def get_cash_count_report(count_id):
         fmt = request.args.get("format", "json")
         result = uc.generate_cash_count_report(count_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         data = result.get_data()
         if fmt == "html":
-            return data["html"], 200, {"Content-Type": "text/html; charset=utf-8"}
+            return render_template("cash_count_report.html", **data["count"]), 200, {"Content-Type": "text/html; charset=utf-8"}
         return jsonify(data)
+    finally:
+        session.close()
+
+
+# ── Bank Account Balance ──────────────────────────────────────────────
+
+
+@cash_bp.route("/bank-accounts/<int:ba_id>/balance", methods=["GET"])
+def get_bank_account_balance(ba_id):
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        result = uc.get_bank_balance(ba_id)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 404
+        return jsonify(result.get_data())
+    finally:
+        session.close()
+
+
+# ── Reconciliation List + Suggest Matches ─────────────────────────────
+
+
+@cash_bp.route("/reconciliations", methods=["GET"])
+def list_reconciliations():
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        bank_account_id = request.args.get("bank_account_id", type=int)
+        recons = uc.repo.list_reconciliations(bank_account_id=bank_account_id)
+        return jsonify({"reconciliations": [_json_reconciliation(r) for r in recons], "total": len(recons)})
+    finally:
+        session.close()
+
+
+@cash_bp.route("/reconciliations/suggest-matches", methods=["POST"])
+def suggest_matches():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body required"}), 400
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        result = uc.suggest_matches(
+            bank_account_id=data["bank_account_id"],
+            period=data.get("period"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        return jsonify(result.get_data())
+    finally:
+        session.close()
+
+
+# ── Reconciliation Report ──────────────────────────────────────────
+
+
+@cash_bp.route("/reconciliations/<int:recon_id>/report", methods=["GET"])
+def reconciliation_report(recon_id):
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        fmt = request.args.get("format", "json")
+        result = uc.generate_reconciliation_report(recon_id)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 404
+        data = result.get_data()
+        if fmt == "html":
+            html = uc._render_reconciliation_html(data["data"])
+            return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+        return jsonify(data)
+    finally:
+        session.close()
+
+
+# ── Bank Book Report (So tien gui NH) ────────────────────────────────
+
+
+@cash_bp.route("/reports/bank-book", methods=["GET"])
+def bank_book_report():
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        bank_account_id = request.args.get("bank_account_id", type=int)
+        fmt = request.args.get("format", "json")
+        from_date = date.fromisoformat(request.args["from_date"]) if request.args.get("from_date") else None
+        to_date = date.fromisoformat(request.args["to_date"]) if request.args.get("to_date") else None
+        if not bank_account_id or not from_date or not to_date:
+            return jsonify({"error": "bank_account_id, from_date, to_date required"}), 400
+        result = uc.generate_bank_book_report(
+            bank_account_id=bank_account_id,
+            from_date=from_date,
+            to_date=to_date,
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 404
+        data = result.get_data()
+        if fmt == "html":
+            return render_template("reconciliation_report.html", **data), 200, {"Content-Type": "text/html; charset=utf-8"}
+        return jsonify(data)
+    finally:
+        session.close()
+
+
+# ── Cheque List + Lifecycle ────────────────────────────────────────────
+
+
+@cash_bp.route("/cheques", methods=["GET"])
+def list_cheques():
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        cheques = uc.repo.list_cheques()
+        return jsonify({"cheques": [_json_cheque(c) for c in cheques], "total": len(cheques)})
+    finally:
+        session.close()
+
+
+@cash_bp.route("/cheques/stale", methods=["GET"])
+def stale_cheques():
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        days = request.args.get("days", 180, type=int)
+        result = uc.get_stale_cheques(days=days)
+        return jsonify(result.get_data())
+    finally:
+        session.close()
+
+
+@cash_bp.route("/cheques/<int:cheque_id>/issue", methods=["POST"])
+def issue_cheque(cheque_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        result = uc.issue_cheque(
+            cheque_id=cheque_id,
+            payee=data.get("payee", ""),
+            amount=Decimal(str(data["amount"])) if data.get("amount") else None,
+            bank_account_id=data.get("bank_account_id"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_cheque(result.get_data()))
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@cash_bp.route("/cheques/<int:cheque_id>/clear", methods=["POST"])
+def clear_cheque(cheque_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        cleared_date = date.fromisoformat(data["cleared_date"]) if data.get("cleared_date") else date.today()
+        result = uc.clear_cheque(cheque_id, cleared_date)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_cheque(result.get_data()))
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@cash_bp.route("/cheques/<int:cheque_id>/cancel", methods=["POST"])
+def cancel_cheque(cheque_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        reason = data.get("reason", "")
+        result = uc.cancel_cheque(cheque_id, reason)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_cheque(result.get_data()))
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@cash_bp.route("/cheques/<int:cheque_id>/stop", methods=["POST"])
+def stop_cheque(cheque_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        reason = data.get("reason", "")
+        result = uc.stop_cheque(cheque_id, reason)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_cheque(result.get_data()))
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@cash_bp.route("/cheques/<int:cheque_id>/bounce", methods=["POST"])
+def bounce_cheque(cheque_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = CashUseCases(session)
+        reason = data.get("reason", "")
+        result = uc.bounce_cheque(cheque_id, reason)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_cheque(result.get_data()))
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()

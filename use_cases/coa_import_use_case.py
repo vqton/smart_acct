@@ -8,6 +8,7 @@ from domain import (
     ChartOfAccounts, AccountType, DCRDirection,
     AccountingRegime, Result, VASValidationError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.coa_repository import COARepository
 
 
@@ -28,10 +29,10 @@ class COAImportUseCase:
     def import_from_excel(self, filepath: str, regime: str = "tt99_2025") -> Result:
         path = Path(filepath)
         if not path.exists():
-            return Result.failure(FileNotFoundError(f"File not found: {filepath}"))
+            return Result.failure(VASValidationError(ErrorCodes.FILE_NOT_FOUND, filepath=filepath))
 
         if path.suffix.lower() not in (".xlsx", ".xls"):
-            return Result.failure(ValueError("Only .xlsx and .xls files are supported"))
+            return Result.failure(ValueError(ErrorCodes.FORMAT_NOT_SUPPORTED))
 
         wb = load_workbook(filepath, read_only=True)
         ws = wb.active
@@ -39,7 +40,7 @@ class COAImportUseCase:
         wb.close()
 
         if not rows:
-            return Result.failure(ValueError("Excel file is empty"))
+            return Result.failure(ValueError(ErrorCodes.FILE_EMPTY))
 
         header = [str(c).strip().lower() if c else "" for c in rows[0]]
         col_index = {name: idx for idx, name in enumerate(header) if name}
@@ -47,8 +48,7 @@ class COAImportUseCase:
         missing = [c for c in self.COLUMNS if c not in col_index]
         if missing:
             return Result.failure(
-                ValueError(f"Missing required columns: {', '.join(missing)}. "
-                           f"Found: {', '.join(header)}")
+                VASValidationError(ErrorCodes.MISSING_REQUIRED_COLUMNS, columns=str(missing))
             )
 
         data_rows = rows[1:]

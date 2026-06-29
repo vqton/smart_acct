@@ -1,0 +1,773 @@
+# Vietnamese translations for SmartACCT ERP
+# Copyright (C) 2026 SmartACCT
+# This file is distributed under the same license as the SmartACCT project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SmartACCT 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-29 10:00+0700\n"
+"PO-Revision-Date: 2026-06-29 10:00+0700\n"
+"Last-Translator: SmartACCT Team\n"
+"Language-Team: Vietnamese <team@smartacct.vn>\n"
+"Language: vi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: domain/__init__.py
+msgid "CANNOT_GET_DATA_FAILED"
+msgstr "Không thể lấy dữ liệu từ kết quả thất bại: {self.error}"
+
+#: domain/__init__.py
+msgid "CANNOT_GET_ERROR_SUCCESS"
+msgstr "Không thể lấy lỗi từ kết quả thành công"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_EMPTY"
+msgstr "Mã tài khoản không được để trống"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_NUMERIC"
+msgstr "Mã tài khoản chỉ được chứa số và dấu chấm"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_MAX_DIGITS"
+msgstr "Mã tài khoản không được vượt quá 6 chữ số (tối đa 4 cấp)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_MAX_LEVELS"
+msgstr "Mã tài khoản không được vượt quá 4 cấp (theo chuẩn Việt Nam)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_FIRST_DIGIT"
+msgstr "Chữ số đầu tiên của mã tài khoản phải từ 1-9 (Loại 1-9 theo VAS)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_NO_ZERO"
+msgstr "Mã tài khoản không được bắt đầu bằng 0"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NAME_EMPTY"
+msgstr "Tên tài khoản không được để trống"
+
+#: domain/__init__.py
+msgid "CURRENCY_MUST_BE"
+msgstr "Tiền tệ phải là một trong các loại: %(valid_currencies)s"
+
+#: domain/__init__.py
+msgid "UNIT_EMPTY"
+msgstr "Đơn vị không được để trống"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_EMPTY"
+msgstr "Số tài khoản không được để trống"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_NUMERIC"
+msgstr "Số tài khoản phải là số"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_LENGTH"
+msgstr "Số tài khoản phải có 4-20 chữ số"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_NO_ZERO"
+msgstr "Số tài khoản không được bắt đầu bằng 0"
+
+#: domain/__init__.py
+msgid "CURRENCY_EMPTY"
+msgstr "Tiền tệ không được để trống"
+
+#: domain/__init__.py
+msgid "CURRENCY_NOT_SUPPORTED"
+msgstr "Tiền tệ phải là một trong các loại: %(valid)s"
+
+#: domain/__init__.py
+msgid "CURRENCY_SME_ONLY"
+msgstr "Doanh nghiệp SME Việt Nam chỉ hỗ trợ VND, USD, EUR, JPY, GBP"
+
+#: domain/__init__.py
+msgid "BALANCE_NONE"
+msgstr "Số dư không được để trống"
+
+#: domain/__init__.py
+msgid "BALANCE_EXCEEDED"
+msgstr "Số dư không được vượt quá 10 tỷ VND"
+
+#: domain/__init__.py
+msgid "EXCHANGE_RATE_POSITIVE"
+msgstr "Tỷ giá phải là số dương"
+
+#: domain/__init__.py
+msgid "DCR_DIRECTION_EMPTY"
+msgstr "Hướng DCR không được để trống"
+
+#: domain/__init__.py
+msgid "DCR_DIRECTION_INVALID"
+msgstr "Hướng DCR phải là một trong các loại: %(valid_directions)s"
+
+#: domain/__init__.py
+msgid "CHART_CODE_EMPTY"
+msgstr "Mã biểu đồ không được để trống"
+
+#: domain/__init__.py
+msgid "CHART_CODE_TYPE"
+msgstr "Mã biểu đồ phải là chuỗi ký tự"
+
+#: domain/__init__.py
+msgid "CHART_CODE_MAX_LENGTH"
+msgstr "Mã biểu đồ không được vượt quá 20 ký tự"
+
+#: domain/__init__.py
+msgid "DATE_ISO_FORMAT"
+msgstr "Ngày phải theo định dạng ISO (YYYY-MM-DD)"
+
+#: domain/__init__.py
+msgid "DATE_YEAR_RANGE"
+msgstr "Năm giao dịch phải từ 2000-2100"
+
+#: domain/__init__.py
+msgid "VAS_ACCOUNT_NAME_REQUIRED"
+msgstr "Số hiệu và tên tài khoản là bắt buộc theo VAS"
+
+#: domain/__init__.py
+msgid "VAS_CHART_CODE_REQUIRED"
+msgstr "Mã biểu đồ là bắt buộc theo VAS"
+
+#: domain/__init__.py
+msgid "VAS_ACCOUNT_TYPE_INVALID"
+msgstr "Loại tài khoản {self.account_type} không hợp lệ theo VAS"
+
+#: domain/__init__.py
+msgid "VAS_CURRENCY_NOT_SUPPORTED"
+msgstr "Tiền tệ {self.currency} không được hỗ trợ cho hoạt động tại Việt Nam"
+
+#: domain/__init__.py
+msgid "VAS_ACCOUNT_NO_ZERO"
+msgstr "Số tài khoản không được bắt đầu bằng 0 theo chuẩn VAS"
+
+#: domain/__init__.py
+msgid "VAS_UNEXPECTED_ERROR"
+msgstr "Lỗi không mong đợi khi xác thực VAS: %(e)s"
+
+#: domain/__init__.py
+msgid "JOURNAL_NUMBER_PREFIX"
+msgstr "Số chứng từ phải bắt đầu bằng 'JV'"
+
+#: domain/__init__.py
+msgid "JOURNAL_NUMBER_SUFFIX"
+msgstr "Phần đuôi số chứng từ phải là số"
+
+#: domain/__init__.py
+msgid "TRANSACTION_DATE_NONE"
+msgstr "Ngày giao dịch không được để trống"
+
+#: domain/__init__.py
+msgid "TRANSACTION_DATE_RANGE"
+msgstr "Ngày giao dịch phải trong khoảng 2000-2100"
+
+#: domain/__init__.py
+msgid "DESCRIPTION_EMPTY"
+msgstr "Diễn giải không được để trống"
+
+#: domain/__init__.py
+msgid "DESCRIPTION_MAX_LENGTH"
+msgstr "Diễn giải không được vượt quá {cls.MAX_JOURNAL_DESCRIPTION_LENGTH} ký tự"
+
+#: domain/__init__.py
+msgid "VAT_RATE_RANGE"
+msgstr "Thuế suất VAT phải từ 0% đến %(MAX_VAT_RATE_PERCENT)s%"
+
+#: domain/__init__.py
+msgid "PERIOD_EMPTY"
+msgstr "Kỳ kế toán không được để trống"
+
+#: domain/__init__.py
+msgid "PERIOD_FORMAT"
+msgstr "Kỳ kế toán phải theo định dạng YYYY-MM"
+
+#: domain/__init__.py
+msgid "PERIOD_MONTH_RANGE"
+msgstr "Tháng phải từ 01 đến 12"
+
+#: domain/__init__.py
+msgid "PERIOD_YEAR_RANGE"
+msgstr "Năm phải từ 2000 đến 2100"
+
+#: domain/__init__.py
+msgid "PERIOD_INVALID"
+msgstr "Định dạng kỳ không hợp lệ"
+
+#: domain/__init__.py
+msgid "JOURNAL_ENTRY_NO_LINES"
+msgstr "Chứng từ kế toán phải có ít nhất một dòng"
+
+#: domain/__init__.py
+msgid "DOUBLE_ENTRY_VIOLATION"
+msgstr "Vi phạm nguyên tắc ghi sổ kép: chênh lệch %(tolerance_difference)s vượt quá dung sai %(DOUBLE_ENTRY_TOLERANCE)s VND"
+
+#: domain/__init__.py
+msgid "VAT_NOT_COMPLIANT"
+msgstr "Thuế suất VAT {line.vat_rate} không tuân thủ quy định thuế Việt Nam"
+
+#: domain/__init__.py
+msgid "DEBIT_CREDIT_NEGATIVE"
+msgstr "Số tiền Nợ và Có không được âm"
+
+#: domain/__init__.py
+msgid "VAS_COMPLIANCE_UNEXPECTED"
+msgstr "Lỗi không mong đợi khi xác thực VAS: %(e)s"
+
+#: domain/__init__.py
+msgid "AMOUNT_MAX"
+msgstr "Số tiền không được vượt quá 1 tỷ VND"
+
+#: domain/__init__.py
+msgid "ACCOUNT_ID_EMPTY"
+msgstr "Mã tài khoản không được để trống"
+
+#: domain/__init__.py
+msgid "ACCOUNT_ID_NO_ZERO"
+msgstr "Mã tài khoản không được bắt đầu bằng 0 sau khi loại bỏ khoảng trắng"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_EMPTY"
+msgstr "Kỳ báo cáo không được để trống"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_FORMAT"
+msgstr "Kỳ báo cáo phải theo định dạng YYYY-MM"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_MONTH"
+msgstr "Tháng phải từ 01 đến 12"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_INVALID"
+msgstr "Định dạng kỳ không hợp lệ"
+
+#: domain/__init__.py
+msgid "STATEMENT_TYPE_INVALID"
+msgstr "Loại báo cáo phải là một trong: %(STATEMENT_TYPES)s"
+
+#: domain/__init__.py
+msgid "FS_PERIOD_REQUIRED"
+msgstr "Kỳ báo cáo là bắt buộc theo VAS"
+
+#: domain/__init__.py
+msgid "FS_STATEMENT_TYPE_VAS"
+msgstr "Loại báo cáo %(statement_type)s không hợp lệ theo VAS"
+
+#: domain/__init__.py
+msgid "FS_ASSET_NEGATIVE"
+msgstr "Tổng tài sản không được âm theo VAS"
+
+#: domain/__init__.py
+msgid "FS_VAS_UNEXPECTED"
+msgstr "Lỗi không mong đợi khi xác thực VAS: %(e)s"
+
+#: domain/__init__.py
+msgid "FORM_CODE_EMPTY"
+msgstr "Mã biểu mẫu không được để trống"
+
+#: domain/__init__.py
+msgid "YEAR_RANGE"
+msgstr "Năm phải từ 2000-2100"
+
+#: domain/__init__.py
+msgid "TAX_PERIOD_MONTH_REQUIRED"
+msgstr "period_month là bắt buộc cho {self.tax_type}"
+
+#: domain/__init__.py
+msgid "TAX_PERIOD_QUARTER_REQUIRED"
+msgstr "period_quarter là bắt buộc cho {self.tax_type}"
+
+#: domain/__init__.py
+msgid "TAX_BOTH_PERIOD"
+msgstr "Không thể đặt đồng thời period_month và period_quarter"
+
+#: domain/__init__.py
+msgid "TAX_FIELD_EMPTY"
+msgstr "Trường không được để trống"
+
+#: domain/__init__.py
+msgid "BUDGET_ACCOUNT_INVALID"
+msgstr "Tài khoản ngân sách phải là một trong: %(valid)s"
+
+#: domain/__init__.py
+msgid "BUDGET_ACCOUNT_MISMATCH"
+msgstr "tài khoản ngân sách %(budget_account)s không khớp với loại thuế %(tax_type)s (dự kiến %(expected)s)"
+
+#: domain/__init__.py
+msgid "REASON_EMPTY"
+msgstr "Lý do không được để trống"
+
+#: domain/__init__.py
+msgid "INCENTIVE_CODE_EMPTY"
+msgstr "Mã ưu đãi không được để trống"
+
+#: domain/__init__.py
+msgid "VALID_TO_AFTER_FROM"
+msgstr "valid_to phải sau valid_from"
+
+#: domain/__init__.py
+msgid "TAX_CODE_EMPTY"
+msgstr "Mã số thuế không được để trống"
+
+#: domain/__init__.py
+msgid "CASH_CURRENCY_NOT_SUPPORTED"
+msgstr "Tiền tệ phải là VND, USD, EUR, JPY, GBP"
+
+#: domain/__init__.py
+msgid "TRANSFER_SAME_ACCOUNT"
+msgstr "Tài khoản nguồn và tài khoản đích phải khác nhau"
+
+#: domain/__init__.py
+msgid "CHEQUE_END_GREATER"
+msgstr "Số kết thúc phải lớn hơn số bắt đầu"
+
+#: domain/__init__.py
+msgid "IFRS_CODE_EMPTY"
+msgstr "Mã tài khoản không được để trống"
+
+#: use_cases/
+msgid "ACCOUNT_NOT_FOUND"
+msgstr "Tài khoản '%(code)s' không tìm thấy"
+
+#: use_cases/
+msgid "JOURNAL_ENTRY_NOT_FOUND"
+msgstr "Chứng từ %(entry_id)s không tìm thấy"
+
+#: use_cases/
+msgid "ALREADY_EXISTS"
+msgstr "%(type)s %(id)s đã tồn tại"
+
+#: use_cases/
+msgid "ALREADY_POSTED"
+msgstr "%(type)s đã được ghi sổ"
+
+#: use_cases/
+msgid "CANNOT_UPDATE_POSTED"
+msgstr "Không thể cập nhật %(type)s đã ghi sổ"
+
+#: use_cases/
+msgid "CANNOT_DELETE_POSTED"
+msgstr "Không thể xóa %(type)s đã ghi sổ"
+
+#: use_cases/
+msgid "FIELD_CANNOT_BE_UPDATED"
+msgstr "Trường '%(field)s' không thể cập nhật"
+
+#: use_cases/
+msgid "REOPEN_REASON_REQUIRED"
+msgstr "Lý do mở lại kỳ là bắt buộc cho kiểm toán"
+
+#: use_cases/
+msgid "PERIOD_CLOSED_OP"
+msgstr "Kỳ %(period)s đã khóa — không thể %(action)s"
+
+#: use_cases/
+msgid "PERIOD_ALREADY_CLOSED"
+msgstr "Kỳ %(period)s đã được khóa"
+
+#: use_cases/
+msgid "PERIOD_NOT_CLOSED"
+msgstr "Kỳ %(period)s chưa được khóa"
+
+#: use_cases/
+msgid "PERIOD_ALREADY_EXISTS"
+msgstr "Kỳ %(period)s đã tồn tại"
+
+#: use_cases/
+msgid "PERIOD_OVERLAP"
+msgstr "Kỳ %(period)s trùng lặp với kỳ hiện có"
+
+#: use_cases/
+msgid "INVALID_PERIOD_TYPE"
+msgstr "Loại kỳ không hợp lệ: %(type)s"
+
+#: use_cases/
+msgid "PERIOD_FORMAT_INVALID"
+msgstr "Định dạng kỳ không hợp lệ: %(period)s"
+
+#: use_cases/
+msgid "STATE_TRANSITION"
+msgstr "Không thể %(action)s %(subject)s ở trạng thái %(state)s"
+
+#: use_cases/
+msgid "PERIOD_NOT_FOUND"
+msgstr "Kỳ %(period)s không tìm thấy"
+
+#: use_cases/
+msgid "NO_OPEN_PERIOD"
+msgstr "Không tìm thấy kỳ đang mở"
+
+#: use_cases/
+msgid "DECLARATION_NOT_FOUND"
+msgstr "Tờ khai %(decl_id)s không tìm thấy"
+
+#: use_cases/
+msgid "DECLARATION_ALREADY_SUBMITTED"
+msgstr "Tờ khai %(decl_id)s đã được nộp"
+
+#: use_cases/
+msgid "TAX_LINE_NOT_FOUND"
+msgstr "Dòng thuế %(line_id)s không tìm thấy"
+
+#: use_cases/
+msgid "TAX_PAYMENT_NOT_FOUND"
+msgstr "Khoản nộp thuế %(payment_id)s không tìm thấy"
+
+#: use_cases/
+msgid "TAX_ADJUSTMENT_NOT_FOUND"
+msgstr "Điều chỉnh thuế %(adj_id)s không tìm thấy"
+
+#: use_cases/
+msgid "TAX_INCENTIVE_NOT_FOUND"
+msgstr "Ưu đãi thuế %(incentive_id)s không tìm thấy"
+
+#: use_cases/
+msgid "INVOICE_NOT_FOUND"
+msgstr "Hóa đơn %(invoice_id)s không tìm thấy"
+
+#: use_cases/
+msgid "TAX_SCHEDULE_NOT_FOUND"
+msgstr "Lịch thuế %(schedule_id)s không tìm thấy"
+
+#: use_cases/
+msgid "RECEIPT_NOT_FOUND"
+msgstr "Phiếu thu %(receipt_id)s không tìm thấy"
+
+#: use_cases/
+msgid "ONLY_DRAFT_APPROVED"
+msgstr "Chỉ có phiếu thu ở trạng thái nháp mới được duyệt"
+
+#: use_cases/
+msgid "RECEIPT_CANCELLED"
+msgstr "Phiếu thu đã được hủy"
+
+#: use_cases/
+msgid "PAYMENT_NOT_FOUND"
+msgstr "Phiếu chi %(payment_id)s không tìm thấy"
+
+#: use_cases/
+msgid "ONLY_DRAFT_PAYMENT_APPROVED"
+msgstr "Chỉ có phiếu chi ở trạng thái nháp mới được duyệt"
+
+#: use_cases/
+msgid "PAYMENT_CANCELLED"
+msgstr "Phiếu chi đã được hủy"
+
+#: use_cases/
+msgid "BANK_ACCOUNT_NOT_FOUND"
+msgstr "Tài khoản ngân hàng %(ba_id)s không tìm thấy"
+
+#: use_cases/
+msgid "DAILY_COUNT_NOT_FOUND"
+msgstr "Bản kiểm kê quỹ %(count_id)s không tìm thấy"
+
+#: use_cases/
+msgid "INVALID_STATEMENT_DATA"
+msgstr "Dữ liệu sao kê không hợp lệ: %(e)s"
+
+#: use_cases/
+msgid "DUPLICATE_STATEMENT"
+msgstr "Sao kê trùng cho tài khoản %(bank_account_id)s ngày %(statement_date)s"
+
+#: use_cases/
+msgid "RUNNING_BALANCE_MISMATCH"
+msgstr "Số dư lũy kế không khớp: dự kiến %(running_check)s, thực tế %(closing_balance)s"
+
+#: use_cases/
+msgid "NO_TRANSACTIONS_CSV"
+msgstr "Không tìm thấy giao dịch trong CSV"
+
+#: use_cases/
+msgid "CSV_PARSE_ERROR"
+msgstr "Lỗi phân tích CSV: %(e)s"
+
+#: use_cases/
+msgid "RECONCILIATION_NOT_FOUND"
+msgstr "Bảng đối chiếu %(recon_id)s không tìm thấy"
+
+#: use_cases/
+msgid "PETTY_CASH_FUND_NOT_FOUND"
+msgstr "Quỹ tạm ứng %(fund_id)s không tìm thấy"
+
+#: use_cases/
+msgid "ADVANCE_NOT_FOUND"
+msgstr "Khoản tạm ứng %(advance_id)s không tìm thấy"
+
+#: use_cases/
+msgid "ADVANCE_ALREADY_SETTLED"
+msgstr "Khoản tạm ứng đã được thanh toán"
+
+#: use_cases/
+msgid "CASH_TRANSFER_NOT_FOUND"
+msgstr "Chuyển tiền %(transfer_id)s không tìm thấy"
+
+#: use_cases/
+msgid "CHEQUE_NOT_FOUND"
+msgstr "Séc %(cheque_id)s không tìm thấy"
+
+#: use_cases/
+msgid "CHEQUE_WRONG_STATUS"
+msgstr "Chỉ séc ở trạng thái %(expected)s mới được phép (hiện tại: %(current)s)"
+
+#: use_cases/
+msgid "CHEQUE_CANNOT_CANCEL"
+msgstr "Không thể hủy séc ở trạng thái %(status)s"
+
+#: use_cases/
+msgid "CHEQUE_CANNOT_STOP"
+msgstr "Chỉ séc ở trạng thái ISSUED mới được ngừng thanh toán (hiện tại: %(current)s)"
+
+#: use_cases/
+msgid "CHEQUE_CANNOT_BOUNCE"
+msgstr "Chỉ séc ở trạng thái ISSUED mới được từ chối thanh toán (hiện tại: %(current)s)"
+
+#: use_cases/
+msgid "FILE_NOT_FOUND"
+msgstr "Không tìm thấy tập tin: %(filepath)s"
+
+#: use_cases/
+msgid "FORMAT_NOT_SUPPORTED"
+msgstr "Chỉ hỗ trợ tập tin .xlsx và .xls"
+
+#: use_cases/
+msgid "FILE_EMPTY"
+msgstr "Tập tin Excel trống"
+
+#: use_cases/
+msgid "MISSING_REQUIRED_COLUMNS"
+msgstr "Thiếu các cột bắt buộc: %(missing)s. Tìm thấy: %(found)s"
+
+#: use_cases/
+msgid "MISSING_FIELD"
+msgstr "Thiếu trường: %(e)s"
+
+#: use_cases/
+msgid "INVALID_ACCOUNT_TYPE"
+msgstr "Loại tài khoản không hợp lệ '%(raw)s'. Hợp lệ: %(valid)s..."
+
+#: use_cases/
+msgid "INVALID_DRCR_DIRECTION"
+msgstr "Hướng DCR không hợp lệ '%(raw)s'. Sử dụng 'debit' hoặc 'credit'"
+
+#: use_cases/
+msgid "TEMPLATE_NOT_FOUND"
+msgstr "Mẫu '%(template_id)s' không tìm thấy"
+
+#: use_cases/
+msgid "VERSION_NOT_FOUND"
+msgstr "Phiên bản %(version_id)s không tìm thấy"
+
+#: use_cases/
+msgid "IFRS_MAPPING_EXISTS"
+msgstr "Ánh xạ từ '%(vas_account_code)s' sang '%(ifrs_account_code)s' đã tồn tại"
+
+#: use_cases/
+msgid "VAS_ACCOUNT_NOT_FOUND"
+msgstr "Tài khoản VAS '%(vas_account_code)s' không tìm thấy"
+
+#: use_cases/
+msgid "IFRS_MAPPING_NOT_FOUND"
+msgstr "Ánh xạ %(mapping_id)s không tìm thấy"
+
+#: presentation/
+msgid "REQUEST_BODY_REQUIRED"
+msgstr "Yêu cầu dữ liệu request body"
+
+#: presentation/
+msgid "JOURNAL_LINE_REQUIRED"
+msgstr "Cần ít nhất một dòng chứng từ"
+
+#: presentation/
+msgid "QUERY_PARAM_REQUIRED"
+msgstr "Tham số truy vấn 'q' là bắt buộc"
+
+#: presentation/
+msgid "PERIOD_STATUS_FILTER"
+msgstr "status phải là 'open' hoặc 'closed'"
+
+#: presentation/
+msgid "REASON_REOPEN_REQUIRED"
+msgstr "Lý do là bắt buộc khi mở lại kỳ kế toán"
+
+#: presentation/
+msgid "NO_FILE_UPLOADED"
+msgstr "Chưa tải lên tập tin"
+
+#: presentation/
+msgid "JSON_OR_EXCEL_REQUIRED"
+msgstr "Cung cấp JSON body với mảng 'accounts' hoặc tải lên tập tin Excel"
+
+#: presentation/
+msgid "SETTLEMENT_AMOUNT_REQUIRED"
+msgstr "settlement_amount là bắt buộc"
+
+#: presentation/
+msgid "V1_V2_REQUIRED"
+msgstr "Tham số 'v1' và 'v2' là bắt buộc"
+
+#: presentation/
+msgid "ACCOUNT_DELETED"
+msgstr "Đã xóa tài khoản '%(code)s'"
+
+#: presentation/
+msgid "JOURNAL_ENTRY_DELETED"
+msgstr "Đã xóa chứng từ %(entry_id)s"
+
+#: presentation/
+msgid "MAPPING_DELETED"
+msgstr "Đã xóa ánh xạ %(mapping_id)s"
+
+#: presentation/
+msgid "DECLARATION_DELETED"
+msgstr "Đã xóa tờ khai %(decl_id)s"
+
+#: presentation/
+msgid "LINE_DELETED"
+msgstr "Đã xóa dòng %(line_id)s"
+
+#: presentation/
+msgid "PAYMENT_DELETED"
+msgstr "Đã xóa khoản nộp %(payment_id)s"
+
+#: presentation/
+msgid "ADJUSTMENT_DELETED"
+msgstr "Đã xóa điều chỉnh %(adj_id)s"
+
+#: presentation/
+msgid "INCENTIVE_DELETED"
+msgstr "Đã xóa ưu đãi %(incentive_id)s"
+
+#: presentation/
+msgid "INVOICE_DELETED"
+msgstr "Đã xóa hóa đơn %(invoice_id)s"
+
+#: presentation/
+msgid "SCHEDULE_DELETED"
+msgstr "Đã xóa lịch %(schedule_id)s"
+
+#: presentation/
+msgid "RECEIPT_CANCELLED_MSG"
+msgstr "Đã hủy phiếu thu"
+
+#: presentation/
+msgid "PAYMENT_CANCELLED_MSG"
+msgstr "Đã hủy phiếu chi"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_CODE_NUMERIC"
+msgstr "Mã tài khoản chỉ được chứa số và dấu chấm"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_FIRST_DIGIT_1_9"
+msgstr "Chữ số đầu tiên phải từ 1-9"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_NO_START_ZERO"
+msgstr "Mã tài khoản không được bắt đầu bằng 0"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_MAX_LEVELS"
+msgstr "Tối đa 4 cấp phân cấp được cho phép"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_MAX_DIGITS"
+msgstr "Tối đa 6 chữ số được cho phép"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_NON_COMPLIANT"
+msgstr "Tài khoản được đánh dấu không tuân thủ VAS"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_CLOSED"
+msgstr "Tài khoản đã đóng — không thể sử dụng trong giao dịch mới"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_PARENT_MISSING"
+msgstr "Tài khoản cha '%(parent_code)s' không tồn tại"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_PARENT_INACTIVE"
+msgstr "Tài khoản cha '%(parent_code)s' không hoạt động"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_PARENT_LEVEL_MISMATCH"
+msgstr "Cấp tài khoản cha không khớp: nhận %(level)s, dự kiến %(expected)s"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_DCR_MISMATCH"
+msgstr "Hướng DCR '%(drcr_value)s' không khớp với loại tài khoản '%(type_value)s' (dự kiến '%(expected)s')"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_TT99_LEVEL"
+msgstr "TT99: tài khoản %(type_value)s tối đa 3 cấp"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_HIERARCHY_PARENT_MISSING"
+msgstr "Tài khoản cha '%(parent_code)s' thiếu"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_HIERARCHY_LEVEL_GAP"
+msgstr "Khoảng cách cấp: cấp cha=%(parent_level)s, cấp con=%(child_level)s"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_SCAN_DUPLICATE"
+msgstr "Mã tài khoản trùng '%(code)s'"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_SCAN_NO_NAME"
+msgstr "Tài khoản không có tên"
+
+#: use_cases/coa_import_use_case.py
+msgid "COA_ROW_ERROR"
+msgstr "Dòng %(row)s: %(message)s"
+
+#: use_cases/gl_use_cases.py
+msgid "DOUBLE_ENTRY_DEBIT_CREDIT"
+msgstr "Vi phạm nguyên tắc ghi sổ kép: tổng nợ %(debit)s != tổng có %(credit)s"
+
+#: infrastructure/database.py
+msgid "DB_INIT_FAILED"
+msgstr "Khởi tạo cơ sở dữ liệu thất bại: %(e)s"
+
+#: infrastructure/database.py
+msgid "DB_NOT_INITIALIZED"
+msgstr "Cơ sở dữ liệu chưa được khởi tạo"
+
+#: infrastructure/database.py
+msgid "TX_FAILED"
+msgstr "Giao dịch thất bại: %(e)s"
+
+#: infrastructure/database.py
+msgid "UNAUTHORIZED_NO_TOKEN"
+msgstr "Không được phép: Không có token hợp lệ"
+
+#: infrastructure/database.py
+msgid "UNAUTHORIZED_INVALID_TOKEN"
+msgstr "Không được phép: Token không hợp lệ - %(e)s"
+
+#: services/gdt_client.py
+msgid "TAX_CODE_REQUIRED"
+msgstr "Mã số thuế là bắt buộc"
+
+#: services/gdt_client.py
+msgid "SUBMISSION_ID_REQUIRED"
+msgstr "submission_id là bắt buộc"
+
+#: services/gdt_client.py
+msgid "TRANSACTION_ID_REQUIRED"
+msgstr "transaction_id là bắt buộc"
+
+#: services/gdt_client.py
+msgid "INVALID_TAX_CODE_FORMAT"
+msgstr "Định dạng mã số thuế không hợp lệ: %(tax_code)s"
+
+#: services/signing_service.py
+msgid "NO_PRIVATE_KEY"
+msgstr "Chưa cấu hình khóa bí mật để ký"

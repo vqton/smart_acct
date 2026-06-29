@@ -5,6 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from domain import Result, ChartError
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.coa_repository import COARepository
 from infrastructure.repositories.gl_repository import GLRepository
 from infrastructure.models.gl_models import JournalLineModel, JournalEntryModel
@@ -19,7 +20,7 @@ class COAUsageUseCase:
     def check_usage(self, code: str) -> Result:
         account = self.repo.get_by_code(code)
         if not account:
-            return Result.failure(ChartError(f"Account '{code}' not found"))
+            return Result.failure(ChartError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
 
         balance = self.gl.get_account_balance(code)
 

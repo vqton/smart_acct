@@ -10,6 +10,7 @@ from domain import (
     EInvoice, EInvoiceLine, TaxSchedule,
     Result, ValidationError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.models.tax_models import (
     TaxDeclarationModel, TaxLineModel, TaxPaymentModel, TaxAdjustmentModel,
     TaxIncentiveModel, EInvoiceModel, TaxScheduleModel,
@@ -233,7 +234,7 @@ class TaxRepository:
     def update_declaration(self, decl_id: int, **kwargs) -> Result:
         model = self.session.get(TaxDeclarationModel, decl_id)
         if not model:
-            return Result.failure(ValidationError(f"Declaration {decl_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.DECLARATION_NOT_FOUND, decl_id=decl_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 if key == "status" and isinstance(value, DeclarationStatus):
@@ -248,7 +249,7 @@ class TaxRepository:
     def delete_declaration(self, decl_id: int) -> Result:
         model = self.session.get(TaxDeclarationModel, decl_id)
         if not model:
-            return Result.failure(ValidationError(f"Declaration {decl_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.DECLARATION_NOT_FOUND, decl_id=decl_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
@@ -298,7 +299,7 @@ class TaxRepository:
     def update_line(self, line_id: int, **kwargs) -> Result:
         model = self.session.get(TaxLineModel, line_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxLine {line_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_LINE_NOT_FOUND, line_id=line_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 setattr(model, key, value)
@@ -309,7 +310,7 @@ class TaxRepository:
     def delete_line(self, line_id: int) -> Result:
         model = self.session.get(TaxLineModel, line_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxLine {line_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_LINE_NOT_FOUND, line_id=line_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
@@ -350,7 +351,7 @@ class TaxRepository:
     def update_payment(self, payment_id: int, **kwargs) -> Result:
         model = self.session.get(TaxPaymentModel, payment_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxPayment {payment_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_PAYMENT_NOT_FOUND, payment_id=payment_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 if key == "payment_status" and isinstance(value, TaxPaymentStatus):
@@ -364,7 +365,7 @@ class TaxRepository:
     def delete_payment(self, payment_id: int) -> Result:
         model = self.session.get(TaxPaymentModel, payment_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxPayment {payment_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_PAYMENT_NOT_FOUND, payment_id=payment_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
@@ -406,7 +407,7 @@ class TaxRepository:
     def update_adjustment(self, adj_id: int, **kwargs) -> Result:
         model = self.session.get(TaxAdjustmentModel, adj_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxAdjustment {adj_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_ADJUSTMENT_NOT_FOUND, adj_id=adj_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 setattr(model, key, value)
@@ -417,7 +418,7 @@ class TaxRepository:
     def delete_adjustment(self, adj_id: int) -> Result:
         model = self.session.get(TaxAdjustmentModel, adj_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxAdjustment {adj_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_ADJUSTMENT_NOT_FOUND, adj_id=adj_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
@@ -490,7 +491,7 @@ class TaxRepository:
     def update_incentive(self, incentive_id: int, **kwargs) -> Result:
         model = self.session.get(TaxIncentiveModel, incentive_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxIncentive {incentive_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_INCENTIVE_NOT_FOUND, incentive_id=incentive_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 setattr(model, key, value)
@@ -501,7 +502,7 @@ class TaxRepository:
     def delete_incentive(self, incentive_id: int) -> Result:
         model = self.session.get(TaxIncentiveModel, incentive_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxIncentive {incentive_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_INCENTIVE_NOT_FOUND, incentive_id=incentive_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
@@ -559,7 +560,7 @@ class TaxRepository:
     def update_invoice(self, invoice_id: int, **kwargs) -> Result:
         model = self.session.get(EInvoiceModel, invoice_id)
         if not model:
-            return Result.failure(ValidationError(f"Invoice {invoice_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.INVOICE_NOT_FOUND, invoice_id=invoice_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 if key == "status" and isinstance(value, InvoiceStatus):
@@ -574,7 +575,7 @@ class TaxRepository:
     def delete_invoice(self, invoice_id: int) -> Result:
         model = self.session.get(EInvoiceModel, invoice_id)
         if not model:
-            return Result.failure(ValidationError(f"Invoice {invoice_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.INVOICE_NOT_FOUND, invoice_id=invoice_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
@@ -625,7 +626,7 @@ class TaxRepository:
     def update_schedule(self, schedule_id: int, **kwargs) -> Result:
         model = self.session.get(TaxScheduleModel, schedule_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxSchedule {schedule_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_SCHEDULE_NOT_FOUND, schedule_id=schedule_id))
         for key, value in kwargs.items():
             if hasattr(model, key):
                 setattr(model, key, value)
@@ -636,7 +637,7 @@ class TaxRepository:
     def delete_schedule(self, schedule_id: int) -> Result:
         model = self.session.get(TaxScheduleModel, schedule_id)
         if not model:
-            return Result.failure(ValidationError(f"TaxSchedule {schedule_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_SCHEDULE_NOT_FOUND, schedule_id=schedule_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)

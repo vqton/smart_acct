@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head><meta charset="utf-8">
+<title>{% trans %}SO QUY TIEN MAT{% endtrans %}</title>
+<style>
+    body { font-family: 'Times New Roman', serif; font-size: 12px; }
+    h1 { text-align: center; font-size: 15px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #000; padding: 3px 6px; }
+    .right { text-align: right; }
+</style></head>
+<body>
+<h1>{% trans %}SO QUY TIEN MAT{% endtrans %}</h1>
+<p><strong>{% trans %}Tai khoan:{% endtrans %}</strong> {{ account_code }}</p>
+<p><strong>{% trans %}Ky:{% endtrans %}</strong> {{ period }}</p>
+<p><strong>{% trans %}So du dau ky:{% endtrans %}</strong> {{ opening_balance }}</p>
+<table>
+<thead><tr>
+    <th>{% trans %}Ngay{% endtrans %}</th>
+    <th>{% trans %}So CT{% endtrans %}</th>
+    <th>{% trans %}Doi tuong{% endtrans %}</th>
+    <th>{% trans %}Dien giai{% endtrans %}</th>
+    <th>{% trans %}Thu{% endtrans %}</th>
+    <th>{% trans %}Chi{% endtrans %}</th>
+    <th>{% trans %}Ton quy{% endtrans %}</th>
+    <th>{% trans %}TK DD{% endtrans %}</th>
+</tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+    <td>{{ r.date }}</td>
+    <td>{{ r.number }}</td>
+    <td>{{ r.counter_party }}</td>
+    <td>{{ r.description }}</td>
+    <td class='right'>{{ r.debit }}</td>
+    <td class='right'>{{ r.credit }}</td>
+    <td class='right'>{{ r.balance }}</td>
+    <td>{{ r.counter_account }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<p><strong>{% trans %}So du cuoi ky:{% endtrans %}</strong> {{ closing_balance }}</p>
+</body>
+</html>

@@ -14,6 +14,7 @@ from infrastructure.models.gl_models import (
 )
 from infrastructure.models.coa_models import COAModel
 from infrastructure.models.tax_models import TaxDeclarationModel, DeclarationStatusDB
+from domain.i18n import ErrorCodes
 
 
 class GLRepository:
@@ -90,10 +91,10 @@ class GLRepository:
             select(JournalEntryModel).where(JournalEntryModel.journal_number == entry.journal_number)
         ).scalar_one_or_none()
         if existing:
-            return Result.failure(ValidationError(f"Journal entry '{entry.journal_number}' already exists"))
+            return Result.failure(ValidationError(ErrorCodes.ALREADY_EXISTS, type="Journal entry", id=entry.journal_number))
 
         if self.is_period_closed(entry.period):
-            return Result.failure(ValidationError(f"Period {entry.period} is closed — cannot create journal entry"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_CLOSED_OP, period=entry.period, action="create journal entry"))
 
         model = self._entry_to_model(entry)
         self.session.add(model)
@@ -147,18 +148,18 @@ class GLRepository:
     def update_entry(self, entry_id: int, **kwargs) -> Result:
         model = self.session.get(JournalEntryModel, entry_id)
         if not model:
-            return Result.failure(ValidationError(f"Journal entry {entry_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_ENTRY_NOT_FOUND, entry_id=entry_id))
 
         if model.is_posted:
-            return Result.failure(ValidationError("Cannot update a posted journal entry"))
+            return Result.failure(ValidationError(ErrorCodes.CANNOT_UPDATE_POSTED, type="journal entry"))
 
         if self.is_period_closed(model.period):
-            return Result.failure(ValidationError(f"Period {model.period} is closed — cannot update journal entry"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_CLOSED_OP, period=model.period, action="update journal entry"))
 
         allowed = {"description", "period", "source_module"}
         for key, value in kwargs.items():
             if key not in allowed:
-                return Result.failure(ValidationError(f"Field '{key}' cannot be updated"))
+                return Result.failure(ValidationError(ErrorCodes.FIELD_CANNOT_BE_UPDATED, field=key))
             setattr(model, key, value)
 
         model.updated_at = datetime.now(timezone.utc)
@@ -169,10 +170,10 @@ class GLRepository:
     def delete_entry(self, entry_id: int) -> Result:
         model = self.session.get(JournalEntryModel, entry_id)
         if not model:
-            return Result.failure(ValidationError(f"Journal entry {entry_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_ENTRY_NOT_FOUND, entry_id=entry_id))
 
         if model.is_posted:
-            return Result.failure(ValidationError("Cannot delete a posted journal entry"))
+            return Result.failure(ValidationError(ErrorCodes.CANNOT_DELETE_POSTED, type="journal entry"))
 
         self.session.delete(model)
         self.session.flush()
@@ -183,13 +184,13 @@ class GLRepository:
     def post_entry(self, entry_id: int) -> Result:
         model = self.session.get(JournalEntryModel, entry_id)
         if not model:
-            return Result.failure(ValidationError(f"Journal entry {entry_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_ENTRY_NOT_FOUND, entry_id=entry_id))
 
         if model.is_posted:
-            return Result.failure(ValidationError(f"Journal entry {entry_id} is already posted"))
+            return Result.failure(ValidationError(ErrorCodes.ALREADY_POSTED, type="Journal entry", id=entry_id))
 
         if self.is_period_closed(model.period):
-            return Result.failure(ValidationError(f"Period {model.period} is closed — cannot post journal entry"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_CLOSED_OP, period=model.period, action="post journal entry"))
 
         lines = self.session.execute(
             select(JournalLineModel).where(JournalLineModel.journal_entry_id == entry_id)
@@ -199,7 +200,7 @@ class GLRepository:
         total_credit = sum(l.credit for l in lines)
         if abs(total_debit - total_credit) > 0.001:
             return Result.failure(DoubleEntryError(
-                f"Double-entry violation: debits {total_debit} != credits {total_credit}"
+                ErrorCodes.DOUBLE_ENTRY_DEBIT_CREDIT, debit=total_debit, credit=total_credit
             ))
 
         for line in lines:
@@ -207,7 +208,7 @@ class GLRepository:
                 select(COAModel).where(COAModel.code == line.account_id)
             ).scalar_one_or_none()
             if not account:
-                return Result.failure(ValidationError(f"Account '{line.account_id}' not found"))
+                return Result.failure(ValidationError(ErrorCodes.ACCOUNT_NOT_FOUND, code=line.account_id))
 
         model.is_posted = True
         model.posted_date = datetime.now(timezone.utc)
@@ -358,7 +359,7 @@ class GLRepository:
         ).scalar_one_or_none()
 
         if model and model.is_closed:
-            return Result.failure(ValidationError(f"Period {period} is already closed"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_ALREADY_CLOSED, period=period))
 
         if not model:
             model = self._auto_create_period(period)
@@ -415,15 +416,15 @@ class GLRepository:
     def reopen_period(self, period: str, reopened_by: str = "system",
                       reason: Optional[str] = None) -> Result:
         if not reason:
-            return Result.failure(ValidationError("Reopen reason is required for audit trail"))
+            return Result.failure(ValidationError(ErrorCodes.REOPEN_REASON_REQUIRED))
 
         model = self.session.execute(
             select(AccountingPeriodModel).where(AccountingPeriodModel.period == period)
         ).scalar_one_or_none()
         if not model:
-            return Result.failure(ValidationError(f"Period {period} not found"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_NOT_FOUND, period=period))
         if not model.is_closed:
-            return Result.failure(ValidationError(f"Period {period} is not closed"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_NOT_CLOSED, period=period))
 
         if self._has_tax_declarations_blocking_reopen(period):
             return Result.failure(ValidationError(
@@ -490,7 +491,7 @@ class GLRepository:
             select(AccountingPeriodModel).where(AccountingPeriodModel.period == period)
         ).scalar_one_or_none()
         if existing:
-            return Result.failure(ValidationError(f"Period {period} already exists"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_ALREADY_EXISTS, period=period))
 
         if start_date and end_date:
             overlap = self.session.execute(
@@ -500,16 +501,13 @@ class GLRepository:
                 ).limit(1)
             ).scalar_one_or_none()
             if overlap:
-                return Result.failure(ValidationError(
-                    f"Period {period} overlaps with existing period {overlap.period} "
-                    f"({overlap.start_date} to {overlap.end_date})"
-                ))
+                return Result.failure(ValidationError(ErrorCodes.PERIOD_OVERLAP, period=period))
 
         model = AccountingPeriodModel(period=period)
         try:
             model.type = PeriodType(type_)
         except ValueError:
-            return Result.failure(ValidationError(f"Invalid period type: {type_}"))
+            return Result.failure(ValidationError(ErrorCodes.INVALID_PERIOD_TYPE, type=type_))
         model.start_date = start_date
         model.end_date = end_date
         self.session.add(model)
@@ -548,9 +546,9 @@ class GLRepository:
             select(AccountingPeriodModel).where(AccountingPeriodModel.period == period)
         ).scalar_one_or_none()
         if not model:
-            return Result.failure(ValidationError(f"Period {period} not found"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_NOT_FOUND, period=period))
         if model.is_closed:
-            return Result.failure(ValidationError(f"Period {period} is already closed"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_ALREADY_CLOSED, period=period))
 
         parts = period.split("-")
         year = int(parts[0]) if parts[0].isdigit() else 0
@@ -561,7 +559,7 @@ class GLRepository:
                     f"Carry forward only supported for year-end (December/YYYY-12), got {period}"
                 ))
         elif len(parts) != 1:
-            return Result.failure(ValidationError(f"Invalid period format: {period}"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_FORMAT_INVALID, period=period))
 
         revenue_accounts = self.session.execute(
             select(COAModel.code).where(COAModel.account_type == "revenue")

@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 from domain import (
     ChartOfAccounts, AccountType, DCRDirection,
-    AccountingRegime, Result,
+    AccountingRegime, Result, VASValidationError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.coa_repository import COARepository
 
 
@@ -68,7 +69,7 @@ class COATemplateUseCase:
 
     def preview_template(self, template_id: str) -> Result:
         if template_id not in STANDARD_TEMPLATES:
-            return Result.failure(ValueError(f"Template '{template_id}' not found"))
+            return Result.failure(VASValidationError(ErrorCodes.TEMPLATE_NOT_FOUND, template_id=template_id))
         tpl = STANDARD_TEMPLATES[template_id]
         return Result.success({
             "id": template_id,
@@ -89,7 +90,7 @@ class COATemplateUseCase:
 
     def apply_template(self, template_id: str, clear_existing: bool = False) -> Result:
         if template_id not in STANDARD_TEMPLATES:
-            return Result.failure(ValueError(f"Template '{template_id}' not found"))
+            return Result.failure(VASValidationError(ErrorCodes.TEMPLATE_NOT_FOUND, template_id=template_id))
         template = STANDARD_TEMPLATES[template_id]
 
         if clear_existing:

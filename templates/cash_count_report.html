@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head><meta charset="utf-8">
+<title>{% trans %}BIEN BAN KIEM KE QUY{% endtrans %}</title>
+<style>
+    body { font-family: 'Times New Roman', serif; font-size: 13px; }
+    h1 { text-align: center; font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #000; padding: 4px 8px; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+</style></head>
+<body>
+<h1>{% trans %}BIEN BAN KIEM KE QUY{% endtrans %}</h1>
+<p><strong>{% trans %}Ngay kiem:{% endtrans %}</strong> {{ count_date }}</p>
+<p><strong>{% trans %}Tai khoan:{% endtrans %}</strong> {{ account_code }}</p>
+<p><strong>{% trans %}Nguoi kiem:{% endtrans %}</strong> {{ counted_by }}</p>
+<p><strong>{% trans %}Nguoi chung kien:{% endtrans %}</strong> {{ witnessed_by or 'N/A' }}</p>
+
+<table>
+<tr><th>{% trans %}Chi tieu{% endtrans %}</th><th>{% trans %}So tien{% endtrans %}</th></tr>
+<tr><td>{% trans %}So du so ke toan{% endtrans %}</td><td class='right'>{{ expected_balance }}</td></tr>
+<tr><td>{% trans %}So du kiem ke thuc te{% endtrans %}</td><td class='right'>{{ actual_balance }}</td></tr>
+<tr><td><strong>{% trans %}Chenh lech{% endtrans %}</strong></td><td class='right'><strong>{{ difference }}</strong></td></tr>
+</table>
+
+<p><strong>{% trans %}Ket qua:{% endtrans %} {{ difference_type }}</strong></p>
+
+<h3>{% trans %}Dinh khoan dieu chinh{% endtrans %}</h3>
+<table>
+<thead><tr>
+    <th>{% trans %}Dien giai{% endtrans %}</th>
+    <th>{% trans %}No{% endtrans %}</th>
+    <th>{% trans %}Co{% endtrans %}</th>
+</tr></thead>
+<tbody>
+{% if diff_entries %}
+{% for entry in diff_entries %}
+<tr>
+    <td>{{ entry.description }}</td>
+    <td class='right'>{{ entry.debit }}</td>
+    <td class='right'>{{ entry.credit }}</td>
+</tr>
+{% endfor %}
+{% else %}
+<tr><td colspan="3" class="center">{% trans %}Khong co dieu chinh{% endtrans %}</td></tr>
+{% endif %}
+</tbody>
+</table>
+
+<p><strong>{% trans %}Ghi chu:{% endtrans %}</strong> {{ notes or '' }}</p>
+
+<table>
+<tr>
+    <td><em>{% trans %}Nguoi kiem ke{% endtrans %}</em></td>
+    <td><em>{% trans %}Ke toan truong{% endtrans %}</em></td>
+    <td><em>{% trans %}Giam doc{% endtrans %}</em></td>
+</tr>
+<tr>
+    <td>{% trans %}(Ky, ghi ro ho ten){% endtrans %}</td>
+    <td>{% trans %}(Ky, ghi ro ho ten){% endtrans %}</td>
+    <td>{% trans %}(Ky, ghi ro ho ten){% endtrans %}</td>
+</tr>
+</table>
+</body>
+</html>

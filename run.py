@@ -7,6 +7,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from infrastructure.database import SmartACCTDatabaseManager, SmartACCTDatabaseConfig
+from presentation import init_app as init_babel
 from presentation.coa_routes import coa_bp
 from presentation.tax_routes import tax_bp
 from presentation.gl_routes import gl_bp
@@ -29,6 +30,10 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["JSON_AS_ASCII"] = False
+    app.config["BABEL_DEFAULT_LOCALE"] = "vi"
+    app.config["BABEL_DEFAULT_DOMAIN"] = "messages"
+
+    init_babel(app)
 
     db_config = SmartACCTDatabaseConfig()
     db_manager = SmartACCTDatabaseManager(db_config)

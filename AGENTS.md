@@ -28,21 +28,33 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 │   ├── __init__.py
 │   ├── coa_use_cases.py          # COA CRUD use cases
 │   ├── coa_validate_use_case.py  # VAS compliance validation
-│   └── tax_use_cases.py          # Tax CRUD + VAT calc + schedule gen
+│   ├── coa_import_use_case.py    # Excel import
+│   ├── coa_export_use_case.py    # Excel/CSV/JSON export
+│   ├── coa_versioning_use_case.py# COA versioning & audit
+│   ├── coa_ifrs_use_case.py      # VAS↔IFRS mapping
+│   ├── coa_usage_use_case.py     # Account usage tracking
+│   ├── coa_template_use_case.py  # TT99/TT133 templates
+│   ├── gl_use_cases.py           # GL posting, period close, carry-forward
+│   ├── tax_use_cases.py          # Tax CRUD + VAT calc + schedule gen
+│   └── cash_use_cases.py         # Cash CRUD + reports + bank features
 ├── presentation/
 │   ├── __init__.py
 │   ├── coa_routes.py     # Flask blueprint (/api/v1/coa/*)
-│   └── tax_routes.py     # Flask blueprint (/api/v1/tax/*, 40 endpoints)
+│   ├── gl_routes.py      # Flask blueprint (/api/v1/gl/*, periods)
+│   ├── tax_routes.py     # Flask blueprint (/api/v1/tax/*, 40 endpoints)
+│   └── cash_routes.py    # Flask blueprint (/api/v1/cash/*, 23 endpoints)
 ├── services/
 │   ├── gdt_client.py     # GDT eTax API client stub
 │   └── signing_service.py# RSA-SHA256 e-invoice signing stub
 ├── migrations/
-│   └── versions/          # Alembic migration scripts (COA + tax)
+│   └── versions/          # Alembic migration scripts (COA + tax + GL + cash)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_coa_domain.py        # COA domain unit tests
 │   ├── test_tax_domain.py        # Tax domain unit tests
-│   └── test_tax_integration.py   # Tax repository + use case integration
+│   ├── test_tax_integration.py   # Tax repository + use case integration
+│   ├── test_gl_integration.py    # GL/period integration tests
+│   └── test_cash_integration.py  # Cash (64 tests) + bank integration
 └── requirements.txt
 ```
 
@@ -106,6 +118,28 @@ PORT=5000
 - **Type hints**: Required everywhere
 - **Errors**: Raise `VASValidationError` or `ValidationError`
 - **No hardcoded currency symbols**
+
+### Internationalization (i18n) — Completed
+- **Stack**: Flask-Babel 4.0 for presentation layer; error-code keys for domain/use case messages
+- **Two-tier architecture**:
+  - **Domain + Use Cases**: Raise/return **error code strings** (e.g. `"ACCOUNT_CODE_EMPTY"`) — no framework imports. `VASValidationError` carries `msgid` + `**params` for `gettext("%(name)s")` resolution. Resolution to locale happens at the presentation boundary.
+  - **Presentation**: `resolve_error()` helper in `presentation/__init__.py` calls `gettext(msgid, **params)` on all error returns; falls back to raw string when Flask context unavailable.
+- **`domain/i18n.py`**: `ErrorCodes` class with 200+ canonical error code constants; `resolve()` helper
+- **`translations/` directory**: `.po`/`.mo` files for `vi` (primary) and `en` (secondary) — full Vietnamese translations for all error codes
+- **Locale negotiation**: `?lang=` → Accept-Language header → `vi` default (JWT locale claim wired but depends on token presence)
+- **Scope**: 450+ hardcoded strings converted across 21 files (domain/__init__.py, 10 use case files, 4 repositories, 4 route files)
+- **Format**: `.po` `msgstr` uses `%(name)s` format for Flask-Babel `gettext()` compatibility
+- **Authoritative vocabulary sources** (use for accurate Vietnamese accounting/tax terminology):
+  - MOF: `mof.gov.vn`
+  - GDT eTax: `thuedientu.gdt.gov.vn`
+  - Customs e-declaration: `customs.gov.vn`
+  - Social Insurance e-portal: `baohiemxahoi.gov.vn`
+  - National Public Service Portal: `dichvucong.gov.vn`
+  - General Dept of Taxation: `gdt.gov.vn`
+  - VACPA (Auditing practitioners): `vacpa.org.vn`
+  - VAA (Vietnam Accounting & Auditing Association): `vaa.net.vn`
+  - Big 4 Vietnam tax/accounting glossaries: EY, PwC, Deloitte, KPMG
+- **Remaining**: (none — all i18n work complete)
 
 ---
 
@@ -302,13 +336,35 @@ When requirements are unclear, ask about:
 - VAT calculation (deduction/direct), schedule generation, due reminders
 - Domain edge cases, state transitions, multi-entity interactions (139 tests total incl. integration)
 
-### Test count: 268 passing (all tests)
+### Cash Module — Completed (UC-CASH-01 through UC-CASH-11, 64 tests)
+- 11 domain entities (Advance, CashReceipt, CashPayment, PettyCashFund, PettyCashTransaction, CashTransfer, ChequeBook, Cheque, CashForecast, CashForecastLine, DailyCashCount) + 5 bank entities (BankAccount, BankTransaction, BankStatement, BankReconciliation, CashTransfer) — all with `id: Optional[int] = None` fix
+- 14 SQLAlchemy models (`infrastructure/models/cash_models.py`), migration `7d8e9f0a1b2c`
+- Full repository CRUD + `get_cash_balance()`, `get_cash_book_entries()`, `get_gl_entries_for_bank()`, `update_cheque_status()` (lifecycle-aware)
+- Cash balance endpoint, cash book report (Sổ quỹ tiền mặt, HTML+JSON), cash count report (Biên bản kiểm kê quỹ, HTML+JSON with denomination + surplus/shortage)
+- 23 route endpoints in `presentation/cash_routes.py`
+- Bank features written in use cases (import_bank_statement, auto-matching, bank book report, reconciliation report, cheque lifecycle) — routes + tests deferred to Phase 2
+- HTML report strings extracted to Jinja2 templates (`templates/cash_book_report.html`, `templates/cash_count_report.html`, `templates/reconciliation_report.html`) with `{% trans %}` blocks for i18n
+
+### Internationalization (i18n) — Completed
+- `VASValidationError` enhanced with `msgid` + `**params` for `gettext("%(name)s")` resolution
+- `domain/i18n.py`: 200+ error code constants, `ERROR_CODE_MAP`, `resolve()` helper
+- 450+ strings converted across 21 files (domain, use cases, repositories, routes)
+- All `Result.failure()` and route `str(error)` → `ErrorCodes.CODE` + `resolve_error()`
+- `presentation/__init__.py`: `resolve_error()` helper + Flask-Babel 4.x wiring
+- `translations/vi` + `translations/en`: full `.po`/`.mo` for all error codes
+- Format: `%(name)s` style for Flask-Babel `gettext()` compatibility
+- Fallback to raw msgid when Flask app context unavailable (safe in tests)
+- Cash report HTML extracted to Jinja2 templates with `{% trans %}` blocks: `templates/cash_book_report.html`, `templates/cash_count_report.html`, `templates/reconciliation_report.html`
+- JWT locale claim verified with HS256 signature when `JWT_SECRET_KEY` configured
+
+### Test count: 332 passing (all tests)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
+- Cash: 64 (receipt 7, payment 7, bank account 5, bank reconciliation 7, petty cash 6, cash transfer 4, daily count 4, cheque 4, edge cases 6, balance 5, cash book report 3, cash count report 5)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables)
 
 ### Key files
 - `use_cases/gl_use_cases.py` — period close/reopen/create/get_current/get_audit_log/carry_forward with validation
@@ -316,3 +372,15 @@ When requirements are unclear, ask about:
 - `infrastructure/models/gl_models.py` — `AccountingPeriodModel` (upgraded), `PeriodAuditLogModel`
 - `presentation/gl_routes.py` — `POST/GET /periods`, `POST .../close`, `POST .../reopen`, `GET .../audit-log`, `POST .../carry-forward`
 - `tests/test_gl_integration.py` — 47 tests covering all period operations
+- `domain/__init__.py` — All domain entities (COA, GL, Tax, Cash, Bank)
+- `infrastructure/repositories/cash_repository.py` — Cash CRUD + balance + book + cheque lifecycle
+- `use_cases/cash_use_cases.py` — CashUseCases (UC-CASH-01 through UC-CASH-11)
+- `presentation/cash_routes.py` — 23 endpoints: cash receipts/payments/bank/cheque/balance/reports
+- `tests/test_cash_integration.py` — 64 tests covering all cash + edge cases
+- `domain/i18n.py` — Central error code registry (200+ constants), `ERROR_CODE_MAP`, `resolve()` helper
+- `presentation/__init__.py` — Flask-Babel 4.x wiring, locale selector, `resolve_error()` helper
+- `translations/vi/LC_MESSAGES/messages.po` — Vietnamese translations for all error codes
+- `translations/en/LC_MESSAGES/messages.po` — English translations for all error codes
+- `templates/cash_book_report.html` — Cash book report template with `{% trans %}`
+- `templates/cash_count_report.html` — Cash count report template with `{% trans %}`
+- `templates/reconciliation_report.html` — Bank reconciliation report template with `{% trans %}`

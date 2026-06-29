@@ -83,7 +83,7 @@ class TestCOAUsage:
         uc = COAUsageUseCase(session)
         result = uc.check_usage("NONEXIST")
         assert result.is_failure()
-        assert "not found" in str(result.error)
+        assert "ACCOUNT_NOT_FOUND" in str(result.error)
 
     def test_check_usage_returns_balance(self, session):
         uc = COAUsageUseCase(session)

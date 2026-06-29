@@ -9,6 +9,7 @@ from domain import (
     InvoiceType, EInvoice,
 )
 from infrastructure.database import DatabaseError
+from presentation import resolve_error
 
 tax_bp = Blueprint("tax", __name__)
 
@@ -207,12 +208,12 @@ def create_declaration():
             created_by=data.get("created_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_declaration(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -248,7 +249,7 @@ def get_declaration(decl_id):
         uc = TaxUseCases(session)
         result = uc.get_declaration(decl_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_declaration(result.get_data()))
     finally:
         session.close()
@@ -267,12 +268,12 @@ def update_declaration(decl_id):
         kwargs = {k: v for k, v in data.items() if k in allowed}
         result = uc.update_declaration(decl_id, **kwargs)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_declaration(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -284,12 +285,12 @@ def delete_declaration(decl_id):
         uc = TaxUseCases(session)
         result = uc.delete_declaration(decl_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Declaration {decl_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -302,12 +303,12 @@ def submit_declaration(decl_id):
         uc = TaxUseCases(session)
         result = uc.submit_declaration(decl_id, gdt_reference=data.get("gdt_reference"))
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_declaration(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -326,12 +327,12 @@ def calculate_vat(decl_id):
             output_lines=data.get("output_lines"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data())
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -359,12 +360,12 @@ def create_line(decl_id):
             notes=data.get("notes"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_line(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -387,7 +388,7 @@ def get_line(line_id):
         uc = TaxUseCases(session)
         result = uc.get_line(line_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_line(result.get_data()))
     finally:
         session.close()
@@ -401,12 +402,12 @@ def update_line(line_id):
         uc = TaxUseCases(session)
         result = uc.update_line(line_id, **data)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_line(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -418,12 +419,12 @@ def delete_line(line_id):
         uc = TaxUseCases(session)
         result = uc.delete_line(line_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Line {line_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -451,12 +452,12 @@ def create_payment():
             notes=data.get("notes"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_payment(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -480,7 +481,7 @@ def get_payment(payment_id):
         uc = TaxUseCases(session)
         result = uc.get_payment(payment_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_payment(result.get_data()))
     finally:
         session.close()
@@ -494,12 +495,12 @@ def update_payment(payment_id):
         uc = TaxUseCases(session)
         result = uc.update_payment(payment_id, **data)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_payment(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -511,12 +512,12 @@ def delete_payment(payment_id):
         uc = TaxUseCases(session)
         result = uc.delete_payment(payment_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Payment {payment_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -545,12 +546,12 @@ def create_adjustment():
             created_by=data.get("created_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_adjustment(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -577,7 +578,7 @@ def get_adjustment(adj_id):
         uc = TaxUseCases(session)
         result = uc.get_adjustment(adj_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_adjustment(result.get_data()))
     finally:
         session.close()
@@ -591,12 +592,12 @@ def update_adjustment(adj_id):
         uc = TaxUseCases(session)
         result = uc.update_adjustment(adj_id, **data)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_adjustment(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -608,12 +609,12 @@ def delete_adjustment(adj_id):
         uc = TaxUseCases(session)
         result = uc.delete_adjustment(adj_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Adjustment {adj_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -645,12 +646,12 @@ def create_incentive():
             requires_approval=data.get("requires_approval", False),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_incentive(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -679,7 +680,7 @@ def get_incentive(incentive_id):
         uc = TaxUseCases(session)
         result = uc.get_incentive(incentive_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_incentive(result.get_data()))
     finally:
         session.close()
@@ -693,12 +694,12 @@ def update_incentive(incentive_id):
         uc = TaxUseCases(session)
         result = uc.update_incentive(incentive_id, **data)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_incentive(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -710,12 +711,12 @@ def delete_incentive(incentive_id):
         uc = TaxUseCases(session)
         result = uc.delete_incentive(incentive_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Incentive {incentive_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -754,12 +755,12 @@ def create_invoice():
         )
         result = uc.create_invoice(invoice)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_invoice(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -787,7 +788,7 @@ def get_invoice(invoice_id):
         uc = TaxUseCases(session)
         result = uc.get_invoice(invoice_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_invoice(result.get_data()))
     finally:
         session.close()
@@ -801,12 +802,12 @@ def update_invoice(invoice_id):
         uc = TaxUseCases(session)
         result = uc.update_invoice(invoice_id, **data)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_invoice(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -818,12 +819,12 @@ def delete_invoice(invoice_id):
         uc = TaxUseCases(session)
         result = uc.delete_invoice(invoice_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Invoice {invoice_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -840,12 +841,12 @@ def update_invoice_status(invoice_id):
             verification_code=data.get("verification_code"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_invoice(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -879,7 +880,7 @@ def get_schedule_item(schedule_id):
         uc = TaxUseCases(session)
         result = uc.get_schedule(schedule_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_schedule(result.get_data()))
     finally:
         session.close()
@@ -893,12 +894,12 @@ def update_schedule(schedule_id):
         uc = TaxUseCases(session)
         result = uc.update_schedule(schedule_id, **data)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_schedule(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -910,12 +911,12 @@ def delete_schedule(schedule_id):
         uc = TaxUseCases(session)
         result = uc.delete_schedule(schedule_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Schedule {schedule_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -932,12 +933,12 @@ def generate_schedule():
         year = data.get("year", date.today().year)
         result = uc.generate_schedule(year=year)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data())
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 

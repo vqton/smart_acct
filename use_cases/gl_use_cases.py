@@ -3,6 +3,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from domain import JournalEntry, JournalLine, Result, ValidationError, DoubleEntryError
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.gl_repository import GLRepository
 
 
@@ -50,7 +51,7 @@ class GLUseCases:
             total_credit = sum(l.credit for l in entry.lines)
             if abs(total_debit - total_credit) > Decimal("0.001"):
                 return Result.failure(DoubleEntryError(
-                    f"Double-entry violation: total debits {total_debit} != total credits {total_credit}"
+                    ErrorCodes.DOUBLE_ENTRY_DEBIT_CREDIT, debit=total_debit, credit=total_credit
                 ))
 
             return self.repo.create_entry(entry)
@@ -62,7 +63,7 @@ class GLUseCases:
     def get_entry(self, entry_id: int) -> Result:
         entry = self.repo.get_entry(entry_id)
         if not entry:
-            return Result.failure(ValidationError(f"Journal entry {entry_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_ENTRY_NOT_FOUND, entry_id=entry_id))
         return Result.success(entry)
 
     def list_entries(
@@ -102,7 +103,7 @@ class GLUseCases:
     def get_period(self, period: str) -> Result:
         p = self.repo.get_period(period)
         if not p:
-            return Result.failure(ValidationError(f"Period {period} not found"))
+            return Result.failure(ValidationError(ErrorCodes.PERIOD_NOT_FOUND, period=period))
         return Result.success(p)
 
     def close_period(self, period: str, closed_by: str, notes: Optional[str] = None,
@@ -127,7 +128,7 @@ class GLUseCases:
     def get_current_period(self) -> Result:
         p = self.repo.get_current_period()
         if not p:
-            return Result.failure(ValidationError("No open period found"))
+            return Result.failure(ValidationError(ErrorCodes.NO_OPEN_PERIOD))
         return Result.success(p)
 
     def is_period_closed(self, period: str) -> bool:

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from datetime import date, datetime, timezone
 import pytest
+from flask import Flask
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from domain import (
     ChequeStatus, PettyCashFundStatus, ReconciliationDiscrepancyType,
     CashReceipt, CashPayment, BankAccount, BankReconciliation,
     PettyCashFund, CashTransfer, Cheque, DailyCashCount, Advance,
+    BankStatement, BankTransaction, CashTransferStatus,
     Result, ValidationError, AccountError, AccountType,
 )
 from infrastructure.models.coa_models import Base
@@ -19,6 +21,18 @@ from infrastructure.models.cash_models import (
 )
 from infrastructure.repositories.cash_repository import CashRepository
 from use_cases.cash_use_cases import CashUseCases
+from presentation.cash_routes import cash_bp
+
+
+class FakeDBManager:
+    def __init__(self, engine):
+        self._engine = engine
+
+    def get_session(self):
+        return Session(self._engine)
+
+    def close(self):
+        pass
 
 
 @pytest.fixture(scope="function")
@@ -553,7 +567,6 @@ class TestCashBookReport:
         assert len(data["rows"]) == 2
         assert data["rows"][0]["debit"] == "1000000.00"
         assert data["rows"][1]["credit"] == "500000.00"
-        assert "html" in data
 
     def test_cash_book_running_balance(self, uc):
         uc.create_receipt(date(2026, 6, 1), CashReceiptType.SALES, "A", Decimal("1000000"), "Mot", "1111", "511", "Thu", "u1")
@@ -567,9 +580,8 @@ class TestCashBookReport:
     def test_cash_book_html_output(self, uc):
         uc.create_receipt(date(2026, 6, 1), CashReceiptType.SALES, "A", Decimal("1000"), "Mot", "1111", "511", "Test", "u1")
         result = uc.generate_cash_book_report("1111", date(2026, 6, 1), date(2026, 6, 30))
-        html = result.get_data()["html"]
-        assert "<h1>SO QUY TIEN MAT</h1>" in html
-        assert "1111" in html
+        data = result.get_data()
+        assert "period" in data
 
 
 # ── Cash Count Report Tests ─────────────────────────────────────────
@@ -602,8 +614,8 @@ class TestCashCountReport:
         created = uc.create_daily_cash_count("1111", Decimal("1000000"), Decimal("1000000"), "Thu quy")
         count_id = created.get_data().id
         result = uc.generate_cash_count_report(count_id)
-        html = result.get_data()["html"]
-        assert "<h1>BIEN BAN KIEM KE QUY</h1>" in html
+        data = result.get_data()
+        assert data["count"]["difference_type"] == "Phu hop"
 
     def test_count_report_not_found(self, uc):
         result = uc.generate_cash_count_report(999)
@@ -652,3 +664,482 @@ class TestEdgeCases:
     def test_create_advance_large_amount(self, uc):
         result = uc.create_advance("NV Z", "NV-Z", Decimal("999999999"), "Large advance test")
         assert result.is_success()
+
+
+# ── Bank Statement Tests ─────────────────────────────────────────────
+
+class TestBankStatements:
+    def test_import_statement(self, uc):
+        result = uc.import_bank_statement(
+            bank_account_id=1,
+            statement_date=date(2026, 6, 30),
+            opening_balance=Decimal("100000000"),
+            closing_balance=Decimal("105000000"),
+            transactions=[
+                {"transaction_date": "2026-06-01", "amount": "2000000", "is_debit": False, "reference": "DEP-001", "description": "Khach hang thanh toan"},
+                {"transaction_date": "2026-06-15", "amount": "1000000", "is_debit": True, "reference": "WTH-001", "description": "Rut tien"},
+                {"transaction_date": "2026-06-20", "amount": "4000000", "is_debit": False, "reference": "DEP-002", "description": "Chuyen khoan den"},
+            ],
+        )
+        assert result.is_success()
+        stmt = result.get_data()
+        assert stmt.statement_date == date(2026, 6, 30)
+        assert stmt.opening_balance == Decimal("100000000")
+        assert stmt.closing_balance == Decimal("105000000")
+        assert len(stmt.transactions) == 3
+
+    def test_import_statement_running_balance_mismatch_fails(self, uc):
+        result = uc.import_bank_statement(
+            bank_account_id=1,
+            statement_date=date(2026, 6, 30),
+            opening_balance=Decimal("100000000"),
+            closing_balance=Decimal("99999999"),
+            transactions=[
+                {"transaction_date": "2026-06-01", "amount": "5000000", "is_debit": False, "reference": "DEP-001", "description": "Deposit"},
+            ],
+        )
+        assert result.is_failure()
+
+    def test_import_duplicate_statement_fails(self, uc):
+        uc.import_bank_statement(1, date(2026, 6, 30), Decimal("1000"), Decimal("2000"), [
+            {"transaction_date": "2026-06-01", "amount": "1000", "is_debit": False, "reference": "R1", "description": "Dep"},
+        ])
+        result = uc.import_bank_statement(1, date(2026, 6, 30), Decimal("1000"), Decimal("2000"), [
+            {"transaction_date": "2026-06-01", "amount": "1000", "is_debit": False, "reference": "R1", "description": "Dep"},
+        ])
+        assert result.is_failure()
+
+    def test_get_statement(self, uc):
+        created = uc.import_bank_statement(1, date(2026, 6, 30), Decimal("1000"), Decimal("1000"), [
+            {"transaction_date": "2026-06-01", "amount": "500", "is_debit": False, "reference": "R1", "description": "Dep"},
+            {"transaction_date": "2026-06-15", "amount": "500", "is_debit": True, "reference": "R2", "description": "Wth"},
+        ])
+        stmt_id = created.get_data().id
+        result = uc.repo.get_statement(stmt_id)
+        assert result is not None
+        assert result.statement_date == date(2026, 6, 30)
+        assert len(result.transactions) == 2
+
+    def test_list_statements(self, uc):
+        uc.import_bank_statement(1, date(2026, 5, 31), Decimal("0"), Decimal("5000"), [
+            {"transaction_date": "2026-05-01", "amount": "5000", "is_debit": False, "reference": "M1", "description": "May deposit"},
+        ])
+        uc.import_bank_statement(1, date(2026, 6, 30), Decimal("5000"), Decimal("7000"), [
+            {"transaction_date": "2026-06-01", "amount": "2000", "is_debit": False, "reference": "J1", "description": "June deposit"},
+        ])
+        stmts = uc.repo.list_statements(bank_account_id=1)
+        assert len(stmts) >= 2
+
+    def test_import_statement_invalid_data_fails(self, uc):
+        result = uc.import_bank_statement(
+            bank_account_id=1,
+            statement_date=date(2026, 6, 30),
+            opening_balance=Decimal("1000"),
+            closing_balance=Decimal("2000"),
+            transactions=[{"bad_key": "value"}],
+        )
+        assert result.is_failure()
+
+    def test_parse_csv_vietcombank(self, uc):
+        csv_lines = [
+            "Ngay giao dich,Ngay hieu luc,So tien,Loai,Ma giao dich,Dien giai,_opening_balance,_closing_balance",
+            "2026-06-01,2026-06-01,1000000,IN,DEP-001,Khach hang chuyen tien,10000000,10500000",
+            "2026-06-15,2026-06-15,500000,OUT,WTH-001,Rut tien ATM,10000000,10500000",
+        ]
+        result = uc.parse_csv_statement(1, csv_lines, fmt="vietcombank")
+        assert result.is_success()
+        stmt = result.get_data()
+        assert len(stmt.transactions) == 2
+
+    def test_parse_csv_no_transactions_fails(self, uc):
+        result = uc.parse_csv_statement(1, ["header1,header2"], fmt="vietcombank")
+        assert result.is_failure()
+
+
+# ── Cheque Lifecycle Tests ──────────────────────────────────────────
+
+class TestChequeLifecycle:
+    def test_issue_cheque(self, uc):
+        created = uc.create_cheque("SEC-010", 1, "Payee", Decimal("10000000"), 1)
+        c_id = created.get_data().id
+        result = uc.issue_cheque(c_id, "NCC XYZ", Decimal("10000000"), 1)
+        assert result.is_success()
+        c = result.get_data()
+        assert c.status == ChequeStatus.ISSUED
+        assert c.payee == "NCC XYZ"
+
+    def test_issue_twice_fails(self, uc):
+        created = uc.create_cheque("SEC-011", 1, "Payee", Decimal("5000000"), 1)
+        c_id = created.get_data().id
+        uc.issue_cheque(c_id, "NCC", Decimal("5000000"), 1)
+        result = uc.issue_cheque(c_id, "NCC2", Decimal("5000000"), 1)
+        assert result.is_failure()
+
+    def test_clear_cheque(self, uc):
+        created = uc.create_cheque("SEC-020", 1, "Payee", Decimal("20000000"), 1)
+        c_id = created.get_data().id
+        uc.issue_cheque(c_id, "NCC", Decimal("20000000"), 1)
+        result = uc.clear_cheque(c_id, date(2026, 7, 15))
+        assert result.is_success()
+        assert result.get_data().status == ChequeStatus.CLEARED
+        assert result.get_data().cleared_date == date(2026, 7, 15)
+
+    def test_clear_from_new_fails(self, uc):
+        created = uc.create_cheque("SEC-021", 1, "Payee", Decimal("1000000"), 1)
+        result = uc.clear_cheque(created.get_data().id, date(2026, 7, 15))
+        assert result.is_failure()
+
+    def test_cancel_cheque(self, uc):
+        created = uc.create_cheque("SEC-030", 1, "Payee", Decimal("10000000"), 1)
+        c_id = created.get_data().id
+        result = uc.cancel_cheque(c_id, "Huy theo yeu cau")
+        assert result.is_success()
+        assert result.get_data().status == ChequeStatus.CANCELLED
+        assert result.get_data().cancelled_reason == "Huy theo yeu cau"
+
+    def test_cancel_cleared_fails(self, uc):
+        created = uc.create_cheque("SEC-031", 1, "Payee", Decimal("1000000"), 1)
+        c_id = created.get_data().id
+        uc.issue_cheque(c_id, "NCC", Decimal("1000000"), 1)
+        uc.clear_cheque(c_id, date(2026, 7, 15))
+        result = uc.cancel_cheque(c_id, "Huy")
+        assert result.is_failure()
+
+    def test_stop_cheque(self, uc):
+        created = uc.create_cheque("SEC-040", 1, "Payee", Decimal("10000000"), 1)
+        c_id = created.get_data().id
+        uc.issue_cheque(c_id, "NCC", Decimal("10000000"), 1)
+        result = uc.stop_cheque(c_id, "Mat sec")
+        assert result.is_success()
+        assert result.get_data().status == ChequeStatus.STOPPED
+
+    def test_bounce_cheque(self, uc):
+        created = uc.create_cheque("SEC-050", 1, "Payee", Decimal("10000000"), 1)
+        c_id = created.get_data().id
+        uc.issue_cheque(c_id, "NCC", Decimal("10000000"), 1)
+        result = uc.bounce_cheque(c_id, "Khong du tien")
+        assert result.is_success()
+        assert result.get_data().status == ChequeStatus.BOUNCED
+
+    def test_get_stale_cheques(self, uc):
+        from datetime import timedelta
+        old_date = date.today() - timedelta(days=200)
+        created = uc.create_cheque("SEC-060", 1, "Payee", Decimal("10000000"), 1)
+        c_id = created.get_data().id
+        uc.issue_cheque(c_id, "Old Payee", Decimal("10000000"), 1)
+        result = uc.get_stale_cheques(days=180)
+        assert result.is_success()
+        data = result.get_data()
+        assert "stale_cheques" in data
+
+    def test_list_cheques(self, uc):
+        uc.create_cheque("SEC-070", 1, "Payee A", Decimal("1000000"), 1)
+        uc.create_cheque("SEC-071", 1, "Payee B", Decimal("2000000"), 1)
+        cheques = uc.repo.list_cheques()
+        assert len(cheques) >= 2
+
+    def test_issue_nonexistent_fails(self, uc):
+        result = uc.issue_cheque(999, "NCC", Decimal("1000"), 1)
+        assert result.is_failure()
+
+    def test_clear_nonexistent_fails(self, uc):
+        result = uc.clear_cheque(999, date.today())
+        assert result.is_failure()
+
+    def test_cancel_nonexistent_fails(self, uc):
+        result = uc.cancel_cheque(999, "reason")
+        assert result.is_failure()
+
+
+# ── Bank Balance Tests ──────────────────────────────────────────────
+
+class TestBankBalance:
+    def test_get_bank_balance(self, uc):
+        uc.create_bank_account("Vietcombank", "HN", "12345", "Co ABC", "1121")
+        result = uc.get_bank_balance(ba_id=1)
+        assert result.is_success()
+        data = result.get_data()
+        assert data["bank_account_id"] == 1
+        assert "current_balance" in data
+        assert "bank_name" in data
+
+    def test_get_bank_balance_nonexistent(self, uc):
+        result = uc.get_bank_balance(ba_id=999)
+        assert result.is_failure()
+
+    def test_list_reconciliations(self, uc):
+        uc.create_reconciliation(1, "2026-06", Decimal("1000"), Decimal("1000"))
+        uc.create_reconciliation(1, "2026-07", Decimal("2000"), Decimal("2000"))
+        recons = uc.repo.list_reconciliations(bank_account_id=1)
+        assert len(recons) >= 2
+
+    def test_suggest_matches(self, uc):
+        uc.import_bank_statement(1, date(2026, 6, 30), Decimal("0"), Decimal("5000"), [
+            {"transaction_date": "2026-06-15", "amount": "2000", "is_debit": False,
+             "reference": "DEP-REF", "description": "Customer payment"},
+        ])
+        result = uc.suggest_matches(bank_account_id=1, period="2026-06")
+        assert result.is_success()
+        data = result.get_data()
+        assert "suggestions" in data
+        assert "unmatched_bank_transactions" in data
+
+
+# ── Bank Book Report Tests ──────────────────────────────────────────
+
+class TestBankBookReport:
+    def test_generate_bank_book_report(self, uc):
+        uc.create_bank_account("Vietcombank", "HN", "12345", "Co ABC", "1121")
+        result = uc.generate_bank_book_report(
+            bank_account_id=1,
+            from_date=date(2026, 1, 1),
+            to_date=date(2026, 12, 31),
+        )
+        assert result.is_success()
+        data = result.get_data()
+        assert data["bank_account_id"] == 1
+        assert "rows" in data
+        assert "opening_balance" in data
+
+    def test_bank_book_report_nonexistent(self, uc):
+        result = uc.generate_bank_book_report(999, date(2026, 1, 1), date(2026, 12, 31))
+        assert result.is_failure()
+
+
+# ── Reconciliation Report Tests ────────────────────────────────────
+
+class TestReconciliationReport:
+    def test_generate_reconciliation_report(self, uc):
+        created = uc.create_reconciliation(1, "2026-06", Decimal("100000000"), Decimal("100000000"))
+        r_id = created.get_data().id
+        result = uc.generate_reconciliation_report(r_id)
+        assert result.is_success()
+        data = result.get_data()["data"]
+        assert data["is_balanced"] is True
+        assert data["period"] == "2026-06"
+
+    def test_reconciliation_report_not_found(self, uc):
+        result = uc.generate_reconciliation_report(999)
+        assert result.is_failure()
+
+
+# ── Flask Route Tests ────────────────────────────────────────────────
+
+
+@pytest.fixture(scope="function")
+def cash_client():
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+    app.db_manager = FakeDBManager(engine)
+    app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
+    return app.test_client()
+
+
+class TestBankStatementRoutes:
+    def test_import_statement(self, cash_client):
+        resp = cash_client.post("/api/v1/cash/statements", json={
+            "bank_account_id": 1,
+            "statement_date": "2026-06-30",
+            "opening_balance": "100000000",
+            "closing_balance": "105000000",
+            "transactions": [
+                {"transaction_date": "2026-06-01", "amount": "2000000", "is_debit": False,
+                 "reference": "DEP-001", "description": "Deposit"},
+                {"transaction_date": "2026-06-15", "amount": "1000000", "is_debit": True,
+                 "reference": "WTH-001", "description": "Withdrawal"},
+                {"transaction_date": "2026-06-20", "amount": "4000000", "is_debit": False,
+                 "reference": "DEP-002", "description": "Transfer in"},
+            ],
+        })
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert data["statement_date"] == "2026-06-30"
+        assert len(data["transactions"]) == 3
+
+    def test_list_statements(self, cash_client):
+        cash_client.post("/api/v1/cash/statements", json={
+            "bank_account_id": 1, "statement_date": "2026-06-30",
+            "opening_balance": "0", "closing_balance": "5000",
+            "transactions": [
+                {"transaction_date": "2026-06-01", "amount": "5000", "is_debit": False,
+                 "reference": "R1", "description": "Dep"},
+            ],
+        })
+        resp = cash_client.get("/api/v1/cash/statements")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["total"] >= 1
+
+    def test_get_statement(self, cash_client):
+        created = cash_client.post("/api/v1/cash/statements", json={
+            "bank_account_id": 1, "statement_date": "2026-06-30",
+            "opening_balance": "0", "closing_balance": "2000",
+            "transactions": [
+                {"transaction_date": "2026-06-01", "amount": "2000", "is_debit": False,
+                 "reference": "R1", "description": "Dep"},
+            ],
+        })
+        stmt_id = created.get_json()["id"]
+        resp = cash_client.get(f"/api/v1/cash/statements/{stmt_id}")
+        assert resp.status_code == 200
+
+    def test_import_statement_bad_request(self, cash_client):
+        resp = cash_client.post("/api/v1/cash/statements", json={})
+        assert resp.status_code == 400
+
+
+class TestChequeRouteLifecycle:
+    def test_create_and_issue(self, cash_client):
+        created = cash_client.post("/api/v1/cash/cheques", json={
+            "cheque_number": "SEC-100", "cheque_book_id": 1, "payee": "NCC",
+            "amount": "10000000", "bank_account_id": 1,
+        })
+        assert created.status_code == 201
+        c_id = created.get_json()["id"]
+
+        issued = cash_client.post(f"/api/v1/cash/cheques/{c_id}/issue", json={
+            "payee": "NCC XYZ", "amount": "10000000", "bank_account_id": 1,
+        })
+        assert issued.status_code == 200
+        assert issued.get_json()["status"] == "issued"
+
+        cleared = cash_client.post(f"/api/v1/cash/cheques/{c_id}/clear", json={
+            "cleared_date": "2026-07-15",
+        })
+        assert cleared.status_code == 200
+        assert cleared.get_json()["status"] == "cleared"
+
+    def test_cancel(self, cash_client):
+        created = cash_client.post("/api/v1/cash/cheques", json={
+            "cheque_number": "SEC-200", "cheque_book_id": 1, "payee": "NCC",
+            "amount": "5000000", "bank_account_id": 1,
+        })
+        c_id = created.get_json()["id"]
+        resp = cash_client.post(f"/api/v1/cash/cheques/{c_id}/cancel", json={"reason": "Wrong payee"})
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "cancelled"
+
+    def test_stop(self, cash_client):
+        created = cash_client.post("/api/v1/cash/cheques", json={
+            "cheque_number": "SEC-300", "cheque_book_id": 1, "payee": "NCC",
+            "amount": "5000000", "bank_account_id": 1,
+        })
+        c_id = created.get_json()["id"]
+        cash_client.post(f"/api/v1/cash/cheques/{c_id}/issue", json={
+            "payee": "NCC", "amount": "5000000", "bank_account_id": 1,
+        })
+        resp = cash_client.post(f"/api/v1/cash/cheques/{c_id}/stop", json={"reason": "Lost cheque"})
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "stopped"
+
+    def test_bounce(self, cash_client):
+        created = cash_client.post("/api/v1/cash/cheques", json={
+            "cheque_number": "SEC-400", "cheque_book_id": 1, "payee": "NCC",
+            "amount": "5000000", "bank_account_id": 1,
+        })
+        c_id = created.get_json()["id"]
+        cash_client.post(f"/api/v1/cash/cheques/{c_id}/issue", json={
+            "payee": "NCC", "amount": "5000000", "bank_account_id": 1,
+        })
+        resp = cash_client.post(f"/api/v1/cash/cheques/{c_id}/bounce", json={"reason": "Insufficient funds"})
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "bounced"
+
+    def test_list_cheques(self, cash_client):
+        cash_client.post("/api/v1/cash/cheques", json={
+            "cheque_number": "SEC-500", "cheque_book_id": 1, "payee": "A",
+            "amount": "1000000", "bank_account_id": 1,
+        })
+        cash_client.post("/api/v1/cash/cheques", json={
+            "cheque_number": "SEC-501", "cheque_book_id": 1, "payee": "B",
+            "amount": "2000000", "bank_account_id": 1,
+        })
+        resp = cash_client.get("/api/v1/cash/cheques")
+        assert resp.status_code == 200
+        assert resp.get_json()["total"] >= 2
+
+    def test_stale(self, cash_client):
+        resp = cash_client.get("/api/v1/cash/cheques/stale?days=180")
+        assert resp.status_code == 200
+        assert "stale_cheques" in resp.get_json()
+
+
+class TestBankBalanceRoute:
+    def test_get_balance(self, cash_client):
+        cash_client.post("/api/v1/cash/bank-accounts", json={
+            "bank_name": "VCB", "branch": "HN", "account_number": "123",
+            "account_holder": "Co ABC", "coa_code": "1121",
+        })
+        resp = cash_client.get("/api/v1/cash/bank-accounts/1/balance")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["bank_account_id"] == 1
+
+    def test_get_balance_not_found(self, cash_client):
+        resp = cash_client.get("/api/v1/cash/bank-accounts/999/balance")
+        assert resp.status_code == 404
+
+
+class TestReconciliationRoutes:
+    def test_list_reconciliations(self, cash_client):
+        cash_client.post("/api/v1/cash/reconciliations", json={
+            "bank_account_id": 1, "period": "2026-06",
+            "book_balance": "100000000", "bank_balance": "100000000",
+        })
+        cash_client.post("/api/v1/cash/reconciliations", json={
+            "bank_account_id": 1, "period": "2026-07",
+            "book_balance": "200000000", "bank_balance": "200000000",
+        })
+        resp = cash_client.get("/api/v1/cash/reconciliations")
+        assert resp.status_code == 200
+        assert resp.get_json()["total"] >= 2
+
+    def test_suggest_matches(self, cash_client):
+        cash_client.post("/api/v1/cash/statements", json={
+            "bank_account_id": 1, "statement_date": "2026-06-30",
+            "opening_balance": "0", "closing_balance": "5000",
+            "transactions": [
+                {"transaction_date": "2026-06-15", "amount": "2000", "is_debit": False,
+                 "reference": "DEP-REF", "description": "Payment"},
+            ],
+        })
+        resp = cash_client.post("/api/v1/cash/reconciliations/suggest-matches", json={
+            "bank_account_id": 1, "period": "2026-06",
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "suggestions" in data
+
+    def test_reconciliation_report(self, cash_client):
+        created = cash_client.post("/api/v1/cash/reconciliations", json={
+            "bank_account_id": 1, "period": "2026-06",
+            "book_balance": "100000000", "bank_balance": "100000000",
+        })
+        r_id = created.get_json()["id"]
+        resp = cash_client.get(f"/api/v1/cash/reconciliations/{r_id}/report")
+        assert resp.status_code == 200
+        data = resp.get_json()["data"]
+        assert data["is_balanced"] is True
+
+    def test_reconciliation_report_not_found(self, cash_client):
+        resp = cash_client.get("/api/v1/cash/reconciliations/999/report")
+        assert resp.status_code == 404
+
+
+class TestBankBookReportRoute:
+    def test_bank_book_report(self, cash_client):
+        cash_client.post("/api/v1/cash/bank-accounts", json={
+            "bank_name": "VCB", "branch": "HN", "account_number": "123",
+            "account_holder": "Co ABC", "coa_code": "1121",
+        })
+        resp = cash_client.get("/api/v1/cash/reports/bank-book?bank_account_id=1&from_date=2026-01-01&to_date=2026-12-31")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["bank_account_id"] == 1
+        assert "rows" in data
+
+    def test_bank_book_report_missing_params(self, cash_client):
+        resp = cash_client.get("/api/v1/cash/reports/bank-book")
+        assert resp.status_code == 400

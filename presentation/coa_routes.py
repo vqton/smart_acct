@@ -13,6 +13,7 @@ from domain import (
     AccountType, DCRDirection, AccountingRegime, AccountStatus,
 )
 from infrastructure.database import DatabaseError
+from presentation import resolve_error
 
 coa_bp = Blueprint("coa", __name__)
 
@@ -63,12 +64,12 @@ def create_account():
             unit=data.get("unit", "VND"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_account(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -103,7 +104,7 @@ def get_account(code):
         uc = COAUseCases(session)
         result = uc.get_account(code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_account(result.get_data()))
     finally:
         session.close()
@@ -122,12 +123,12 @@ def update_account(code):
         kwargs = {k: v for k, v in data.items() if k in allowed}
         result = uc.update_account(code, **kwargs)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_account(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -139,12 +140,12 @@ def delete_account(code):
         uc = COAUseCases(session)
         result = uc.delete_account(code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Account '{code}' deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -171,7 +172,7 @@ def account_hierarchy(code):
         uc = COAUseCases(session)
         result = uc.get_account_hierarchy(code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -184,7 +185,7 @@ def validate_account(code):
         uc = COAValidateUseCase(session)
         result = uc.validate_account(code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -228,12 +229,12 @@ def import_accounts():
             return jsonify({"error": "Provide JSON body with 'accounts' array or upload Excel file"}), 400
 
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data())
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -285,12 +286,12 @@ def create_version():
             notes=data.get("notes"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data()), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -315,7 +316,7 @@ def get_version(version_id):
         uc = COAVersioningUseCase(session)
         result = uc.get_version(version_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -333,7 +334,7 @@ def diff_versions():
         uc = COAVersioningUseCase(session)
         result = uc.diff_versions(v1, v2)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -356,12 +357,12 @@ def create_ifrs_mapping():
             created_by=data.get("created_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data()), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -387,7 +388,7 @@ def get_ifrs_mapping(mapping_id):
         uc = COAIFRSUseCase(session)
         result = uc.get_mapping(mapping_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -400,12 +401,12 @@ def delete_ifrs_mapping(mapping_id):
         uc = COAIFRSUseCase(session)
         result = uc.delete_mapping(mapping_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Mapping {mapping_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -438,7 +439,7 @@ def check_compliance(code):
         uc = COAValidateUseCase(session)
         result = uc.check_compliance(code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -461,7 +462,7 @@ def preview_template(template_id):
         uc = COATemplateUseCase(session)
         result = uc.preview_template(template_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -475,12 +476,12 @@ def apply_template(template_id):
         data = request.get_json() or {}
         result = uc.apply_template(template_id, clear_existing=data.get("clear_existing", False))
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data()), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -492,7 +493,7 @@ def check_account_usage(code):
         uc = COAUsageUseCase(session)
         result = uc.check_usage(code)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()

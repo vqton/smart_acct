@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from domain import IFRSMapping, Result
+from domain import IFRSMapping, Result, VASValidationError
+from domain.i18n import ErrorCodes
 from infrastructure.models.coa_models import IFRSMappingModel
 from infrastructure.repositories.coa_repository import COARepository
 
@@ -46,13 +47,13 @@ class COAIFRSUseCase:
             )
         ).scalar_one_or_none()
         if existing:
-            return Result.failure(ValueError(
-                f"Mapping from '{vas_account_code}' to '{ifrs_account_code}' already exists"
+            return Result.failure(VASValidationError(
+                ErrorCodes.IFRS_MAPPING_EXISTS, source=vas_account_code, target=ifrs_account_code
             ))
 
         vas_exists = self.repo.get_by_code(vas_account_code)
         if not vas_exists:
-            return Result.failure(ValueError(f"VAS account '{vas_account_code}' not found"))
+            return Result.failure(VASValidationError(ErrorCodes.VAS_ACCOUNT_NOT_FOUND, code=vas_account_code))
 
         model = IFRSMappingModel(
             vas_account_code=domain.vas_account_code,
@@ -78,13 +79,13 @@ class COAIFRSUseCase:
     def get_mapping(self, mapping_id: int) -> Result:
         model = self.session.get(IFRSMappingModel, mapping_id)
         if not model:
-            return Result.failure(ValueError(f"Mapping {mapping_id} not found"))
+            return Result.failure(VASValidationError(ErrorCodes.IFRS_MAPPING_NOT_FOUND, mapping_id=mapping_id))
         return Result.success(self._to_domain(model))
 
     def delete_mapping(self, mapping_id: int) -> Result:
         model = self.session.get(IFRSMappingModel, mapping_id)
         if not model:
-            return Result.failure(ValueError(f"Mapping {mapping_id} not found"))
+            return Result.failure(VASValidationError(ErrorCodes.IFRS_MAPPING_NOT_FOUND, mapping_id=mapping_id))
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)

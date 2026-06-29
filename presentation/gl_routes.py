@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from presentation import resolve_error
 from use_cases.gl_use_cases import GLUseCases
 from domain import ValidationError, DoubleEntryError
 
@@ -67,12 +68,12 @@ def create_entry():
             created_by=data.get("created_by"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_entry(result.get_data())), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -120,7 +121,7 @@ def get_entry(entry_id):
         uc = GLUseCases(session)
         result = uc.get_entry(entry_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(_json_entry(result.get_data()))
     finally:
         session.close()
@@ -139,12 +140,12 @@ def update_entry(entry_id):
         kwargs = {k: v for k, v in data.items() if k in allowed}
         result = uc.update_entry(entry_id, **kwargs)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_entry(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -156,12 +157,12 @@ def delete_entry(entry_id):
         uc = GLUseCases(session)
         result = uc.delete_entry(entry_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify({"message": f"Journal entry {entry_id} deleted"})
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -173,12 +174,12 @@ def post_entry(entry_id):
         uc = GLUseCases(session)
         result = uc.post_entry(entry_id)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(_json_entry(result.get_data()))
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -212,12 +213,12 @@ def create_period():
             end_date=date.fromisoformat(data["end_date"]) if data.get("end_date") else None,
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data()), 201
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -229,7 +230,7 @@ def current_period():
         uc = GLUseCases(session)
         result = uc.get_current_period()
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -242,7 +243,7 @@ def get_period(period):
         uc = GLUseCases(session)
         result = uc.get_period(period)
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 404
+            return jsonify({"error": resolve_error(result.error)}), 404
         return jsonify(result.get_data())
     finally:
         session.close()
@@ -275,12 +276,12 @@ def close_period(period):
             force=data.get("force", False),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data())
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -300,12 +301,12 @@ def reopen_period(period):
             reason=reason,
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data())
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 
@@ -321,12 +322,12 @@ def carry_forward(period):
             closed_by=data.get("closed_by", "system"),
         )
         if result.is_failure():
-            return jsonify({"error": str(result.error)}), 400
+            return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
         return jsonify(result.get_data())
     except Exception as e:
         session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": resolve_error(e)}), 400
     finally:
         session.close()
 

@@ -10,6 +10,7 @@ from domain import (
     EInvoice, EInvoiceLine, TaxSchedule,
     Result, ValidationError, VASValidationError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.tax_repository import TaxRepository
 
 
@@ -46,7 +47,7 @@ class TaxUseCases:
     def get_declaration(self, decl_id: int) -> Result:
         decl = self.repo.get_declaration(decl_id)
         if not decl:
-            return Result.failure(ValidationError(f"Declaration {decl_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.DECLARATION_NOT_FOUND, decl_id=decl_id))
         return Result.success(decl)
 
     def list_declarations(
@@ -69,9 +70,9 @@ class TaxUseCases:
     def submit_declaration(self, decl_id: int, gdt_reference: Optional[str] = None) -> Result:
         decl = self.repo.get_declaration(decl_id)
         if not decl:
-            return Result.failure(ValidationError(f"Declaration {decl_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.DECLARATION_NOT_FOUND, decl_id=decl_id))
         if decl.status in (DeclarationStatus.SUBMITTED, DeclarationStatus.ACCEPTED):
-            return Result.failure(ValidationError(f"Declaration {decl_id} already submitted"))
+            return Result.failure(ValidationError(ErrorCodes.DECLARATION_ALREADY_SUBMITTED, decl_id=decl_id))
         return self.repo.update_declaration(
             decl_id,
             status=DeclarationStatus.SUBMITTED,
@@ -91,7 +92,7 @@ class TaxUseCases:
     ) -> Result:
         decl = self.repo.get_declaration(decl_id)
         if not decl:
-            return Result.failure(ValidationError(f"Declaration {decl_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.DECLARATION_NOT_FOUND, decl_id=decl_id))
 
         if method == VATCalculationMethod.DEDUCTION:
             total_output = sum(Decimal(str(l.get("amount", 0))) for l in (output_lines or []))
@@ -142,7 +143,7 @@ class TaxUseCases:
     def get_line(self, line_id: int) -> Result:
         line = self.repo.get_line(line_id)
         if not line:
-            return Result.failure(ValidationError(f"TaxLine {line_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_LINE_NOT_FOUND, line_id=line_id))
         return Result.success(line)
 
     def list_lines(self, declaration_id: int) -> List[TaxLine]:
@@ -185,7 +186,7 @@ class TaxUseCases:
     def get_payment(self, payment_id: int) -> Result:
         payment = self.repo.get_payment(payment_id)
         if not payment:
-            return Result.failure(ValidationError(f"TaxPayment {payment_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_PAYMENT_NOT_FOUND, payment_id=payment_id))
         return Result.success(payment)
 
     def list_payments(self, declaration_id: Optional[int] = None) -> List[TaxPayment]:
@@ -231,7 +232,7 @@ class TaxUseCases:
     def get_adjustment(self, adj_id: int) -> Result:
         adj = self.repo.get_adjustment(adj_id)
         if not adj:
-            return Result.failure(ValidationError(f"TaxAdjustment {adj_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_ADJUSTMENT_NOT_FOUND, adj_id=adj_id))
         return Result.success(adj)
 
     def list_adjustments(self, declaration_id: Optional[int] = None) -> List[TaxAdjustment]:
@@ -282,7 +283,7 @@ class TaxUseCases:
     def get_incentive(self, incentive_id: int) -> Result:
         inc = self.repo.get_incentive(incentive_id)
         if not inc:
-            return Result.failure(ValidationError(f"TaxIncentive {incentive_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_INCENTIVE_NOT_FOUND, incentive_id=incentive_id))
         return Result.success(inc)
 
     def list_incentives(self, tax_type: Optional[TaxType] = None) -> List[TaxIncentive]:
@@ -302,7 +303,7 @@ class TaxUseCases:
     def get_invoice(self, invoice_id: int) -> Result:
         inv = self.repo.get_invoice(invoice_id)
         if not inv:
-            return Result.failure(ValidationError(f"Invoice {invoice_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.INVOICE_NOT_FOUND, invoice_id=invoice_id))
         return Result.success(inv)
 
     def list_invoices(self, status: Optional[InvoiceStatus] = None) -> List[EInvoice]:
@@ -325,7 +326,7 @@ class TaxUseCases:
     def get_schedule(self, schedule_id: int) -> Result:
         sched = self.repo.get_schedule(schedule_id)
         if not sched:
-            return Result.failure(ValidationError(f"TaxSchedule {schedule_id} not found"))
+            return Result.failure(ValidationError(ErrorCodes.TAX_SCHEDULE_NOT_FOUND, schedule_id=schedule_id))
         return Result.success(sched)
 
     def update_schedule(self, schedule_id: int, **kwargs) -> Result:

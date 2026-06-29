@@ -68,7 +68,7 @@ class TestCOACompliance:
         uc = COAValidateUseCase(session)
         result = uc.check_compliance("NONEXIST")
         assert result.is_failure()
-        assert "not found" in str(result.error)
+        assert "ACCOUNT_NOT_FOUND" in str(result.error)
 
     def test_dcr_direction_mismatch_detected(self, session):
         acc = COAModel(code="9999", name="Test mismatch", account_type="asset",
@@ -83,7 +83,7 @@ class TestCOACompliance:
         assert result.is_success()
         data = result.get_data()
         assert data["compliant"] is False
-        assert any("credit" in i.lower() for i in data["issues"])
+        assert any("COA_DCR_MISMATCH" in i for i in data["issues"])
 
     def test_scan_detects_dcr_mismatch(self, session):
         acc = COAModel(code="9998", name="Bad direction", account_type="liability",

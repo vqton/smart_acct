@@ -8,6 +8,7 @@ from domain import (
     AccountingRegime, AccountStatus,
     Result, ChartError, ValidationError
 )
+from domain.i18n import ErrorCodes
 from infrastructure.models.coa_models import COAModel, AccountingRegime as DBRegime, AccountStatus as DBStatus
 
 
@@ -56,7 +57,7 @@ class COARepository:
             select(COAModel).where(COAModel.code == account.code)
         ).scalar_one_or_none()
         if existing:
-            return Result.failure(ChartError(f"Account code '{account.code}' already exists"))
+            return Result.failure(ChartError(ErrorCodes.ALREADY_EXISTS, type="Account", id=account.code))
 
         model = self._to_model(account)
         self.session.add(model)
@@ -106,12 +107,12 @@ class COARepository:
             select(COAModel).where(COAModel.code == code)
         ).scalar_one_or_none()
         if not model:
-            return Result.failure(ChartError(f"Account '{code}' not found"))
+            return Result.failure(ChartError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
 
         allowed = {"name", "description", "status", "currency", "unit", "vas_compliant", "parent_code"}
         for key, value in kwargs.items():
             if key not in allowed:
-                return Result.failure(ValidationError(f"Field '{key}' cannot be updated"))
+                return Result.failure(ValidationError(ErrorCodes.FIELD_CANNOT_BE_UPDATED, field=key))
             if key == "status" and isinstance(value, AccountStatus):
                 setattr(model, key, DBStatus(value.value))
             elif key == "regime" and isinstance(value, AccountingRegime):
@@ -137,7 +138,7 @@ class COARepository:
             select(COAModel).where(COAModel.code == code)
         ).scalar_one_or_none()
         if not model:
-            return Result.failure(ChartError(f"Account '{code}' not found"))
+            return Result.failure(ChartError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
 
         self.session.delete(model)
         self.session.flush()

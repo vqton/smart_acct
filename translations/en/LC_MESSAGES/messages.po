@@ -1,0 +1,773 @@
+# English translations for SmartACCT ERP
+# Copyright (C) 2026 SmartACCT
+# This file is distributed under the same license as the SmartACCT project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SmartACCT 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-29 10:00+0700\n"
+"PO-Revision-Date: 2026-06-29 10:00+0700\n"
+"Last-Translator: SmartACCT Team\n"
+"Language-Team: English <team@smartacct.vn>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: domain/__init__.py
+msgid "CANNOT_GET_DATA_FAILED"
+msgstr "Cannot get data from failed result: {self.error}"
+
+#: domain/__init__.py
+msgid "CANNOT_GET_ERROR_SUCCESS"
+msgstr "Cannot get error from successful result"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_EMPTY"
+msgstr "Account code cannot be empty"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_NUMERIC"
+msgstr "Account code must be numeric (only digits and dots allowed)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_MAX_DIGITS"
+msgstr "Account code cannot exceed 6 digits (maximum 4 hierarchy levels)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_MAX_LEVELS"
+msgstr "Account code cannot exceed 4 hierarchy levels (Vietnamese standard)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_FIRST_DIGIT"
+msgstr "First digit of account code must be 1-9 (Type 1-9 per VAS)"
+
+#: domain/__init__.py
+msgid "ACCOUNT_CODE_NO_ZERO"
+msgstr "Account code cannot start with 0"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NAME_EMPTY"
+msgstr "Account name cannot be empty"
+
+#: domain/__init__.py
+msgid "CURRENCY_MUST_BE"
+msgstr "Currency must be one of %(valid_currencies)s"
+
+#: domain/__init__.py
+msgid "UNIT_EMPTY"
+msgstr "Unit cannot be empty"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_EMPTY"
+msgstr "Account number cannot be empty"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_NUMERIC"
+msgstr "Account number must be numeric"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_LENGTH"
+msgstr "Account number must be 4-20 digits"
+
+#: domain/__init__.py
+msgid "ACCOUNT_NUMBER_NO_ZERO"
+msgstr "Account number cannot start with 0"
+
+#: domain/__init__.py
+msgid "CURRENCY_EMPTY"
+msgstr "Currency cannot be empty"
+
+#: domain/__init__.py
+msgid "CURRENCY_NOT_SUPPORTED"
+msgstr "Currency must be one of %(valid)s"
+
+#: domain/__init__.py
+msgid "CURRENCY_SME_ONLY"
+msgstr "For Vietnamese SME operations, only VND, USD, EUR, JPY, GBP are supported"
+
+#: domain/__init__.py
+msgid "BALANCE_NONE"
+msgstr "Balance cannot be None"
+
+#: domain/__init__.py
+msgid "BALANCE_EXCEEDED"
+msgstr "Balance cannot exceed 10 billion VND"
+
+#: domain/__init__.py
+msgid "EXCHANGE_RATE_POSITIVE"
+msgstr "Exchange rate must be positive"
+
+#: domain/__init__.py
+msgid "DCR_DIRECTION_EMPTY"
+msgstr "DCR direction cannot be empty"
+
+#: domain/__init__.py
+msgid "DCR_DIRECTION_INVALID"
+msgstr "DCR direction must be one of %(valid_directions)s"
+
+#: domain/__init__.py
+msgid "CHART_CODE_EMPTY"
+msgstr "Chart code cannot be empty"
+
+#: domain/__init__.py
+msgid "CHART_CODE_TYPE"
+msgstr "Chart code must be a string"
+
+#: domain/__init__.py
+msgid "CHART_CODE_MAX_LENGTH"
+msgstr "Chart code cannot exceed 20 characters"
+
+#: domain/__init__.py
+msgid "DATE_ISO_FORMAT"
+msgstr "Date must be in ISO format (YYYY-MM-DD)"
+
+#: domain/__init__.py
+msgid "DATE_YEAR_RANGE"
+msgstr "Transaction date must be between 2000-2100"
+
+#: domain/__init__.py
+msgid "VAS_ACCOUNT_NAME_REQUIRED"
+msgstr "Account number and name are required for VAS compliance"
+
+#: domain/__init__.py
+msgid "VAS_CHART_CODE_REQUIRED"
+msgstr "Chart code is required for VAS compliance"
+
+#: domain/__init__.py
+msgid "VAS_ACCOUNT_TYPE_INVALID"
+msgstr "Account type {self.account_type} is not valid per VAS"
+
+#: domain/__init__.py
+msgid "VAS_CURRENCY_NOT_SUPPORTED"
+msgstr "Currency {self.currency} is not supported for Vietnamese operations"
+
+#: domain/__init__.py
+msgid "VAS_ACCOUNT_NO_ZERO"
+msgstr "Account number cannot start with 0 per VAS standards"
+
+#: domain/__init__.py
+msgid "VAS_UNEXPECTED_ERROR"
+msgstr "Unexpected error validating VAS compliance: %(e)s"
+
+#: domain/__init__.py
+msgid "JOURNAL_NUMBER_PREFIX"
+msgstr "Journal number must start with 'JV'"
+
+#: domain/__init__.py
+msgid "JOURNAL_NUMBER_SUFFIX"
+msgstr "Journal number suffix must be numeric"
+
+#: domain/__init__.py
+msgid "TRANSACTION_DATE_NONE"
+msgstr "Transaction date cannot be None"
+
+#: domain/__init__.py
+msgid "TRANSACTION_DATE_RANGE"
+msgstr "Transaction date must be between 2000-2100"
+
+#: domain/__init__.py
+msgid "DESCRIPTION_EMPTY"
+msgstr "Description cannot be empty"
+
+#: domain/__init__.py
+msgid "DESCRIPTION_MAX_LENGTH"
+msgstr "Description cannot exceed {cls.MAX_JOURNAL_DESCRIPTION_LENGTH} characters"
+
+#: domain/__init__.py
+msgid "VAT_RATE_RANGE"
+msgstr "VAT rate must be between 0% and %(MAX_VAT_RATE_PERCENT)s%"
+
+#: domain/__init__.py
+msgid "PERIOD_EMPTY"
+msgstr "Period cannot be empty"
+
+#: domain/__init__.py
+msgid "PERIOD_FORMAT"
+msgstr "Period must be in YYYY-MM format"
+
+#: domain/__init__.py
+msgid "PERIOD_MONTH_RANGE"
+msgstr "Month must be between 01 and 12"
+
+#: domain/__init__.py
+msgid "PERIOD_YEAR_RANGE"
+msgstr "Year must be between 2000 and 2100"
+
+#: domain/__init__.py
+msgid "PERIOD_INVALID"
+msgstr "Invalid period format"
+
+#: domain/__init__.py
+msgid "JOURNAL_ENTRY_NO_LINES"
+msgstr "Journal entry must have at least one line"
+
+#: domain/__init__.py
+msgid "DOUBLE_ENTRY_VIOLATION"
+msgstr "Double-entry violation: difference of %(tolerance_difference)s exceeds tolerance of %(DOUBLE_ENTRY_TOLERANCE)s VND"
+
+#: domain/__init__.py
+msgid "VAT_NOT_COMPLIANT"
+msgstr "VAT rate {line.vat_rate} is not compliant with Vietnamese tax regulations"
+
+#: domain/__init__.py
+msgid "DEBIT_CREDIT_NEGATIVE"
+msgstr "Debit and credit amounts cannot be negative"
+
+#: domain/__init__.py
+msgid "VAS_COMPLIANCE_UNEXPECTED"
+msgstr "Unexpected error during VAS compliance validation: %(e)s"
+
+#: domain/__init__.py
+msgid "AMOUNT_MAX"
+msgstr "Amount cannot exceed 1 billion VND"
+
+#: domain/__init__.py
+msgid "ACCOUNT_ID_EMPTY"
+msgstr "Account ID cannot be empty"
+
+#: domain/__init__.py
+msgid "ACCOUNT_ID_NO_ZERO"
+msgstr "Account ID cannot start with 0 after stripping spaces"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_EMPTY"
+msgstr "Period cannot be empty"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_FORMAT"
+msgstr "Period must be in YYYY-MM format"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_MONTH"
+msgstr "Month must be between 01 and 12"
+
+#: domain/__init__.py
+msgid "PERIOD_FS_INVALID"
+msgstr "Invalid period format"
+
+#: domain/__init__.py
+msgid "STATEMENT_TYPE_INVALID"
+msgstr "Statement type must be one of %(STATEMENT_TYPES)s"
+
+#: domain/__init__.py
+msgid "FS_PERIOD_REQUIRED"
+msgstr "Period is required for VAS compliance"
+
+#: domain/__init__.py
+msgid "FS_STATEMENT_TYPE_VAS"
+msgstr "Statement type %(statement_type)s is not valid per VAS"
+
+#: domain/__init__.py
+msgid "FS_ASSET_NEGATIVE"
+msgstr "Asset total cannot be negative per VAS"
+
+#: domain/__init__.py
+msgid "FS_VAS_UNEXPECTED"
+msgstr "Unexpected error during VAS compliance validation: %(e)s"
+
+#: domain/__init__.py
+msgid "FORM_CODE_EMPTY"
+msgstr "Form code cannot be empty"
+
+#: domain/__init__.py
+msgid "YEAR_RANGE"
+msgstr "Year must be 2000-2100"
+
+#: domain/__init__.py
+msgid "TAX_PERIOD_MONTH_REQUIRED"
+msgstr "period_month required for {self.tax_type}"
+
+#: domain/__init__.py
+msgid "TAX_PERIOD_QUARTER_REQUIRED"
+msgstr "period_quarter required for {self.tax_type}"
+
+#: domain/__init__.py
+msgid "TAX_BOTH_PERIOD"
+msgstr "Cannot set both period_month and period_quarter"
+
+#: domain/__init__.py
+msgid "TAX_FIELD_EMPTY"
+msgstr "Field cannot be empty"
+
+#: domain/__init__.py
+msgid "BUDGET_ACCOUNT_INVALID"
+msgstr "Budget account must be one of %(valid)s"
+
+#: domain/__init__.py
+msgid "BUDGET_ACCOUNT_MISMATCH"
+msgstr "budget_account %(budget_account)s does not match tax_type %(tax_type)s (expected %(expected)s)"
+
+#: domain/__init__.py
+msgid "REASON_EMPTY"
+msgstr "Reason cannot be empty"
+
+#: domain/__init__.py
+msgid "INCENTIVE_CODE_EMPTY"
+msgstr "Incentive code cannot be empty"
+
+#: domain/__init__.py
+msgid "VALID_TO_AFTER_FROM"
+msgstr "valid_to must be after valid_from"
+
+#: domain/__init__.py
+msgid "TAX_CODE_EMPTY"
+msgstr "Tax code cannot be empty"
+
+#: domain/__init__.py
+msgid "CASH_CURRENCY_NOT_SUPPORTED"
+msgstr "Currency must be one of VND, USD, EUR, JPY, GBP"
+
+#: domain/__init__.py
+msgid "TRANSFER_SAME_ACCOUNT"
+msgstr "Source and destination accounts must be different"
+
+#: domain/__init__.py
+msgid "CHEQUE_END_GREATER"
+msgstr "End number must be greater than start number"
+
+#: domain/__init__.py
+msgid "IFRS_CODE_EMPTY"
+msgstr "Account code cannot be empty"
+
+#: use_cases/
+msgid "ACCOUNT_NOT_FOUND"
+msgstr "Account '%(code)s' not found"
+
+#: use_cases/
+msgid "JOURNAL_ENTRY_NOT_FOUND"
+msgstr "Journal entry %(entry_id)s not found"
+
+#: use_cases/
+msgid "ALREADY_EXISTS"
+msgstr "%(type)s %(id)s already exists"
+
+#: use_cases/
+msgid "ALREADY_POSTED"
+msgstr "%(type)s is already posted"
+
+#: use_cases/
+msgid "CANNOT_UPDATE_POSTED"
+msgstr "Cannot update a posted %(type)s"
+
+#: use_cases/
+msgid "CANNOT_DELETE_POSTED"
+msgstr "Cannot delete a posted %(type)s"
+
+#: use_cases/
+msgid "FIELD_CANNOT_BE_UPDATED"
+msgstr "Field '%(field)s' cannot be updated"
+
+#: use_cases/
+msgid "REOPEN_REASON_REQUIRED"
+msgstr "Reopen reason is required for audit trail"
+
+#: use_cases/
+msgid "PERIOD_CLOSED_OP"
+msgstr "Period %(period)s is closed — cannot %(action)s"
+
+#: use_cases/
+msgid "PERIOD_ALREADY_CLOSED"
+msgstr "Period %(period)s is already closed"
+
+#: use_cases/
+msgid "PERIOD_NOT_CLOSED"
+msgstr "Period %(period)s is not closed"
+
+#: use_cases/
+msgid "PERIOD_ALREADY_EXISTS"
+msgstr "Period %(period)s already exists"
+
+#: use_cases/
+msgid "PERIOD_OVERLAP"
+msgstr "Period %(period)s overlaps with existing periods"
+
+#: use_cases/
+msgid "INVALID_PERIOD_TYPE"
+msgstr "Invalid period type: %(type)s"
+
+#: use_cases/
+msgid "PERIOD_FORMAT_INVALID"
+msgstr "Invalid period format: %(period)s"
+
+#: use_cases/
+msgid "STATE_TRANSITION"
+msgstr "Cannot %(action)s a %(subject)s in state %(state)s"
+
+#: use_cases/
+msgid "PERIOD_NOT_FOUND"
+msgstr "Period %(period)s not found"
+
+#: use_cases/
+msgid "NO_OPEN_PERIOD"
+msgstr "No open period found"
+
+#: use_cases/
+msgid "DECLARATION_NOT_FOUND"
+msgstr "Declaration %(decl_id)s not found"
+
+#: use_cases/
+msgid "DECLARATION_ALREADY_SUBMITTED"
+msgstr "Declaration %(decl_id)s already submitted"
+
+#: use_cases/
+msgid "TAX_LINE_NOT_FOUND"
+msgstr "TaxLine %(line_id)s not found"
+
+#: use_cases/
+msgid "TAX_PAYMENT_NOT_FOUND"
+msgstr "TaxPayment %(payment_id)s not found"
+
+#: use_cases/
+msgid "TAX_ADJUSTMENT_NOT_FOUND"
+msgstr "TaxAdjustment %(adj_id)s not found"
+
+#: use_cases/
+msgid "TAX_INCENTIVE_NOT_FOUND"
+msgstr "TaxIncentive %(incentive_id)s not found"
+
+#: use_cases/
+msgid "INVOICE_NOT_FOUND"
+msgstr "Invoice %(invoice_id)s not found"
+
+#: use_cases/
+msgid "TAX_SCHEDULE_NOT_FOUND"
+msgstr "TaxSchedule %(schedule_id)s not found"
+
+#: use_cases/
+msgid "RECEIPT_NOT_FOUND"
+msgstr "CashReceipt %(receipt_id)s not found"
+
+#: use_cases/
+msgid "ONLY_DRAFT_APPROVED"
+msgstr "Only draft receipts can be approved"
+
+#: use_cases/
+msgid "RECEIPT_CANCELLED"
+msgstr "Receipt is already cancelled"
+
+#: use_cases/
+msgid "PAYMENT_NOT_FOUND"
+msgstr "CashPayment %(payment_id)s not found"
+
+#: use_cases/
+msgid "ONLY_DRAFT_PAYMENT_APPROVED"
+msgstr "Only draft payments can be approved"
+
+#: use_cases/
+msgid "PAYMENT_CANCELLED"
+msgstr "Payment is already cancelled"
+
+#: use_cases/
+msgid "BANK_ACCOUNT_NOT_FOUND"
+msgstr "BankAccount %(ba_id)s not found"
+
+#: use_cases/
+msgid "DAILY_COUNT_NOT_FOUND"
+msgstr "DailyCashCount %(count_id)s not found"
+
+#: use_cases/
+msgid "INVALID_STATEMENT_DATA"
+msgstr "Invalid statement data: %(e)s"
+
+#: use_cases/
+msgid "DUPLICATE_STATEMENT"
+msgstr "Duplicate statement for account %(bank_account_id)s on %(statement_date)s"
+
+#: use_cases/
+msgid "RUNNING_BALANCE_MISMATCH"
+msgstr "Running balance mismatch: expected %(running_check)s, got %(closing_balance)s"
+
+#: use_cases/
+msgid "NO_TRANSACTIONS_CSV"
+msgstr "No transactions found in CSV"
+
+#: use_cases/
+msgid "CSV_PARSE_ERROR"
+msgstr "CSV parse error: %(e)s"
+
+#: use_cases/
+msgid "RECONCILIATION_NOT_FOUND"
+msgstr "Reconciliation %(recon_id)s not found"
+
+#: use_cases/
+msgid "PETTY_CASH_FUND_NOT_FOUND"
+msgstr "PettyCashFund %(fund_id)s not found"
+
+#: use_cases/
+msgid "ADVANCE_NOT_FOUND"
+msgstr "Advance %(advance_id)s not found"
+
+#: use_cases/
+msgid "ADVANCE_ALREADY_SETTLED"
+msgstr "Advance already settled"
+
+#: use_cases/
+msgid "CASH_TRANSFER_NOT_FOUND"
+msgstr "CashTransfer %(transfer_id)s not found"
+
+#: use_cases/
+msgid "CHEQUE_NOT_FOUND"
+msgstr "Cheque %(cheque_id)s not found"
+
+#: use_cases/
+msgid "CHEQUE_WRONG_STATUS"
+msgstr "Only %(expected)s cheques can be processed (current: %(current)s)"
+
+#: use_cases/
+msgid "CHEQUE_CANNOT_CANCEL"
+msgstr "Cannot cancel cheque in status %(status)s"
+
+#: use_cases/
+msgid "CHEQUE_CANNOT_STOP"
+msgstr "Only ISSUED cheques can be stopped (current: %(current)s)"
+
+#: use_cases/
+msgid "CHEQUE_CANNOT_BOUNCE"
+msgstr "Only ISSUED cheques can be bounced (current: %(current)s)"
+
+#: use_cases/
+msgid "FILE_NOT_FOUND"
+msgstr "File not found: %(filepath)s"
+
+#: use_cases/
+msgid "FORMAT_NOT_SUPPORTED"
+msgstr "Only .xlsx and .xls files are supported"
+
+#: use_cases/
+msgid "FILE_EMPTY"
+msgstr "Excel file is empty"
+
+#: use_cases/
+msgid "MISSING_REQUIRED_COLUMNS"
+msgstr "Missing required columns: %(missing)s. Found: %(found)s"
+
+#: use_cases/
+msgid "MISSING_FIELD"
+msgstr "Missing field: %(e)s"
+
+#: use_cases/
+msgid "INVALID_ACCOUNT_TYPE"
+msgstr "Invalid account_type '%(raw)s'. Valid: %(valid)s..."
+
+#: use_cases/
+msgid "INVALID_DRCR_DIRECTION"
+msgstr "Invalid drcr_direction '%(raw)s'. Use 'debit' or 'credit'"
+
+#: use_cases/
+msgid "TEMPLATE_NOT_FOUND"
+msgstr "Template '%(template_id)s' not found"
+
+#: use_cases/
+msgid "VERSION_NOT_FOUND"
+msgstr "Version %(version_id)s not found"
+
+#: use_cases/
+msgid "IFRS_MAPPING_EXISTS"
+msgstr "Mapping from '%(vas_account_code)s' to '%(ifrs_account_code)s' already exists"
+
+#: use_cases/
+msgid "VAS_ACCOUNT_NOT_FOUND"
+msgstr "VAS account '%(vas_account_code)s' not found"
+
+#: use_cases/
+msgid "IFRS_MAPPING_NOT_FOUND"
+msgstr "Mapping %(mapping_id)s not found"
+
+#: presentation/
+msgid "REQUEST_BODY_REQUIRED"
+msgstr "Request body required"
+
+#: presentation/
+msgid "JOURNAL_LINE_REQUIRED"
+msgstr "At least one journal line required"
+
+#: presentation/
+msgid "QUERY_PARAM_REQUIRED"
+msgstr "Query parameter 'q' required"
+
+#: presentation/
+msgid "PERIOD_STATUS_FILTER"
+msgstr "status must be 'open' or 'closed'"
+
+#: presentation/
+msgid "REASON_REOPEN_REQUIRED"
+msgstr "reason is required for reopening a period"
+
+#: presentation/
+msgid "NO_FILE_UPLOADED"
+msgstr "No file uploaded"
+
+#: presentation/
+msgid "JSON_OR_EXCEL_REQUIRED"
+msgstr "Provide JSON body with 'accounts' array or upload Excel file"
+
+#: presentation/
+msgid "SETTLEMENT_AMOUNT_REQUIRED"
+msgstr "settlement_amount required"
+
+#: presentation/
+msgid "V1_V2_REQUIRED"
+msgstr "Query params 'v1' and 'v2' required"
+
+#: presentation/
+msgid "ACCOUNT_DELETED"
+msgstr "Account '%(code)s' deleted"
+
+#: presentation/
+msgid "JOURNAL_ENTRY_DELETED"
+msgstr "Journal entry %(entry_id)s deleted"
+
+#: presentation/
+msgid "MAPPING_DELETED"
+msgstr "Mapping %(mapping_id)s deleted"
+
+#: presentation/
+msgid "DECLARATION_DELETED"
+msgstr "Declaration %(decl_id)s deleted"
+
+#: presentation/
+msgid "LINE_DELETED"
+msgstr "Line %(line_id)s deleted"
+
+#: presentation/
+msgid "PAYMENT_DELETED"
+msgstr "Payment %(payment_id)s deleted"
+
+#: presentation/
+msgid "ADJUSTMENT_DELETED"
+msgstr "Adjustment %(adj_id)s deleted"
+
+#: presentation/
+msgid "INCENTIVE_DELETED"
+msgstr "Incentive %(incentive_id)s deleted"
+
+#: presentation/
+msgid "INVOICE_DELETED"
+msgstr "Invoice %(invoice_id)s deleted"
+
+#: presentation/
+msgid "SCHEDULE_DELETED"
+msgstr "Schedule %(schedule_id)s deleted"
+
+#: presentation/
+msgid "RECEIPT_CANCELLED_MSG"
+msgstr "Receipt cancelled"
+
+#: presentation/
+msgid "PAYMENT_CANCELLED_MSG"
+msgstr "Payment cancelled"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_CODE_NUMERIC"
+msgstr "Account code must be numeric (only digits and dots allowed)"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_FIRST_DIGIT_1_9"
+msgstr "First digit must be 1-9"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_NO_START_ZERO"
+msgstr "Account code cannot start with 0"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_MAX_LEVELS"
+msgstr "Maximum 4 hierarchy levels allowed"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_MAX_DIGITS"
+msgstr "Maximum 6 digits allowed"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_NON_COMPLIANT"
+msgstr "Account is marked as non-compliant with VAS"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_CLOSED"
+msgstr "Account is closed — cannot be used in new transactions"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_PARENT_MISSING"
+msgstr "Parent account '%(parent_code)s' does not exist"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_PARENT_INACTIVE"
+msgstr "Parent account '%(parent_code)s' is not active"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_PARENT_LEVEL_MISMATCH"
+msgstr "Parent account level mismatch: got %(level)s, expected %(expected)s"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_DCR_MISMATCH"
+msgstr "DCR direction '%(drcr_value)s' does not match account type '%(type_value)s' (expected '%(expected)s')"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_TT99_LEVEL"
+msgstr "TT99: %(type_value)s accounts max 3 levels"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_HIERARCHY_PARENT_MISSING"
+msgstr "Parent '%(parent_code)s' missing"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_HIERARCHY_LEVEL_GAP"
+msgstr "Level gap: parent level=%(parent_level)s, child level=%(child_level)s"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_SCAN_DUPLICATE"
+msgstr "Duplicate account code '%(code)s'"
+
+#: use_cases/coa_validate_use_case.py
+msgid "COA_SCAN_NO_NAME"
+msgstr "Account has no name"
+
+#: use_cases/coa_import_use_case.py
+msgid "COA_ROW_ERROR"
+msgstr "Row %(row)s: %(message)s"
+
+#: use_cases/gl_use_cases.py
+msgid "DOUBLE_ENTRY_DEBIT_CREDIT"
+msgstr "Double-entry violation: total debits %(debit)s != total credits %(credit)s"
+
+#: infrastructure/database.py
+msgid "DB_INIT_FAILED"
+msgstr "Database initialization failed: %(e)s"
+
+#: infrastructure/database.py
+msgid "DB_NOT_INITIALIZED"
+msgstr "Database not initialized"
+
+#: infrastructure/database.py
+msgid "TX_FAILED"
+msgstr "Transaction failed: %(e)s"
+
+#: infrastructure/database.py
+msgid "UNAUTHORIZED_NO_TOKEN"
+msgstr "Unauthorized: No valid token provided"
+
+#: infrastructure/database.py
+msgid "UNAUTHORIZED_INVALID_TOKEN"
+msgstr "Unauthorized: Invalid token - %(e)s"
+
+#: services/gdt_client.py
+msgid "TAX_CODE_REQUIRED"
+msgstr "tax_code is required"
+
+#: services/gdt_client.py
+msgid "SUBMISSION_ID_REQUIRED"
+msgstr "submission_id is required"
+
+#: services/gdt_client.py
+msgid "TRANSACTION_ID_REQUIRED"
+msgstr "transaction_id is required"
+
+#: services/gdt_client.py
+msgid "INVALID_TAX_CODE_FORMAT"
+msgstr "Invalid tax code format: %(tax_code)s"
+
+#: services/signing_service.py
+msgid "NO_PRIVATE_KEY"
+msgstr "No private key configured for signing"

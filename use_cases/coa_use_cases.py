@@ -6,6 +6,7 @@ from domain import (
     AccountingRegime, AccountStatus,
     Result, ChartError, ValidationError, VASValidationError
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.coa_repository import COARepository
 
 
@@ -47,7 +48,7 @@ class COAUseCases:
     def get_account(self, code: str) -> Result:
         account = self.repo.get_by_code(code)
         if not account:
-            return Result.failure(ChartError(f"Account '{code}' not found"))
+            return Result.failure(ChartError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
         return Result.success(account)
 
     def list_accounts(
@@ -70,7 +71,7 @@ class COAUseCases:
     def get_account_hierarchy(self, code: str) -> Result:
         root = self.repo.get_by_code(code)
         if not root:
-            return Result.failure(ChartError(f"Account '{code}' not found"))
+            return Result.failure(ChartError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
 
         children = self.repo.list_all(parent_code=code)
         result = {

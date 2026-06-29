@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from domain import JournalEntry, JournalLine, Result, ValidationError, DoubleEntryError
+from domain.i18n import ErrorCodes
 from infrastructure.models.coa_models import Base, COAModel, AccountingRegime, AccountStatus
 from infrastructure.models.gl_models import JournalEntryModel, JournalLineModel, AccountingPeriodModel
 from infrastructure.repositories.gl_repository import GLRepository
@@ -232,7 +233,7 @@ class TestGLPosting:
 
         post_result = repo.post_entry(created.id)
         assert post_result.is_failure()
-        assert "Double-entry" in str(post_result.error)
+        assert "DOUBLE_ENTRY_DEBIT_CREDIT" in str(post_result.error)
 
     def test_double_post_fails(self, session):
         repo = GLRepository(session)
@@ -669,7 +670,7 @@ class TestPeriodClose:
         )
         result = repo.create_entry(entry)
         assert result.is_failure()
-        assert "closed" in str(result.error)
+        assert result.error.msgid == ErrorCodes.PERIOD_CLOSED_OP
 
     def test_post_entry_in_closed_period_fails(self, session):
         repo = GLRepository(session)
@@ -691,7 +692,7 @@ class TestPeriodClose:
         repo.close_period("2024-07", closed_by="admin", force=True)
         post_result = repo.post_entry(entry_id)
         assert post_result.is_failure()
-        assert "closed" in str(post_result.error)
+        assert post_result.error.msgid == ErrorCodes.PERIOD_CLOSED_OP
 
     def test_update_entry_in_closed_period_fails(self, session):
         repo = GLRepository(session)
@@ -713,7 +714,7 @@ class TestPeriodClose:
         repo.close_period("2024-08", closed_by="admin", force=True)
         update_result = repo.update_entry(entry_id, description="Should fail")
         assert update_result.is_failure()
-        assert "closed" in str(update_result.error)
+        assert update_result.error.msgid == ErrorCodes.PERIOD_CLOSED_OP
 
 
 class TestPeriodAuditLog:

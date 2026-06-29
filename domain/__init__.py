@@ -5,9 +5,14 @@ from decimal import Decimal
 from enum import Enum
 from abc import ABC, abstractmethod
 import re
+from domain.i18n import ErrorCodes
 class VASValidationError(Exception):
-    """Base exception for Vietnamese Accounting Standards compliance errors"""
-    pass
+    """Base exception for Vietnamese Accounting Standards compliance errors.
+    Carries msgid (error code) and optional format params for i18n resolution."""
+    def __init__(self, msgid: str, **params):
+        self.msgid = msgid
+        self.params = params
+        super().__init__(msgid)
 class ValidationError(VASValidationError):
     """Validation error for domain entities"""
     pass
@@ -58,12 +63,12 @@ class Result:
 
     def get_data(self) -> Any:
         if self.is_failure():
-            raise ValueError(f"Cannot get data from failed result: {self.error}")
+            raise ValueError(ErrorCodes.CANNOT_GET_DATA_FAILED)
         return self.data
 
     def get_error(self) -> VASValidationError:
         if self.is_success():
-            raise ValueError("Cannot get error from successful result")
+            raise ValueError(ErrorCodes.CANNOT_GET_ERROR_SUCCESS)
         return self.error
 class AccountType(str, Enum):
     """Vietnamese Accounting Standards account types from Circular 133/2016/TT-BTC"""
@@ -333,36 +338,36 @@ class ChartOfAccounts(BaseModel):
         Validate Vietnamese account code format according to Circular 133/2016/TT-BTC
         """
         if not v:
-            raise ValidationError("Account code cannot be empty")
+            raise ValidationError(ErrorCodes.ACCOUNT_CODE_EMPTY)
 
         code_clean = v.replace('.', '')
 
         if not code_clean.isdigit():
             raise InvalidAccountError(
-                "Account code must be numeric (only digits and dots allowed)"
+                ErrorCodes.ACCOUNT_CODE_NUMERIC
             )
 
         if len(code_clean) > 6:
             raise InvalidAccountError(
-                "Account code cannot exceed 6 digits (maximum 4 hierarchy levels)"
+                ErrorCodes.ACCOUNT_CODE_MAX_DIGITS
             )
 
         if '.' in v:
             max_level = len(v.split('.'))
             if max_level > 4:
                 raise InvalidAccountError(
-                    "Account code cannot exceed 4 hierarchy levels (Vietnamese standard)"
+                    ErrorCodes.ACCOUNT_CODE_MAX_LEVELS
                 )
 
         first_char = v[0]
         if first_char < '1' or first_char > '9':
             raise InvalidAccountError(
-                "First digit of account code must be 1-9 (Type 1-9 per VAS)"
+                ErrorCodes.ACCOUNT_CODE_FIRST_DIGIT
             )
 
         if v.startswith('0'):
             raise InvalidAccountError(
-                "Account code cannot start with 0"
+                ErrorCodes.ACCOUNT_CODE_NO_ZERO
             )
 
         return v
@@ -374,7 +379,7 @@ class ChartOfAccounts(BaseModel):
         Validate Vietnamese account name
         """
         if not v.strip():
-            raise ValidationError("Account name cannot be empty")
+            raise ValidationError(ErrorCodes.ACCOUNT_NAME_EMPTY)
         return v.strip()
 
     @field_validator('currency')
@@ -397,7 +402,7 @@ class ChartOfAccounts(BaseModel):
         Validate accounting unit
         """
         if not v:
-            raise ValidationError("Unit cannot be empty")
+            raise ValidationError(ErrorCodes.UNIT_EMPTY)
         return v.upper()
 
     def calculate_balance(self, drcr_direction: DCRDirection, transaction_amount: Decimal) -> Decimal:
@@ -588,16 +593,16 @@ class Account(BaseModel):
         Validate Vietnamese account number format
         """
         if not v:
-            raise ValidationError("Account number cannot be empty")
+            raise ValidationError(ErrorCodes.ACCOUNT_NUMBER_EMPTY)
 
         if not v.isdigit():
-            raise ValidationError("Account number must be numeric")
+            raise ValidationError(ErrorCodes.ACCOUNT_NUMBER_NUMERIC)
 
         if len(v) < 4 or len(v) > 20:
-            raise ValidationError("Account number must be 4-20 digits")
+            raise ValidationError(ErrorCodes.ACCOUNT_NUMBER_LENGTH)
 
         if v.startswith('0'):
-            raise ValidationError("Account number cannot start with 0")
+            raise ValidationError(ErrorCodes.ACCOUNT_NUMBER_NO_ZERO)
 
         return v
 
@@ -608,7 +613,7 @@ class Account(BaseModel):
         Validate Vietnamese account name
         """
         if not v.strip():
-            raise ValidationError("Account name cannot be empty")
+            raise ValidationError(ErrorCodes.ACCOUNT_NAME_EMPTY)
         return v.strip()
 
     @field_validator('currency')
@@ -618,7 +623,7 @@ class Account(BaseModel):
         Validate currency for Vietnamese market
         """
         if not v:
-            raise ValidationError("Currency cannot be empty")
+            raise ValidationError(ErrorCodes.CURRENCY_EMPTY)
 
         v_upper = v.upper()
         if v_upper not in cls.VIETNAMESE_CURRENCIES:
@@ -627,9 +632,7 @@ class Account(BaseModel):
             )
 
         if v_upper != "VND" and v_upper not in ["USD", "EUR", "JPY", "GBP"]:
-            raise InvalidCurrencyError(
-                "For Vietnamese SME operations, only VND, USD, EUR, JPY, GBP are supported"
-            )
+            raise InvalidCurrencyError(ErrorCodes.CURRENCY_SME_ONLY)
 
         return v_upper
 
@@ -640,7 +643,7 @@ class Account(BaseModel):
         Validate balance precision for Vietnamese accounting (2 decimal places for VND)
         """
         if v is None:
-            raise ValidationError("Balance cannot be None")
+            raise ValidationError(ErrorCodes.BALANCE_NONE)
 
         if abs(v) > Decimal("10000000000.00"):
             raise ValidationError("Balance cannot exceed 10 billion VND")
@@ -654,7 +657,7 @@ class Account(BaseModel):
         Validate exchange rate for multi-currency support
         """
         if v <= 0:
-            raise ValidationError("Exchange rate must be positive")
+            raise ValidationError(ErrorCodes.EXCHANGE_RATE_POSITIVE)
 
         return v.quantize(Decimal("0.001"))
 
@@ -665,7 +668,7 @@ class Account(BaseModel):
         Validate DCR direction based on account type and Vietnamese standards
         """
         if not v:
-            raise ValidationError("DCR direction cannot be empty")
+            raise ValidationError(ErrorCodes.DCR_DIRECTION_EMPTY)
 
         valid_directions = [direction.value for direction in DCRDirection]
         if v.lower() not in valid_directions:
@@ -680,13 +683,13 @@ class Account(BaseModel):
         Validate chart code and ensure account type matches chart code type
         """
         if not v:
-            raise ValidationError("Chart code cannot be empty")
+            raise ValidationError(ErrorCodes.CHART_CODE_EMPTY)
 
         if not isinstance(v, str):
-            raise ValidationError("Chart code must be a string")
+            raise ValidationError(ErrorCodes.CHART_CODE_TYPE)
 
         if v and len(v) > 20:
-            raise ValidationError("Chart code cannot exceed 20 characters")
+            raise ValidationError(ErrorCodes.CHART_CODE_MAX_LENGTH)
 
         return v
 
@@ -704,7 +707,7 @@ class Account(BaseModel):
                 from dateutil import parser
                 return parser.parse(v)
             except (ValueError, ImportError):
-                raise ValidationError("Date must be in ISO format (YYYY-MM-DD)")
+                raise ValidationError(ErrorCodes.DATE_ISO_FORMAT)
 
         return v
 
@@ -1004,11 +1007,11 @@ class JournalEntry(BaseModel):
         Validate Vietnamese journal entry number format
         """
         if not v.startswith('JV'):
-            raise ValidationError("Journal number must start with 'JV'")
+            raise ValidationError(ErrorCodes.JOURNAL_NUMBER_PREFIX)
 
         suffix = v[2:]
         if not suffix.isdigit():
-            raise ValidationError("Journal number suffix must be numeric")
+            raise ValidationError(ErrorCodes.JOURNAL_NUMBER_SUFFIX)
 
         return v
 
@@ -1019,7 +1022,7 @@ class JournalEntry(BaseModel):
         Validate transaction date for Vietnamese business operations
         """
         if v is None:
-            raise ValidationError("Transaction date cannot be None")
+            raise ValidationError(ErrorCodes.TRANSACTION_DATE_NONE)
 
         if v.year < 2000 or v.year > 2100:
             raise DateError("Transaction date must be between 2000-2100")
@@ -1033,7 +1036,7 @@ class JournalEntry(BaseModel):
         Validate Vietnamese journal entry description
         """
         if not v.strip():
-            raise ValidationError("Description cannot be empty")
+            raise ValidationError(ErrorCodes.DESCRIPTION_EMPTY)
 
         if len(v) > cls.MAX_JOURNAL_DESCRIPTION_LENGTH:
             raise ValidationError(
@@ -1065,19 +1068,19 @@ class JournalEntry(BaseModel):
         Validate accounting period format (YYYY-MM)
         """
         if not v:
-            raise ValidationError("Period cannot be empty")
+            raise ValidationError(ErrorCodes.PERIOD_EMPTY)
 
         if not re.match(r'\d{4}-\d{2}', v):
-            raise ValidationError("Period must be in YYYY-MM format")
+            raise ValidationError(ErrorCodes.PERIOD_FORMAT)
 
         try:
             year, month = map(int, v.split('-'))
             if not (1 <= month <= 12):
-                raise ValidationError("Month must be between 01 and 12")
+                raise ValidationError(ErrorCodes.PERIOD_MONTH_RANGE)
             if not (2000 <= year <= 2100):
-                raise ValidationError("Year must be between 2000 and 2100")
+                raise ValidationError(ErrorCodes.PERIOD_YEAR_RANGE)
         except ValueError:
-            raise ValidationError("Invalid period format")
+            raise ValidationError(ErrorCodes.PERIOD_INVALID)
 
         return v
 
@@ -1107,7 +1110,7 @@ class JournalEntry(BaseModel):
         Ensures total debits equal total credits within 0.001 VND tolerance
         """
         if not hasattr(self, 'lines') or not self.lines:
-            raise DoubleEntryError("Journal entry must have at least one line")
+            raise DoubleEntryError(ErrorCodes.JOURNAL_ENTRY_NO_LINES)
 
         total_debit = sum(line.debit for line in self.lines)
         total_credit = sum(line.credit for line in self.lines)
@@ -1292,10 +1295,10 @@ class JournalLine(BaseModel):
         Validate monetary amounts with Vietnamese precision standards (2 decimal places)
         """
         if v < 0:
-            raise ValidationError("Debit and credit amounts cannot be negative")
+            raise ValidationError(ErrorCodes.DEBIT_CREDIT_NEGATIVE)
 
         if abs(v) > Decimal("1000000000.00"):
-            raise ValidationError("Amount cannot exceed 1 billion VND")
+            raise ValidationError(ErrorCodes.AMOUNT_MAX)
 
         return v.quantize(Decimal("0.01"))
 
@@ -1322,7 +1325,7 @@ class JournalLine(BaseModel):
         Validate account identifier for Vietnamese accounting system
         """
         if not v.strip():
-            raise ValidationError("Account ID cannot be empty")
+            raise ValidationError(ErrorCodes.ACCOUNT_ID_EMPTY)
 
         v_clean = v.strip()
 
@@ -1469,17 +1472,17 @@ class FinancialStatement(BaseModel):
         Validate accounting period format
         """
         if not v:
-            raise ValidationError("Period cannot be empty")
+            raise ValidationError(ErrorCodes.PERIOD_FS_EMPTY)
 
         if not re.match(r'\d{4}-\d{2}', v):
-            raise ValidationError("Period must be in YYYY-MM format")
+            raise ValidationError(ErrorCodes.PERIOD_FS_FORMAT)
 
         try:
             year, month = map(int, v.split('-'))
             if not (1 <= month <= 12):
-                raise ValidationError("Month must be between 01 and 12")
+                raise ValidationError(ErrorCodes.PERIOD_FS_MONTH)
         except ValueError:
-            raise ValidationError("Invalid period format")
+            raise ValidationError(ErrorCodes.PERIOD_FS_INVALID)
 
         return v
 
@@ -1490,7 +1493,7 @@ class FinancialStatement(BaseModel):
         Validate statement type
         """
         if v not in cls.STATEMENT_TYPES:
-            raise ValidationError(f"Statement type must be one of {cls.STATEMENT_TYPES}")
+            raise ValidationError(ErrorCodes.STATEMENT_TYPE_INVALID)
         return v
 
     def calculate_balance_sheet_totals(self) -> Dict[str, Decimal]:
@@ -1620,7 +1623,7 @@ class FinancialStatement(BaseModel):
         """
         try:
             if not self.period:
-                raise VASValidationError("Period is required for VAS compliance")
+                raise VASValidationError(ErrorCodes.FS_PERIOD_REQUIRED)
 
             if self.statement_type not in self.STATEMENT_TYPES:
                 raise VASValidationError(f"Statement type {self.statement_type} is not valid per VAS")
@@ -1628,7 +1631,7 @@ class FinancialStatement(BaseModel):
             if self.statement_type == "balance_sheet":
                 totals = self.calculate_balance_sheet_totals()
                 if totals["assets_total"] < 0:
-                    raise VASValidationError("Asset total cannot be negative per VAS")
+                    raise VASValidationError(ErrorCodes.FS_ASSET_NEGATIVE)
 
             return True
         except (VASValidationError, ValidationError):
@@ -1665,13 +1668,13 @@ class FinancialStatement(BaseModel):
 class FinancialStatementError(Exception):
     """Exception for financial statement errors"""
     pass
-class ChartOfAccountsError(Exception):
+class ChartOfAccountsError(VASValidationError):
     """Exception for Chart of Accounts errors"""
     pass
-class AccountError(Exception):
-    """Exception for Account errors"""
+class AccountError(VASValidationError):
+    """Exception for Account errors (extends VASValidationError)"""
     pass
-class JournalEntryError(Exception):
+class JournalEntryError(VASValidationError):
     """Exception for Journal Entry errors"""
     pass
 class FinancialReportError(Exception):
@@ -1914,14 +1917,14 @@ class TaxDeclaration(BaseModel):
     @classmethod
     def validate_form_code(cls, v):
         if not v.strip():
-            raise ValidationError("Form code cannot be empty")
+            raise ValidationError(ErrorCodes.FORM_CODE_EMPTY)
         return v.strip()
 
     @field_validator('period_year')
     @classmethod
     def validate_year(cls, v):
         if v < 2000 or v > 2100:
-            raise ValidationError("Year must be 2000-2100")
+            raise ValidationError(ErrorCodes.YEAR_RANGE)
         return v
 
     @field_validator('total_revenue', 'total_tax', 'total_deduction', 'total_exemption',
@@ -1940,7 +1943,7 @@ class TaxDeclaration(BaseModel):
         if self.tax_type in quarterly_types and not self.period_quarter:
             raise ValidationError(f"period_quarter required for {self.tax_type}")
         if self.period_month and self.period_quarter:
-            raise ValidationError("Cannot set both period_month and period_quarter")
+            raise ValidationError(ErrorCodes.TAX_BOTH_PERIOD)
         return self
 
 
@@ -1961,7 +1964,7 @@ class TaxLine(BaseModel):
     @classmethod
     def validate_not_empty(cls, v):
         if not v.strip():
-            raise ValidationError("Field cannot be empty")
+            raise ValidationError(ErrorCodes.TAX_FIELD_EMPTY)
         return v.strip()
 
     @field_validator('amount')
@@ -2046,7 +2049,7 @@ class TaxAdjustment(BaseModel):
     @classmethod
     def validate_reason(cls, v):
         if not v.strip():
-            raise ValueError("Reason cannot be empty")
+            raise ValueError(ErrorCodes.REASON_EMPTY)
         return v.strip()
 
     @model_validator(mode='after')
@@ -2077,7 +2080,7 @@ class TaxIncentive(BaseModel):
     @classmethod
     def validate_code(cls, v):
         if not v.strip():
-            raise ValidationError("Incentive code cannot be empty")
+            raise ValidationError(ErrorCodes.INCENTIVE_CODE_EMPTY)
         return v.strip().upper()
 
     @field_validator('rate_value')
@@ -2088,7 +2091,7 @@ class TaxIncentive(BaseModel):
     @model_validator(mode='after')
     def validate_date_range(self):
         if self.valid_to and self.valid_from and self.valid_to <= self.valid_from:
-            raise ValidationError("valid_to must be after valid_from")
+            raise ValidationError(ErrorCodes.VALID_TO_AFTER_FROM)
         return self
 
 
@@ -2139,7 +2142,7 @@ class EInvoice(BaseModel):
     @classmethod
     def validate_tax_code(cls, v):
         if not v.strip():
-            raise ValidationError("Tax code cannot be empty")
+            raise ValidationError(ErrorCodes.TAX_CODE_EMPTY)
         return v.strip()
 
     @field_validator('subtotal', 'discount_amount', 'vat_amount', 'grand_total')
@@ -2348,7 +2351,7 @@ class BankTransaction(BaseModel):
     reference: str = Field(..., max_length=100)
     description: str = Field(..., max_length=500)
     matched_entry_id: Optional[int] = None
-    statement_id: int
+    statement_id: Optional[int] = None
 
     @field_validator("amount")
     @classmethod
@@ -2442,7 +2445,7 @@ class PettyCashFund(BaseModel):
     @classmethod
     def validate_currency(cls, v):
         if v.upper() not in ["VND", "USD", "EUR", "JPY", "GBP"]:
-            raise InvalidCurrencyError(f"Currency must be one of VND, USD, EUR, JPY, GBP")
+            raise InvalidCurrencyError(ErrorCodes.CASH_CURRENCY_NOT_SUPPORTED)
         return v.upper()
 
 
@@ -2484,7 +2487,7 @@ class CashTransfer(BaseModel):
     @model_validator(mode="after")
     def validate_no_self_transfer(self):
         if self.source_account == self.destination_account:
-            raise ValidationError("Source and destination accounts must be different")
+            raise ValidationError(ErrorCodes.TRANSFER_SAME_ACCOUNT)
         return self
 
 
@@ -2499,7 +2502,7 @@ class ChequeBook(BaseModel):
     @model_validator(mode="after")
     def validate_range(self):
         if self.start_number >= self.end_number:
-            raise ValidationError("End number must be greater than start number")
+            raise ValidationError(ErrorCodes.CHEQUE_END_GREATER)
         return self
 
 
@@ -2623,7 +2626,7 @@ class IFRSMapping(BaseModel):
     @classmethod
     def validate_code(cls, v):
         if not v.strip():
-            raise ValidationError("Account code cannot be empty")
+            raise ValidationError(ErrorCodes.IFRS_CODE_EMPTY)
         return v.strip()
 
 

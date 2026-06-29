@@ -13,6 +13,7 @@ from domain import (
     ReconciliationDiscrepancyType,
     Result, ValidationError, AccountError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.cash_repository import CashRepository
 from infrastructure.repositories.gl_repository import GLRepository
 
@@ -69,7 +70,7 @@ class CashUseCases:
     def get_receipt(self, receipt_id: int) -> Result:
         receipt = self.repo.get_receipt(receipt_id)
         if not receipt:
-            return Result.failure(AccountError(f"CashReceipt {receipt_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.RECEIPT_NOT_FOUND, receipt_id=receipt_id))
         return Result.success(receipt)
 
     def list_receipts(self, status: Optional[str] = None) -> List[CashReceipt]:
@@ -78,17 +79,17 @@ class CashUseCases:
     def approve_receipt(self, receipt_id: int, approved_by: str) -> Result:
         receipt = self.repo.get_receipt(receipt_id)
         if not receipt:
-            return Result.failure(AccountError(f"CashReceipt {receipt_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.RECEIPT_NOT_FOUND, receipt_id=receipt_id))
         if receipt.status != CashVoucherStatus.DRAFT:
-            return Result.failure(ValidationError("Only draft receipts can be approved"))
+            return Result.failure(ValidationError(ErrorCodes.ONLY_DRAFT_APPROVED))
         return self.repo.update_receipt_status(receipt_id, CashVoucherStatus.APPROVED, approved_by)
 
     def cancel_receipt(self, receipt_id: int) -> Result:
         receipt = self.repo.get_receipt(receipt_id)
         if not receipt:
-            return Result.failure(AccountError(f"CashReceipt {receipt_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.RECEIPT_NOT_FOUND, receipt_id=receipt_id))
         if receipt.status == CashVoucherStatus.CANCELLED:
-            return Result.failure(ValidationError("Receipt is already cancelled"))
+            return Result.failure(ValidationError(ErrorCodes.RECEIPT_CANCELLED))
         return self.repo.update_receipt_status(receipt_id, CashVoucherStatus.CANCELLED)
 
     # ── Cash Payments (UC-CASH-02) ────────────────────────────────────
@@ -135,7 +136,7 @@ class CashUseCases:
     def get_payment(self, payment_id: int) -> Result:
         payment = self.repo.get_payment(payment_id)
         if not payment:
-            return Result.failure(AccountError(f"CashPayment {payment_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.PAYMENT_NOT_FOUND, payment_id=payment_id))
         return Result.success(payment)
 
     def list_payments(self, status: Optional[str] = None) -> List[CashPayment]:
@@ -144,17 +145,17 @@ class CashUseCases:
     def approve_payment(self, payment_id: int, approved_by: str) -> Result:
         payment = self.repo.get_payment(payment_id)
         if not payment:
-            return Result.failure(AccountError(f"CashPayment {payment_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.PAYMENT_NOT_FOUND, payment_id=payment_id))
         if payment.status != CashVoucherStatus.DRAFT:
-            return Result.failure(ValidationError("Only draft payments can be approved"))
+            return Result.failure(ValidationError(ErrorCodes.ONLY_DRAFT_PAYMENT_APPROVED))
         return self.repo.update_payment_status(payment_id, CashVoucherStatus.APPROVED, approved_by)
 
     def cancel_payment(self, payment_id: int) -> Result:
         payment = self.repo.get_payment(payment_id)
         if not payment:
-            return Result.failure(AccountError(f"CashPayment {payment_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.PAYMENT_NOT_FOUND, payment_id=payment_id))
         if payment.status == CashVoucherStatus.CANCELLED:
-            return Result.failure(ValidationError("Payment is already cancelled"))
+            return Result.failure(ValidationError(ErrorCodes.PAYMENT_CANCELLED))
         return self.repo.update_payment_status(payment_id, CashVoucherStatus.CANCELLED)
 
     # ── Bank Accounts (UC-CASH-04) ────────────────────────────────────
@@ -194,7 +195,7 @@ class CashUseCases:
     def get_bank_account(self, ba_id: int) -> Result:
         ba = self.repo.get_bank_account(ba_id)
         if not ba:
-            return Result.failure(AccountError(f"BankAccount {ba_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, ba_id=ba_id))
         return Result.success(ba)
 
     def list_bank_accounts(self, status: Optional[str] = None) -> Result:
@@ -203,7 +204,7 @@ class CashUseCases:
     def get_bank_balance(self, ba_id: int, as_of: Optional[date] = None) -> Result:
         ba = self.repo.get_bank_account(ba_id)
         if not ba:
-            return Result.failure(AccountError(f"BankAccount {ba_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, ba_id=ba_id))
         balance = self.repo.calculate_bank_balance(ba_id, as_of=as_of)
         return Result.success({
             "bank_account_id": ba_id,
@@ -256,58 +257,13 @@ class CashUseCases:
                 "counter_account": e["counter_account"],
             })
 
-        html = self._render_cash_book_html({
-            "account_code": account_code,
-            "period": f"{from_date.isoformat()} to {to_date.isoformat()}",
-            "opening_balance": str(running - sum(e["debit"] - e["credit"] for e in entries)),
-            "closing_balance": str(running),
-            "rows": rows,
-        })
-
         return Result.success({
             "account_code": account_code,
             "period": f"{from_date.isoformat()} to {to_date.isoformat()}",
             "opening_balance": str(running - sum(e["debit"] - e["credit"] for e in entries)),
             "closing_balance": str(running),
             "rows": rows,
-            "html": html,
         })
-
-    def _render_cash_book_html(self, summary: dict) -> str:
-        rows_html = ""
-        for r in summary.get("rows", []):
-            rows_html += f"""<tr>
-                <td>{r['date']}</td>
-                <td>{r['number']}</td>
-                <td>{r['counter_party']}</td>
-                <td>{r['description']}</td>
-                <td class='right'>{r['debit']}</td>
-                <td class='right'>{r['credit']}</td>
-                <td class='right'>{r['balance']}</td>
-                <td>{r['counter_account']}</td>
-            </tr>\n"""
-        return f"""<!DOCTYPE html>
-<html lang="vi">
-<head><meta charset="utf-8"><title>SO QUY TIEN MAT</title>
-<style>
-    body {{ font-family: 'Times New Roman', serif; font-size: 12px; }}
-    h1 {{ text-align: center; font-size: 15px; }}
-    table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
-    th, td {{ border: 1px solid #000; padding: 3px 6px; }}
-    .right {{ text-align: right; }}
-</style></head>
-<body>
-<h1>SO QUY TIEN MAT</h1>
-<p><strong>Tai khoan:</strong> {summary['account_code']}</p>
-<p><strong>Ky:</strong> {summary['period']}</p>
-<p><strong>So du dau ky:</strong> {summary['opening_balance']}</p>
-<table>
-<thead><tr><th>Ngay</th><th>So CT</th><th>Doi tuong</th><th>Dien giai</th><th>Thu</th><th>Chi</th><th>Ton quy</th><th>TK DD</th></tr></thead>
-<tbody>{rows_html}</tbody>
-</table>
-<p><strong>So du cuoi ky:</strong> {summary['closing_balance']}</p>
-</body>
-</html>"""
 
     # ── Cash Count Report (Bien ban kiem ke quy) ─────────────────────
 
@@ -319,60 +275,22 @@ class CashUseCases:
                 count = c
                 break
         if not count:
-            return Result.failure(AccountError(f"DailyCashCount {count_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.DAILY_COUNT_NOT_FOUND, count_id=count_id))
 
         diff_type = "Phu hop" if count.difference == 0 else "Thua quy" if count.difference > 0 else "Thieu quy"
-        diff_entries = ""
+        diff_entries = []
         if count.difference > 0:
-            diff_entries = """
-                <tr><td>Tai san thua cho giai quyet (3381)</td><td class='right'>{}</td><td class='right'>0</td></tr>
-            """.format(str(count.difference))
+            diff_entries.append({
+                "description": "Tai san thua cho giai quyet (3381)",
+                "debit": str(count.difference),
+                "credit": "0",
+            })
         elif count.difference < 0:
-            diff_entries = """
-                <tr><td>Tai san thieu cho xu ly (1381)</td><td class='right'>0</td><td class='right'>{}</td></tr>
-            """.format(str(abs(count.difference)))
-
-        html = f"""<!DOCTYPE html>
-<html lang="vi">
-<head><meta charset="utf-8"><title>BIEN BAN KIEM KE QUY</title>
-<style>
-    body {{ font-family: 'Times New Roman', serif; font-size: 13px; }}
-    h1 {{ text-align: center; font-size: 16px; }}
-    table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
-    th, td {{ border: 1px solid #000; padding: 4px 8px; }}
-    .right {{ text-align: right; }}
-    .center {{ text-align: center; }}
-</style></head>
-<body>
-<h1>BIEN BAN KIEM KE QUY</h1>
-<p><strong>Ngay kiem:</strong> {count.count_date.isoformat()}</p>
-<p><strong>Tai khoan:</strong> {count.account_code}</p>
-<p><strong>Nguoi kiem:</strong> {count.counted_by}</p>
-<p><strong>Nguoi chung kien:</strong> {count.witnessed_by or 'N/A'}</p>
-
-<table>
-<tr><th>Chi tieu</th><th>So tien</th></tr>
-<tr><td>So du so ke toan</td><td class='right'>{str(count.expected_balance)}</td></tr>
-<tr><td>So du kiem ke thuc te</td><td class='right'>{str(count.actual_balance)}</td></tr>
-<tr><td><strong>Chenh lech</strong></td><td class='right'><strong>{str(count.difference)}</strong></td></tr>
-</table>
-
-<p><strong>Ket qua: {diff_type}</strong></p>
-
-<h3>Dinh khoan dieu chinh</h3>
-<table>
-<thead><tr><th>Dien giai</th><th>No</th><th>Co</th></tr></thead>
-<tbody>{diff_entries if diff_entries else '<tr><td colspan="3" class="center">Khong co dieu chinh</td></tr>'}</tbody>
-</table>
-
-<p><strong>Ghi chu:</strong> {count.notes or ''}</p>
-
-<table>
-<tr><td><em>Nguoi kiem ke</em></td><td><em>Ke toan truong</em></td><td><em>Giam doc</em></td></tr>
-<tr><td>(Ky, ghi ro ho ten)</td><td>(Ky, ghi ro ho ten)</td><td>(Ky, ghi ro ho ten)</td></tr>
-</table>
-</body>
-</html>"""
+            diff_entries.append({
+                "description": "Tai san thieu cho xu ly (1381)",
+                "debit": "0",
+                "credit": str(abs(count.difference)),
+            })
 
         return Result.success({
             "count": {
@@ -388,7 +306,6 @@ class CashUseCases:
                 "counted_by": count.counted_by,
                 "witnessed_by": count.witnessed_by,
             },
-            "html": html,
         })
 
     # ── Bank Statement Import (UC-CASH-05) ────────────────────────────
@@ -424,21 +341,17 @@ class CashUseCases:
                 source=source,
             )
         except (ValidationError, ValueError, KeyError) as e:
-            return Result.failure(ValidationError(f"Invalid statement data: {e}"))
+            return Result.failure(ValidationError(ErrorCodes.INVALID_STATEMENT_DATA, error=str(e)))
 
         existing = self.repo.list_statements(bank_account_id=bank_account_id)
         for e in existing:
             if e.statement_date == statement_date and e.closing_balance == stmt.closing_balance:
-                return Result.failure(ValidationError(
-                    f"Duplicate statement for account {bank_account_id} on {statement_date}"
-                ))
+                return Result.failure(ValidationError(ErrorCodes.DUPLICATE_STATEMENT, account_id=bank_account_id, date=statement_date))
 
-        txn_sum = sum(t.amount for t in bank_txns)
-        running_check = opening_balance + txn_sum
+        net_change = sum((-t.amount if t.is_debit else t.amount) for t in bank_txns)
+        running_check = opening_balance + net_change
         if abs(running_check - closing_balance) > Decimal("0.01"):
-            return Result.failure(ValidationError(
-                f"Running balance mismatch: expected {running_check}, got {closing_balance}"
-            ))
+            return Result.failure(ValidationError(ErrorCodes.RUNNING_BALANCE_MISMATCH, expected=running_check, actual=closing_balance))
 
         return self.repo.create_statement(stmt)
 
@@ -463,6 +376,8 @@ class CashUseCases:
                         "is_debit": row.get("Loai", row.get("Type", "")).strip().upper() in ("OUT", "DEBIT", "CHI", "-"),
                         "reference": row.get("Ma giao dich", row.get("Reference", "")),
                         "description": row.get("Dien giai", row.get("Description", "")),
+                        "_opening_balance": row.get("_opening_balance", ""),
+                        "_closing_balance": row.get("_closing_balance", ""),
                     }
                 else:
                     txn = {
@@ -472,11 +387,13 @@ class CashUseCases:
                         "is_debit": row.get("Type", row.get("type", "")).strip().upper() in ("DEBIT", "OUT", "WITHDRAWAL"),
                         "reference": row.get("Reference", row.get("reference", "")),
                         "description": row.get("Description", row.get("description", "")),
+                        "_opening_balance": row.get("_opening_balance", ""),
+                        "_closing_balance": row.get("_closing_balance", ""),
                     }
                 txns.append(txn)
 
             if not txns:
-                return Result.failure(ValidationError("No transactions found in CSV"))
+                return Result.failure(ValidationError(ErrorCodes.NO_TRANSACTIONS_CSV))
 
             first = txns[0]
             opening = Decimal(str(first.get("_opening_balance", "0"))) if "_opening_balance" in first else Decimal("0")
@@ -492,7 +409,7 @@ class CashUseCases:
                 source="csv",
             )
         except Exception as e:
-            return Result.failure(ValidationError(f"CSV parse error: {e}"))
+            return Result.failure(ValidationError(ErrorCodes.CSV_PARSE_ERROR, error=str(e)))
 
     # ── Auto-Match for Reconciliation ─────────────────────────────────
 
@@ -617,7 +534,7 @@ class CashUseCases:
     def get_reconciliation(self, recon_id: int) -> Result:
         recon = self.repo.get_reconciliation(recon_id)
         if not recon:
-            return Result.failure(AccountError(f"Reconciliation {recon_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.RECONCILIATION_NOT_FOUND, recon_id=recon_id))
         return Result.success(recon)
 
     # ── Petty Cash (UC-CASH-03b) ──────────────────────────────────────
@@ -644,7 +561,7 @@ class CashUseCases:
     def get_petty_cash_fund(self, fund_id: int) -> Result:
         fund = self.repo.get_petty_cash_fund(fund_id)
         if not fund:
-            return Result.failure(AccountError(f"PettyCashFund {fund_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.PETTY_CASH_FUND_NOT_FOUND, fund_id=fund_id))
         return Result.success(fund)
 
     def list_petty_cash_funds(self) -> Result:
@@ -677,15 +594,15 @@ class CashUseCases:
     def get_advance(self, advance_id: int) -> Result:
         advance = self.repo.get_advance(advance_id)
         if not advance:
-            return Result.failure(AccountError(f"Advance {advance_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.ADVANCE_NOT_FOUND, advance_id=advance_id))
         return Result.success(advance)
 
     def settle_advance(self, advance_id: int, settlement_amount: Decimal) -> Result:
         advance = self.repo.get_advance(advance_id)
         if not advance:
-            return Result.failure(AccountError(f"Advance {advance_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.ADVANCE_NOT_FOUND, advance_id=advance_id))
         if advance.status == "settled":
-            return Result.failure(ValidationError("Advance already settled"))
+            return Result.failure(ValidationError(ErrorCodes.ADVANCE_ALREADY_SETTLED))
         return self.repo.update_advance_settlement(advance_id, settlement_amount)
 
     # ── Cash Transfers (UC-CASH-07) ───────────────────────────────────
@@ -716,7 +633,7 @@ class CashUseCases:
     def get_transfer(self, transfer_id: int) -> Result:
         transfer = self.repo.get_transfer(transfer_id)
         if not transfer:
-            return Result.failure(AccountError(f"CashTransfer {transfer_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CASH_TRANSFER_NOT_FOUND, transfer_id=transfer_id))
         return Result.success(transfer)
 
     # ── Daily Cash Count (UC-CASH-08) ─────────────────────────────────
@@ -775,7 +692,7 @@ class CashUseCases:
     def get_cheque(self, cheque_id: int) -> Result:
         cheque = self.repo.get_cheque(cheque_id)
         if not cheque:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         return Result.success(cheque)
 
     # ── Bank Book Report (So tien gui NH — UC-CASH-11) ────────────────
@@ -789,7 +706,7 @@ class CashUseCases:
     ) -> Result:
         ba = self.repo.get_bank_account(bank_account_id)
         if not ba:
-            return Result.failure(AccountError(f"BankAccount {bank_account_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, bank_account_id=bank_account_id))
         entries = self.repo.get_gl_entries_for_bank(
             coa_code=ba.coa_code,
             from_date=from_date,
@@ -831,7 +748,7 @@ class CashUseCases:
     def generate_reconciliation_report(self, recon_id: int) -> Result:
         recon = self.repo.get_reconciliation(recon_id)
         if not recon:
-            return Result.failure(AccountError(f"Reconciliation {recon_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.RECONCILIATION_NOT_FOUND, recon_id=recon_id))
         ba = self.repo.get_bank_account(recon.bank_account_id)
         summary = {
             "reconciliation_id": recon.id,
@@ -864,8 +781,7 @@ class CashUseCases:
                 for d in recon.discrepancies
             ],
         }
-        html = self._render_reconciliation_html(summary)
-        return Result.success({"data": summary, "html": html})
+        return Result.success({"data": summary})
 
     def _render_reconciliation_html(self, summary: dict) -> str:
         disc_rows = ""
@@ -931,9 +847,9 @@ class CashUseCases:
     ) -> Result:
         cheque = self.repo.get_cheque(cheque_id)
         if not cheque:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         if cheque.status != ChequeStatus.NEW:
-            return Result.failure(ValidationError(f"Only NEW cheques can be issued (current: {cheque.status.value})"))
+            return Result.failure(ValidationError(ErrorCodes.STATE_TRANSITION, action="issue", subject="cheque", state=cheque.status.value))
         return self.repo.update_cheque_status(
             cheque_id, ChequeStatus.ISSUED,
             payee=payee,
@@ -944,33 +860,33 @@ class CashUseCases:
     def clear_cheque(self, cheque_id: int, cleared_date: date) -> Result:
         cheque = self.repo.get_cheque(cheque_id)
         if not cheque:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         if cheque.status != ChequeStatus.ISSUED:
-            return Result.failure(ValidationError(f"Only ISSUED cheques can be cleared (current: {cheque.status.value})"))
+            return Result.failure(ValidationError(ErrorCodes.STATE_TRANSITION, action="clear", subject="cheque", state=cheque.status.value))
         return self.repo.update_cheque_status(cheque_id, ChequeStatus.CLEARED, cleared_date=cleared_date)
 
     def cancel_cheque(self, cheque_id: int, reason: str) -> Result:
         cheque = self.repo.get_cheque(cheque_id)
         if not cheque:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         if cheque.status in (ChequeStatus.CLEARED, ChequeStatus.CANCELLED):
-            return Result.failure(ValidationError(f"Cannot cancel cheque in status {cheque.status.value}"))
+            return Result.failure(ValidationError(ErrorCodes.STATE_TRANSITION, action="cancel", subject="cheque", state=cheque.status.value))
         return self.repo.update_cheque_status(cheque_id, ChequeStatus.CANCELLED, cancel_reason=reason)
 
     def stop_cheque(self, cheque_id: int, reason: str) -> Result:
         cheque = self.repo.get_cheque(cheque_id)
         if not cheque:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         if cheque.status != ChequeStatus.ISSUED:
-            return Result.failure(ValidationError(f"Only ISSUED cheques can be stopped (current: {cheque.status.value})"))
+            return Result.failure(ValidationError(ErrorCodes.STATE_TRANSITION, action="stop", subject="cheque", state=cheque.status.value))
         return self.repo.update_cheque_status(cheque_id, ChequeStatus.STOPPED, cancel_reason=reason)
 
     def bounce_cheque(self, cheque_id: int, reason: str) -> Result:
         cheque = self.repo.get_cheque(cheque_id)
         if not cheque:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         if cheque.status != ChequeStatus.ISSUED:
-            return Result.failure(ValidationError(f"Only ISSUED cheques can be bounced (current: {cheque.status.value})"))
+            return Result.failure(ValidationError(ErrorCodes.STATE_TRANSITION, action="bounce", subject="cheque", state=cheque.status.value))
         return self.repo.update_cheque_status(cheque_id, ChequeStatus.BOUNCED, cancel_reason=reason)
 
     def get_stale_cheques(self, days: int = 180) -> Result:

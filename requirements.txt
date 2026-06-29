@@ -5,6 +5,8 @@
 Flask==3.0.0
 Werkzeug==3.0.0
 click==8.1.0
+Flask-Babel==4.0.0
+Babel==2.16.0
 
 # --- SQLALCHEMY ORM ---
 SQLAlchemy==2.0.0

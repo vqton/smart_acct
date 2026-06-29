@@ -5,8 +5,9 @@ from sqlalchemy import text
 from domain import (
     ChartOfAccounts, AccountType, DCRDirection,
     AccountingRegime, AccountStatus,
-    Result
+    Result, VASValidationError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.repositories.coa_repository import COARepository
 
 
@@ -19,27 +20,27 @@ class COAValidateUseCase:
         clean = code.replace(".", "")
 
         if not clean.isdigit():
-            issues.append("Account code must be numeric (only digits and dots allowed)")
+            issues.append(ErrorCodes.COA_CODE_NUMERIC)
 
         if not code[0].isdigit() or int(code[0]) < 1 or int(code[0]) > 9:
-            issues.append("First digit must be 1-9")
+            issues.append(ErrorCodes.COA_FIRST_DIGIT_1_9)
 
         if code.startswith("0"):
-            issues.append("Account code cannot start with 0")
+            issues.append(ErrorCodes.COA_NO_START_ZERO)
 
         parts = code.split(".")
         if len(parts) > 4:
-            issues.append("Maximum 4 hierarchy levels allowed")
+            issues.append(ErrorCodes.COA_MAX_LEVELS)
 
         if len(clean) > 6:
-            issues.append("Maximum 6 digits allowed")
+            issues.append(ErrorCodes.COA_MAX_DIGITS)
 
         return {"code": code, "valid": len(issues) == 0, "issues": issues}
 
     def validate_account(self, code: str) -> Result:
         account = self.repo.get_by_code(code)
         if not account:
-            return Result.failure(ValueError(f"Account '{code}' not found"))
+            return Result.failure(VASValidationError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
 
         issues: List[dict] = []
 
@@ -48,28 +49,26 @@ class COAValidateUseCase:
             issues.extend(fmt["issues"])
 
         if not account.vas_compliant:
-            issues.append("Account is marked as non-compliant with VAS")
+            issues.append(ErrorCodes.COA_NON_COMPLIANT)
 
         if account.status == AccountStatus.CLOSED:
-            issues.append("Account is closed — cannot be used in new transactions")
+            issues.append(ErrorCodes.COA_CLOSED)
 
         parent_ok = True
         if account.parent_code:
             parent = self.repo.get_by_code(account.parent_code)
             if not parent:
-                issues.append(f"Parent account '{account.parent_code}' does not exist")
+                issues.append(ErrorCodes.COA_PARENT_MISSING)
                 parent_ok = False
             elif parent.status != AccountStatus.ACTIVE:
-                issues.append(f"Parent account '{account.parent_code}' is not active")
+                issues.append(ErrorCodes.COA_PARENT_INACTIVE)
 
         if parent_ok and account.parent_code:
             expected_parent_level = account.level - 1
             stmt = text("SELECT code, level FROM chart_of_accounts WHERE code = :code")
             rs = self.repo.session.execute(stmt, {"code": account.parent_code}).fetchone()
             if rs and rs.level != expected_parent_level:
-                issues.append(
-                    f"Parent account level mismatch: got {rs.level}, expected {expected_parent_level}"
-                )
+                issues.append(ErrorCodes.COA_PARENT_LEVEL_MISMATCH)
 
         return Result.success({
             "code": code,
@@ -115,7 +114,7 @@ class COAValidateUseCase:
         """Run all compliance checks on a single account."""
         account = self.repo.get_by_code(code)
         if not account:
-            return Result.failure(ValueError(f"Account '{code}' not found"))
+            return Result.failure(VASValidationError(ErrorCodes.ACCOUNT_NOT_FOUND, code=code))
 
         all_issues: List[str] = []
 
@@ -129,9 +128,9 @@ class COAValidateUseCase:
         if account.parent_code:
             parent = self.repo.get_by_code(account.parent_code)
             if not parent:
-                all_issues.append(f"Parent account '{account.parent_code}' does not exist")
+                all_issues.append(ErrorCodes.COA_PARENT_MISSING)
             elif parent.level != account.level - 1:
-                all_issues.append(f"Level gap: parent level={parent.level}, child level={account.level}")
+                all_issues.append(ErrorCodes.COA_HIERARCHY_LEVEL_GAP)
 
         return Result.success({
             "code": code,
@@ -189,24 +188,24 @@ class COAValidateUseCase:
                 by_severity["warning"] += 1
 
             if not acc.vas_compliant:
-                entry["issues"].append({"rule": "vas_compliant", "severity": "warning", "message": "Account marked non-compliant with VAS"})
+                entry["issues"].append({"rule": "vas_compliant", "severity": "warning", "message": ErrorCodes.COA_NON_COMPLIANT})
                 by_severity["warning"] += 1
 
             if acc.code in dupes:
-                entry["issues"].append({"rule": "duplicate_codes", "severity": "error", "message": f"Duplicate account code '{acc.code}'"})
+                entry["issues"].append({"rule": "duplicate_codes", "severity": "error", "message": ErrorCodes.COA_SCAN_DUPLICATE})
                 by_severity["error"] += 1
 
             if acc.parent_code:
                 parent = self.repo.get_by_code(acc.parent_code)
                 if not parent:
-                    entry["issues"].append({"rule": "parent_exists", "severity": "error", "message": f"Parent '{acc.parent_code}' not found"})
+                    entry["issues"].append({"rule": "parent_exists", "severity": "error", "message": ErrorCodes.COA_HIERARCHY_PARENT_MISSING})
                     by_severity["error"] += 1
                 elif parent.level != acc.level - 1:
-                    entry["issues"].append({"rule": "hierarchy_levels", "severity": "warning", "message": f"Level gap expected {acc.level - 1}, got {parent.level}"})
+                    entry["issues"].append({"rule": "hierarchy_levels", "severity": "warning", "message": ErrorCodes.COA_HIERARCHY_LEVEL_GAP})
                     by_severity["warning"] += 1
 
             if not acc.name:
-                entry["issues"].append({"rule": "missing_name", "severity": "warning", "message": "Account has no name"})
+                entry["issues"].append({"rule": "missing_name", "severity": "warning", "message": ErrorCodes.COA_SCAN_NO_NAME})
                 by_severity["warning"] += 1
 
             results.append(entry)
@@ -253,10 +252,7 @@ class COAValidateUseCase:
                 expected = DCRDirection.CREDIT
 
         if expected and account.drcr_direction != expected:
-            issues.append(
-                f"DCR direction '{account.drcr_direction.value}' does not match "
-                f"account type '{account.account_type.value}' (expected '{expected.value}')"
-            )
+            issues.append(ErrorCodes.COA_DCR_MISMATCH)
         return issues
 
     def validate_tt99_compliance(self, account: ChartOfAccounts) -> List[str]:
@@ -271,7 +267,7 @@ class COAValidateUseCase:
             AccountType.ACCOUNT_RECEIVABLE,
         ):
             if account.level > 3:
-                issues.append(f"TT99: {account.account_type.value} accounts max 3 levels")
+                issues.append(ErrorCodes.COA_TT99_LEVEL)
 
         return issues
 
@@ -286,13 +282,13 @@ class COAValidateUseCase:
                     errors.append({
                         "code": acc.code,
                         "name": acc.name,
-                        "issue": f"Parent '{acc.parent_code}' missing"
+                        "issue": ErrorCodes.COA_HIERARCHY_PARENT_MISSING
                     })
                 elif parent.level != acc.level - 1:
                     errors.append({
                         "code": acc.code,
                         "name": acc.name,
-                        "issue": f"Level gap: parent level={parent.level}, child level={acc.level}"
+                        "issue": ErrorCodes.COA_HIERARCHY_LEVEL_GAP
                     })
 
         return Result.success({"total_checked": len(accounts), "errors": errors})

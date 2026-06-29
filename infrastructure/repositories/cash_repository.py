@@ -14,6 +14,7 @@ from domain import (
     ReconciliationDiscrepancyType,
     Result, ValidationError, AccountError,
 )
+from domain.i18n import ErrorCodes
 from infrastructure.models.cash_models import (
     CashReceiptModel, CashPaymentModel, BankAccountModel,
     BankStatementModel, BankTransactionModel, BankReconciliationModel,
@@ -107,7 +108,7 @@ class CashRepository:
     def update_receipt_status(self, receipt_id: int, status: CashVoucherStatus, approved_by: Optional[str] = None) -> Result:
         m = self.session.get(CashReceiptModel, receipt_id)
         if not m:
-            return Result.failure(AccountError(f"CashReceipt {receipt_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.RECEIPT_NOT_FOUND, receipt_id=receipt_id))
         m.status = CashVoucherStatusDB(status.value) if isinstance(status, CashVoucherStatus) else CashVoucherStatusDB(status)
         if approved_by:
             m.approved_by = approved_by
@@ -190,7 +191,7 @@ class CashRepository:
     def update_payment_status(self, payment_id: int, status: CashVoucherStatus, approved_by: Optional[str] = None) -> Result:
         m = self.session.get(CashPaymentModel, payment_id)
         if not m:
-            return Result.failure(AccountError(f"CashPayment {payment_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.PAYMENT_NOT_FOUND, payment_id=payment_id))
         m.status = CashVoucherStatusDB(status.value) if isinstance(status, CashVoucherStatus) else CashVoucherStatusDB(status)
         if approved_by:
             m.approved_by = approved_by
@@ -440,7 +441,7 @@ class CashRepository:
     def update_petty_cash_balance(self, fund_id: int, new_balance: Decimal) -> Result:
         m = self.session.get(PettyCashFundModel, fund_id)
         if not m:
-            return Result.failure(AccountError(f"PettyCashFund {fund_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.PETTY_CASH_FUND_NOT_FOUND, fund_id=fund_id))
         m.current_balance = _vnd(new_balance)
         m.updated_at = datetime.now(timezone.utc)
         self.session.flush()
@@ -523,6 +524,10 @@ class CashRepository:
         m = self.session.get(ChequeModel, cheque_id)
         return self._cheque_to_domain(m) if m else None
 
+    def list_cheques(self) -> List[Cheque]:
+        q = select(ChequeModel).order_by(ChequeModel.issue_date.desc())
+        return [self._cheque_to_domain(m) for m in self.session.execute(q).scalars().all()]
+
     def update_cheque_status(
         self,
         cheque_id: int,
@@ -535,7 +540,7 @@ class CashRepository:
     ) -> Result:
         m = self.session.get(ChequeModel, cheque_id)
         if not m:
-            return Result.failure(AccountError(f"Cheque {cheque_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.CHEQUE_NOT_FOUND, cheque_id=cheque_id))
         m.status = ChequeStatusDB(status.value) if isinstance(status, ChequeStatus) else ChequeStatusDB(status)
         if cleared_date:
             m.cleared_date = cleared_date
@@ -641,7 +646,7 @@ class CashRepository:
     def update_advance_settlement(self, advance_id: int, settlement_amount: Decimal) -> Result:
         m = self.session.get(AdvanceModel, advance_id)
         if not m:
-            return Result.failure(AccountError(f"Advance {advance_id} not found"))
+            return Result.failure(AccountError(ErrorCodes.ADVANCE_NOT_FOUND, advance_id=advance_id))
         m.settlement_amount += _vnd(settlement_amount)
         m.remaining_balance = m.amount - m.settlement_amount
         if m.remaining_balance <= Decimal("0.001"):
@@ -651,6 +656,43 @@ class CashRepository:
         return Result.success(self._adv_to_domain(m))
 
     # ── Cash Balance ──────────────────────────────────────────────────
+
+    def calculate_bank_balance(self, ba_id: int, as_of: Optional[date] = None) -> Decimal:
+        ba = self.get_bank_account(ba_id)
+        if not ba:
+            return Decimal("0")
+        coa = ba.coa_code
+        balance = ba.opening_balance
+
+        receipts = self.session.execute(
+            select(func.coalesce(func.sum(CashReceiptModel.amount), 0)).where(
+                CashReceiptModel.account_code == coa,
+                CashReceiptModel.status.in_([CashVoucherStatusDB.DRAFT, CashVoucherStatusDB.APPROVED, CashVoucherStatusDB.PAID]),
+            )
+        ).scalar() or Decimal("0")
+
+        payments = self.session.execute(
+            select(func.coalesce(func.sum(CashPaymentModel.amount), 0)).where(
+                CashPaymentModel.account_code == coa,
+                CashPaymentModel.status.in_([CashVoucherStatusDB.DRAFT, CashVoucherStatusDB.APPROVED, CashVoucherStatusDB.PAID]),
+            )
+        ).scalar() or Decimal("0")
+
+        transfers_in = self.session.execute(
+            select(func.coalesce(func.sum(CashTransferModel.amount), 0)).where(
+                CashTransferModel.destination_account == coa,
+                CashTransferModel.status.in_([CashTransferStatusDB.COMPLETED]),
+            )
+        ).scalar() or Decimal("0")
+
+        transfers_out = self.session.execute(
+            select(func.coalesce(func.sum(CashTransferModel.amount), 0)).where(
+                CashTransferModel.source_account == coa,
+                CashTransferModel.status.in_([CashTransferStatusDB.COMPLETED, CashTransferStatusDB.PENDING]),
+            )
+        ).scalar() or Decimal("0")
+
+        return _vnd(balance + receipts + transfers_in - payments - transfers_out)
 
     def get_cash_balance(self, account_code: str) -> Decimal:
         receipts_total = self.session.execute(
