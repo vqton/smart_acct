@@ -1,7 +1,7 @@
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, Enum as SAEnum, ForeignKey
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, Enum as SAEnum, ForeignKey, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 import enum
 
 
@@ -50,3 +50,34 @@ class COAModel(Base):
 
 
 AccountModel = COAModel
+
+
+class IFRSMappingModel(Base):
+    __tablename__ = "ifrs_mappings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vas_account_code = Column(String(20), nullable=False, index=True)
+    ifrs_account_code = Column(String(20), nullable=False)
+    mapping_type = Column(String(20), default="1:1", nullable=False)
+    expression = Column(Text, nullable=True)
+    description = Column(String(500), nullable=True)
+    created_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<IFRSMappingModel(vas={self.vas_account_code}, ifrs={self.ifrs_account_code})>"
+
+
+class COAVersionModel(Base):
+    __tablename__ = "coa_versions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    snapshot = Column(JSON, nullable=False)
+    account_count = Column(Integer, nullable=False)
+    created_by = Column(String(100), nullable=True)
+    notes = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<COAVersionModel(id={self.id}, accounts={self.account_count})>"

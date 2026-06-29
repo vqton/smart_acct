@@ -4,6 +4,7 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 from enum import Enum
 from abc import ABC, abstractmethod
+import re
 class VASValidationError(Exception):
     """Base exception for Vietnamese Accounting Standards compliance errors"""
     pass
@@ -114,6 +115,12 @@ class AccountType(str, Enum):
     SHORT_TERM_FINANCIAL_ASSETS = "short_term_financial_assets"
     LONG_TERM_FINANCIAL_ASSETS = "long_term_financial_assets"
 
+    # Type 1: Cash-related sub-types
+    ADVANCE = "advance"
+    ASSET_SHORTAGE = "asset_shortage"
+    ASSET_SURPLUS = "asset_surplus"
+    CASH_EQUIVALENT = "cash_equivalent"
+
     # Type 2: Liability accounts (always have positive balance)
     LIABILITY = "liability"
     SHORT_TERM_LIABILITIES = "short_term_liabilities"
@@ -211,6 +218,9 @@ class DCRDirection(str, Enum):
             AccountType.BANK,
             AccountType.SHORT_TERM_FINANCIAL_INVESTMENT,
             AccountType.ACCOUNT_RECEIVABLE,
+            AccountType.ADVANCE,
+            AccountType.ASSET_SHORTAGE,
+            AccountType.CASH_EQUIVALENT,
             AccountType.SHORT_TERM_LOANS_TO_ENTERPRISES,
             AccountType.COST_OF_SALES,
             AccountType.OPERATIONAL_EXPENSES,
@@ -227,6 +237,7 @@ class DCRDirection(str, Enum):
             AccountType.GROSS_PROFIT,
             AccountType.NET_PROFIT,
             AccountType.EQUITY_DISTRIBUTION,
+            AccountType.ASSET_SURPLUS,
         }
 
         if account_type in debit_normal_accounts:
@@ -254,8 +265,8 @@ class ChartOfAccounts(BaseModel):
         ...,
         min_length=1,
         max_length=20,
-        pattern=r'^[1-9]([.][0-9]+)*$',
-        description="VAS account code (Type.Level.Sublevel...)"
+        pattern=r'^[1-9](?:\.[0-9]+)*$|^[1-9][0-9]{3,5}$',
+        description="VAS account code: dotted (1, 1.1, 1.1.1) or flat numeric (1111, 11111)"
     )
     name: str = Field(
         ...,
@@ -343,8 +354,8 @@ class ChartOfAccounts(BaseModel):
                     "Account code cannot exceed 4 hierarchy levels (Vietnamese standard)"
                 )
 
-        first_digit = int(v.split('.')[0])
-        if first_digit < 1 or first_digit > 9:
+        first_char = v[0]
+        if first_char < '1' or first_char > '9':
             raise InvalidAccountError(
                 "First digit of account code must be 1-9 (Type 1-9 per VAS)"
             )
@@ -919,6 +930,7 @@ class JournalEntry(BaseModel):
     """
     Journal Entry entity - the central hub for Vietnamese accounting transactions
     """
+    id: Optional[int] = Field(default=None, description="Primary key identifier")
     journal_number: str = Field(
         ...,
         min_length=1,
@@ -2186,16 +2198,451 @@ class TaxSchedule(BaseModel):
     updated_at: Optional[datetime] = Field(default=None)
 
 
+class CashReceiptType(str, Enum):
+    SALES = "sales"
+    COLLECTION = "collection"
+    BANK_WITHDRAWAL = "bank_withdrawal"
+    ADVANCE_RETURN = "advance_return"
+    OTHER = "other"
+
+
+class CashPaymentType(str, Enum):
+    EXPENSE = "expense"
+    PURCHASE = "purchase"
+    SALARY = "salary"
+    ADVANCE = "advance"
+    SETTLEMENT = "settlement"
+    BANK_DEPOSIT = "bank_deposit"
+    OTHER = "other"
+
+
+class CashVoucherStatus(str, Enum):
+    DRAFT = "draft"
+    PENDING_APPROVAL = "pending_approval"
+    APPROVED = "approved"
+    PAID = "paid"
+    CANCELLED = "cancelled"
+
+
+class BankAccountStatus(str, Enum):
+    ACTIVE = "active"
+    CLOSED = "closed"
+    BLOCKED = "blocked"
+
+
+class ChequeStatus(str, Enum):
+    NEW = "new"
+    ISSUED = "issued"
+    CLEARED = "cleared"
+    CANCELLED = "cancelled"
+    STOPPED = "stopped"
+    BOUNCED = "bounced"
+
+
+class CashTransferStatus(str, Enum):
+    PENDING = "pending"
+    IN_TRANSIT = "in_transit"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class PettyCashFundStatus(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    CLOSED = "closed"
+
+
+class ReconciliationDiscrepancyType(str, Enum):
+    DEPOSIT_IN_TRANSIT = "deposit_in_transit"
+    OUTSTANDING_CHECK = "outstanding_check"
+    BANK_CHARGE = "bank_charge"
+    BANK_INTEREST = "bank_interest"
+    ERROR = "error"
+
+
+class CashReceipt(BaseModel):
+    id: Optional[int] = None
+    receipt_number: str = Field(..., pattern=r'^PT-\d{6}-\d{5}$', description="PT-YYYYMM-NNNNN")
+    receipt_date: date
+    receipt_type: CashReceiptType
+    payer_name: str = Field(..., min_length=1, max_length=300)
+    amount: Decimal = Field(..., gt=Decimal("0"))
+    amount_in_words: str = Field(..., min_length=1, max_length=500)
+    currency: str = "VND"
+    fx_rate: Optional[Decimal] = None
+    account_code: str
+    counter_account: str
+    reference_number: Optional[str] = None
+    description: str = Field(..., min_length=1, max_length=500)
+    status: CashVoucherStatus = CashVoucherStatus.DRAFT
+    created_by: str
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v):
+        return _quantize_vnd(v)
+
+
+class CashPayment(BaseModel):
+    id: Optional[int] = None
+    payment_number: str = Field(..., pattern=r'^PC-\d{6}-\d{5}$', description="PC-YYYYMM-NNNNN")
+    payment_date: date
+    payment_type: CashPaymentType
+    receiver_name: str = Field(..., min_length=1, max_length=300)
+    amount: Decimal = Field(..., gt=Decimal("0"))
+    amount_in_words: str = Field(..., min_length=1, max_length=500)
+    currency: str = "VND"
+    fx_rate: Optional[Decimal] = None
+    account_code: str
+    counter_account: str
+    reference_number: Optional[str] = None
+    supporting_doc_ref: Optional[str] = None
+    description: str = Field(..., min_length=1, max_length=500)
+    status: CashVoucherStatus = CashVoucherStatus.DRAFT
+    created_by: str
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v):
+        return _quantize_vnd(v)
+
+
+class BankAccount(BaseModel):
+    id: Optional[int] = None
+    bank_name: str = Field(..., min_length=1, max_length=200)
+    branch: str = Field(..., min_length=1, max_length=200)
+    account_number: str = Field(..., min_length=1, max_length=50)
+    account_holder: str = Field(..., min_length=1, max_length=300)
+    currency: str = "VND"
+    coa_code: str
+    swift_code: Optional[str] = None
+    iban: Optional[str] = None
+    opening_balance: Decimal = Decimal("0")
+    status: BankAccountStatus = BankAccountStatus.ACTIVE
+    signatories: List[str] = Field(default_factory=list)
+    authorization_limit: Decimal = Decimal("0")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("opening_balance", "authorization_limit")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class BankTransaction(BaseModel):
+    id: Optional[int] = None
+    bank_account_id: int
+    transaction_date: date
+    value_date: Optional[date] = None
+    amount: Decimal
+    is_debit: bool
+    reference: str = Field(..., max_length=100)
+    description: str = Field(..., max_length=500)
+    matched_entry_id: Optional[int] = None
+    statement_id: int
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class BankStatement(BaseModel):
+    id: Optional[int] = None
+    bank_account_id: int
+    statement_date: date
+    opening_balance: Decimal
+    closing_balance: Decimal
+    transactions: List[BankTransaction] = Field(default_factory=list)
+    imported_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source: str = Field(..., pattern=r'^(mt940|csv|pdf|api)$')
+
+    @field_validator("opening_balance", "closing_balance")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class ReconciliationDiscrepancy(BaseModel):
+    id: Optional[int] = None
+    reconciliation_id: int
+    discrepancy_type: ReconciliationDiscrepancyType
+    amount: Decimal
+    entry_side: str = Field(..., pattern=r'^(book|bank)$')
+    reference: Optional[str] = None
+    description: Optional[str] = None
+    status: str = "unresolved"
+    resolution_entry_id: Optional[int] = None
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class BankReconciliation(BaseModel):
+    id: Optional[int] = None
+    bank_account_id: int
+    period: str
+    book_balance: Decimal
+    bank_balance: Decimal
+    deposits_in_transit: Decimal = Decimal("0")
+    outstanding_checks: Decimal = Decimal("0")
+    unrecorded_credits: Decimal = Decimal("0")
+    unrecorded_debits: Decimal = Decimal("0")
+    adjusted_book_balance: Decimal = Decimal("0")
+    adjusted_bank_balance: Decimal = Decimal("0")
+    is_balanced: bool = False
+    reconciled_at: Optional[datetime] = None
+    reconciled_by: Optional[str] = None
+    discrepancies: List[ReconciliationDiscrepancy] = Field(default_factory=list)
+
+    @field_validator("book_balance", "bank_balance", "deposits_in_transit",
+                     "outstanding_checks", "unrecorded_credits", "unrecorded_debits",
+                     "adjusted_book_balance", "adjusted_bank_balance")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+    @model_validator(mode="after")
+    def compute_adjusted_balances(self):
+        self.adjusted_book_balance = self.book_balance - self.outstanding_checks + self.deposits_in_transit
+        self.adjusted_bank_balance = self.bank_balance - self.unrecorded_debits + self.unrecorded_credits
+        self.is_balanced = abs(self.adjusted_book_balance - self.adjusted_bank_balance) <= Decimal("0.001")
+        return self
+
+
+class PettyCashFund(BaseModel):
+    id: Optional[int] = None
+    fund_code: str = Field(..., min_length=1, max_length=50)
+    custodian: str = Field(..., min_length=1, max_length=200)
+    limit_amount: Decimal = Field(..., gt=Decimal("0"))
+    current_balance: Decimal = Decimal("0")
+    currency: str = "VND"
+    established_date: date
+    status: PettyCashFundStatus = PettyCashFundStatus.ACTIVE
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("limit_amount", "current_balance")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, v):
+        if v.upper() not in ["VND", "USD", "EUR", "JPY", "GBP"]:
+            raise InvalidCurrencyError(f"Currency must be one of VND, USD, EUR, JPY, GBP")
+        return v.upper()
+
+
+class PettyCashTransaction(BaseModel):
+    id: Optional[int] = None
+    fund_id: int
+    transaction_date: date
+    amount: Decimal
+    is_replenishment: bool
+    reference_number: Optional[str] = None
+    description: str = Field(..., max_length=500)
+    receipt_ref: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class CashTransfer(BaseModel):
+    id: Optional[int] = None
+    source_account: str
+    destination_account: str
+    amount: Decimal = Field(..., gt=Decimal("0"))
+    transfer_date: date
+    fx_rate: Optional[Decimal] = None
+    reference: str = Field(..., max_length=100)
+    status: CashTransferStatus = CashTransferStatus.PENDING
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+    @model_validator(mode="after")
+    def validate_no_self_transfer(self):
+        if self.source_account == self.destination_account:
+            raise ValidationError("Source and destination accounts must be different")
+        return self
+
+
+class ChequeBook(BaseModel):
+    id: Optional[int] = None
+    bank_account_id: int
+    start_number: str = Field(..., min_length=1, max_length=20)
+    end_number: str = Field(..., min_length=1, max_length=20)
+    issued_date: date
+    status: str = "active"
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.start_number >= self.end_number:
+            raise ValidationError("End number must be greater than start number")
+        return self
+
+
+class Cheque(BaseModel):
+    id: Optional[int] = None
+    cheque_number: str = Field(..., min_length=1, max_length=20)
+    cheque_book_id: int
+    payee: str = Field(..., min_length=1, max_length=300)
+    amount: Decimal = Field(..., gt=Decimal("0"))
+    issue_date: date
+    status: ChequeStatus = ChequeStatus.NEW
+    bank_account_id: int
+    cleared_date: Optional[date] = None
+    cancelled_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class CashForecast(BaseModel):
+    id: Optional[int] = None
+    period_start: date
+    period_end: date
+    projected_inflows: Decimal = Decimal("0")
+    projected_outflows: Decimal = Decimal("0")
+    net_cash_flow: Decimal = Decimal("0")
+    opening_balance: Decimal = Decimal("0")
+    closing_balance: Decimal = Decimal("0")
+    currency: str = "VND"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("projected_inflows", "projected_outflows", "net_cash_flow",
+                     "opening_balance", "closing_balance")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class CashForecastLine(BaseModel):
+    id: Optional[int] = None
+    forecast_id: int
+    date: date
+    description: str = Field(..., max_length=500)
+    amount: Decimal
+    is_inflow: bool
+    category: str = Field(..., max_length=100)
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+
+class DailyCashCount(BaseModel):
+    id: Optional[int] = None
+    count_date: date
+    account_code: str
+    expected_balance: Decimal
+    actual_balance: Decimal
+    difference: Decimal = Decimal("0")
+    denomination_breakdown: Dict[str, int] = Field(default_factory=dict)
+    notes: Optional[str] = None
+    counted_by: str
+    witnessed_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("expected_balance", "actual_balance", "difference")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+    @model_validator(mode="after")
+    def compute_difference(self):
+        self.difference = self.actual_balance - self.expected_balance
+        return self
+
+
+class Advance(BaseModel):
+    """TK 141 — Tam ung (advance to individual employee)"""
+    id: Optional[int] = None
+    employee_name: str = Field(..., min_length=1, max_length=200)
+    employee_id: str = Field(..., min_length=1, max_length=50)
+    amount: Decimal = Field(..., gt=Decimal("0"))
+    advance_date: date
+    purpose: str = Field(..., min_length=1, max_length=500)
+    settlement_deadline: date
+    settlement_amount: Decimal = Decimal("0")
+    remaining_balance: Decimal = Decimal("0")
+    status: str = "outstanding"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+    @field_validator("amount", "settlement_amount", "remaining_balance")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+    @model_validator(mode="after")
+    def compute_remaining(self):
+        self.remaining_balance = self.amount - self.settlement_amount
+        return self
+
+
+class IFRSMapping(BaseModel):
+    """VAS to IFRS account mapping for dual-reporting (UC-05)"""
+    id: Optional[int] = Field(default=None)
+    vas_account_code: str = Field(..., min_length=1, max_length=20)
+    ifrs_account_code: str = Field(..., min_length=1, max_length=20)
+    mapping_type: str = Field(default="1:1", pattern=r'^(1:1|N:1|1:N|expression)$')
+    expression: Optional[str] = Field(default=None, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=500)
+    created_by: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = Field(default=None)
+
+    @field_validator('vas_account_code', 'ifrs_account_code')
+    @classmethod
+    def validate_code(cls, v):
+        if not v.strip():
+            raise ValidationError("Account code cannot be empty")
+        return v.strip()
+
+
 __all__ = [
     'VASValidationError', 'ValidationError', 'VASComplianceError', 'DoubleEntryError',
     'InvalidCurrencyError', 'CurrencyError', 'InvalidAccountError', 'AccountError',
     'ChartError', 'DateError', 'Result', 'AccountType', 'DCRDirection', 'ChartOfAccounts',
     'Account', 'JournalEntry', 'JournalLine', 'FinancialStatement', 'FinancialStatementError',
     'ChartOfAccountsError', 'AccountError', 'JournalEntryError', 'FinancialReportError',
-    'VIETNAMESE_CURRENCY_SYMBOLS',
+    'VIETNAMESE_CURRENCY_SYMBOLS', 'IFRSMapping',
     'TaxType', 'VATCalculationMethod', 'PITRateType', 'DeclarationType', 'DeclarationStatus',
     'TaxPaymentStatus', 'InvoiceStatus', 'TaxAdjustmentType', 'TaxIncentiveType',
     'TaxAdjustmentStatus', 'IncentiveStatus', 'ScheduleStatus', 'InvoiceType', 'EInvoiceAdjustmentType',
     'TaxDeclaration', 'TaxLine', 'TaxPayment', 'TaxAdjustment', 'TaxIncentive',
     'EInvoice', 'EInvoiceLine', 'TaxSchedule',
+    'CashReceiptType', 'CashPaymentType', 'CashVoucherStatus', 'BankAccountStatus',
+    'ChequeStatus', 'CashTransferStatus', 'PettyCashFundStatus', 'ReconciliationDiscrepancyType',
+    'CashReceipt', 'CashPayment', 'BankAccount', 'BankTransaction', 'BankStatement',
+    'ReconciliationDiscrepancy', 'BankReconciliation', 'PettyCashFund', 'PettyCashTransaction',
+    'CashTransfer', 'ChequeBook', 'Cheque', 'CashForecast', 'CashForecastLine',
+    'DailyCashCount', 'Advance',
 ]

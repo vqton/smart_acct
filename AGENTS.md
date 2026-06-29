@@ -64,9 +64,8 @@ PORT=5000
 
 ### Quick Start
 ```bash
-mv .venv venv
-./venv/bin/pip install -r requirements.txt
-./venv/bin/python run.py          # http://0.0.0.0:5000
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python run.py          # http://0.0.0.0:5000
 ```
 
 ### Database Pooling
@@ -130,10 +129,10 @@ interview-me → spec-driven-development → planning-and-task-breakdown
 
 ### Testing
 ```bash
-./venv/bin/pytest tests/                    # All
-./venv/bin/pytest tests/test_domain.py      # Domain
-./venv/bin/pytest tests/test_integration.py  # Integration
-./venv/bin/pytest tests/ -v                 # Verbose
+.venv/bin/pytest tests/                    # All
+.venv/bin/pytest tests/test_domain.py      # Domain
+.venv/bin/pytest tests/test_integration.py  # Integration
+.venv/bin/pytest tests/ -v                 # Verbose
 ```
 
 **Test categories**: Unit (domain validation), Integration (use cases + DB), Edge cases (invalid codes, amounts, dates).
@@ -209,14 +208,14 @@ skill <skill-name>         # Load task-appropriate skill
 ### Health Checks
 ```bash
 curl http://localhost:5000/api/v1/health
-./venv/bin/python -c "from infrastructure.database import SmartACCTDatabase; print('DB OK')"
-./venv/bin/pytest tests/test_vietnamese_formatting.py -v
+.venv/bin/python -c "from infrastructure.database import SmartACCTDatabase; print('DB OK')"
+.venv/bin/pytest tests/test_vietnamese_formatting.py -v
 ```
 
 ### Architecture Validation
 ```bash
 # Domain layer isolation
-./venv/bin/python -c "
+.venv/bin/python -c "
 from domain.entities import Account, JournalEntry
 assert 'app' not in str(Account.__module__)
 assert 'app' not in str(JournalEntry.__module__)
@@ -224,7 +223,7 @@ print('Domain layer clean')
 "
 
 # Infrastructure import check
-./venv/bin/python -c "
+.venv/bin/python -c "
 from infrastructure.database import SmartACCTDatabase
 print('Infrastructure imports domain correctly')
 "
@@ -277,3 +276,43 @@ When requirements are unclear, ask about:
 - Compliance scope (GST, CIT, PIT, VAT modules)
 - Deployment infrastructure (Docker, k8s, AWS/GCP)
 - Reporting requirements (Excel vs PDF, SLA deadlines)
+
+---
+
+## 10. Anchored Summary
+
+### COA Module — Completed (UC-01 through UC-08, 87 tests)
+- Account CRUD, Excel import/export, CSV/JSON export, versioning & audit, VAS↔IFRS mapping (5 mapping types), account usage check, full VAS compliance scan (incl. DCR direction), TT99/2025 + TT133/2016 templates, API integration tests
+- `code` regex fix: `^[1-9](?:\.[0-9]+)*$|^[1-9][0-9]{3,5}$`
+
+### Fiscal Period Management — Completed (UC-FP-01 through UC-FP-08)
+- BRD: `docs/brd/fiscal_period_management.md`
+- **Period-gated posting**: `create_entry`/`update_entry`/`post_entry` reject closed periods
+- **Period model upgrade**: `PeriodType` enum (monthly/quarterly/yearly), `start_date`, `end_date`, `is_current`, `needs_reconciliation`, `parent_period`; migration `5e6f7a8b9c0d`
+- **Period auto-creation + CRUD**: `_auto_create_period()` computes date range from period string; `POST /periods`; `GET /periods/current`
+- **Period audit trail**: `PeriodAuditLogModel` + migration `6c8d9f0a1b2d`; audit logging on create/close/reopen; `GET /periods/{period}/audit-log`
+- **Close validation**: `_count_unposted_entries()` + `_has_unbalanced_entries()` checks; `force` param to skip; `PERIOD_FORCE_CLOSE` audit event
+- **Reopen validation**: mandatory `reason` param; downstream period `needs_reconciliation` flagging; tax declaration lock checks `TaxDeclarationModel` for submitted/accepted statuses
+- **List enhancements**: `?status=open|closed` filter; `has_entries` flag in response
+- **Period overlap validation**: blocks create if date ranges overlap
+- **Year-end carry-forward (UC-FP-07)**: revenue/expense → 911 → 421 closing entries; auto-creates next year period; `POST /periods/{period}/carry-forward`
+
+### Tax Module — Completed
+- 8 entities (declaration, line, payment, adjustment, incentive, e-invoice, e-invoice line, schedule)
+- VAT calculation (deduction/direct), schedule generation, due reminders
+- Domain edge cases, state transitions, multi-entity interactions (139 tests total incl. integration)
+
+### Test count: 268 passing (all tests)
+- COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
+- GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
+- Tax: 134 (domain 33, integration 46, edge cases 55)
+
+### Migration chain
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log)
+
+### Key files
+- `use_cases/gl_use_cases.py` — period close/reopen/create/get_current/get_audit_log/carry_forward with validation
+- `infrastructure/repositories/gl_repository.py` — `_count_unposted_entries`, `_has_unbalanced_entries`, `_has_tax_declarations_blocking_reopen`, `_log_audit`, `_auto_create_period`, `carry_forward`, `_period_to_dict`
+- `infrastructure/models/gl_models.py` — `AccountingPeriodModel` (upgraded), `PeriodAuditLogModel`
+- `presentation/gl_routes.py` — `POST/GET /periods`, `POST .../close`, `POST .../reopen`, `GET .../audit-log`, `POST .../carry-forward`
+- `tests/test_gl_integration.py` — 47 tests covering all period operations

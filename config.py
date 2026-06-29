@@ -1,6 +1,6 @@
 from typing import Optional
-from pydantic.v1 import BaseModel, Field, validator
-from datetime import datetime, date, timedelta
+from pydantic import BaseModel, Field, field_validator
+from datetime import timedelta
 from decimal import Decimal
 from sqlalchemy.pool import QueuePool
 import os
@@ -18,8 +18,9 @@ class DatabaseSettings(BaseModel):
     pool_recycle: int = Field(default=3600, description="Connection recycle time in seconds (1 hour)")
     echo: bool = Field(default=False, description="Enable SQL logging for debugging")
 
-    @validator('database_url')
-    def validate_database_url(cls, v):
+    @field_validator('database_url')
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
         required_pattern = r'^postgresql\+psycopg2://[^:]+:[^@]+@[^:]+:\d+/[^?]+$'
         if not re.match(required_pattern, v):
             raise ValueError(
@@ -117,34 +118,34 @@ class AppSettings(BaseModel):
     enable_query_cache: bool = Field(default=True, description="Enable database query caching")
     cache_timeout: int = Field(default=300, description="Cache timeout in seconds")
 
-    @validator('secret_key')
-    def validate_secret_key(cls, v):
+    @field_validator('secret_key')
+    @classmethod
+    def validate_secret_key(cls, v: Optional[str]) -> str:
         if v is None:
             v = os.getenv('SECRET_KEY')
         if not v:
-            # Use a strong default key for development but warn
             v = "dev-secret-key-change-in-production-32chars"
         if len(v.strip()) < 32:
             raise ValueError("Secret key must be at least 32 characters long")
         return v.strip()
 
-    @validator('jwt_secret_key')
-    def validate_jwt_secret_key(cls, v):
+    @field_validator('jwt_secret_key')
+    @classmethod
+    def validate_jwt_secret_key(cls, v: Optional[str]) -> str:
         if v is None:
             v = os.getenv('JWT_SECRET_KEY')
         if not v:
-            # Use a strong default key for development but warn
             v = "dev-jwt-secret-key-change-in-production-32chars"
         if len(v.strip()) < 32:
             raise ValueError("JWT secret key must be at least 32 characters long")
         return v.strip()
 
-    @validator('database_url')
-    def validate_database_url(cls, v):
+    @field_validator('database_url')
+    @classmethod
+    def validate_database_url(cls, v: Optional[str]) -> str:
         if v is None:
             v = os.getenv('DATABASE_URL')
         if not v:
-            # Use a development PostgreSQL connection with docker setup
             v = "postgresql+psycopg2://smartacct:smartacct123@localhost:5432/smartacct"
         if 'postgresql' not in v and 'psycopg2' not in v:
             raise ValueError("Database URL must be PostgreSQL")

@@ -1,12 +1,28 @@
-from flask import Flask
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 import os
+from time import time
+from sqlalchemy import text
 
 load_dotenv()
 
 from infrastructure.database import SmartACCTDatabaseManager, SmartACCTDatabaseConfig
 from presentation.coa_routes import coa_bp
 from presentation.tax_routes import tax_bp
+from presentation.gl_routes import gl_bp
+from presentation.cash_routes import cash_bp
+
+_start_time = time()
+
+
+def _check_db(db_manager) -> dict:
+    try:
+        session = db_manager.get_session()
+        session.execute(text("SELECT 1"))
+        session.close()
+        return {"status": "connected"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 
 def create_app() -> Flask:
@@ -21,10 +37,19 @@ def create_app() -> Flask:
 
     app.register_blueprint(coa_bp, url_prefix="/api/v1/coa")
     app.register_blueprint(tax_bp, url_prefix="/api/v1/tax")
+    app.register_blueprint(gl_bp, url_prefix="/api/v1/gl")
+    app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
 
     @app.route("/api/v1/health")
     def health():
-        return {"status": "ok", "app": "SmartACCT", "version": "1.0.0"}
+        db_status = _check_db(app.db_manager)
+        return jsonify({
+            "status": "ok" if db_status["status"] == "connected" else "degraded",
+            "app": "SmartACCT",
+            "version": "1.0.0",
+            "uptime_seconds": int(time() - _start_time),
+            "database": db_status,
+        })
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
