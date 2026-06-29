@@ -33,6 +33,11 @@ from domain.cash_bank import (
     BankAccount, BankTransaction, BankStatement,
     ReconciliationDiscrepancy, BankReconciliation,
 )
+from domain.ar import (
+    CustomerType, CustomerGroup, CustomerStatus,
+    ARInvoiceType, ARInvoiceStatus, ARPaymentMethod, ARAllocationStatus, ARDunningLevel,
+    Customer, InvoiceLine, ARInvoice, ARPayment, GLAllocation,
+)
 
 __all__ = [
     'VASValidationError', 'ValidationError', 'VASComplianceError', 'DoubleEntryError',
@@ -57,4 +62,7 @@ __all__ = [
     'ReconciliationDiscrepancy', 'BankReconciliation', 'PettyCashFund',
     'PettyCashTransaction', 'CashTransfer', 'ChequeBook', 'Cheque',
     'CashForecast', 'CashForecastLine', 'DailyCashCount', 'Advance',
+    'CustomerType', 'CustomerGroup', 'CustomerStatus',
+    'ARInvoiceType', 'ARInvoiceStatus', 'ARPaymentMethod', 'ARAllocationStatus', 'ARDunningLevel',
+    'Customer', 'InvoiceLine', 'ARInvoice', 'ARPayment', 'GLAllocation',
 ]
