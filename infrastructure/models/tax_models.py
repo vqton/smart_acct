@@ -1,6 +1,5 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, Float, Date, Enum as SAEnum, ForeignKey, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime, timezone
 from typing import Optional, List
 import enum
@@ -87,8 +86,8 @@ class TaxDeclarationModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 
-    lines = relationship("TaxLineModel", backref="declaration", lazy="selectin")
-    payments = relationship("TaxPaymentModel", backref="declaration", lazy="selectin")
+    lines = relationship("TaxLineModel", back_populates="declaration", lazy="selectin")
+    payments = relationship("TaxPaymentModel", back_populates="declaration", lazy="selectin")
 
     def to_dict(self) -> dict:
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -109,6 +108,8 @@ class TaxLineModel(Base):
     parent_line_code = Column(String(20), nullable=True)
     sort_order = Column(Integer, default=0)
     notes = Column(String(500), nullable=True)
+    declaration = relationship("TaxDeclarationModel", back_populates="lines", lazy="selectin")
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 
@@ -129,6 +130,8 @@ class TaxPaymentModel(Base):
     bank_reference = Column(String(100), nullable=True)
     penalty_interest = Column(Numeric(18, 2), default=0)
     notes = Column(String(500), nullable=True)
+    declaration = relationship("TaxDeclarationModel", back_populates="payments", lazy="selectin")
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 

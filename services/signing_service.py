@@ -2,7 +2,7 @@
 
 import logging
 from typing import Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization, hashes
@@ -99,7 +99,7 @@ class SigningService:
             f'<BuyerTaxCode>{invoice.buyer_tax_code or ""}</BuyerTaxCode>'
             f'<Total>{invoice.grand_total}</Total>'
             f'<Signature algorithm="{self.SIGNATURE_ALGORITHM}">'
-            f'STUB-SIGNATURE-{datetime.utcnow().strftime("%Y%m%d%H%M%S")}'
+            f'STUB-SIGNATURE-{datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")}'
             f'</Signature>'
             f'</Invoice>'
         )
@@ -107,7 +107,7 @@ class SigningService:
         return Result.success({
             "signed_xml": signed_xml,
             "algorithm": self.SIGNATURE_ALGORITHM,
-            "signed_at": datetime.utcnow().isoformat(),
+            "signed_at": datetime.now(timezone.utc).isoformat(),
         })
 
     def verify_signature(self, signed_content: str) -> bool:

@@ -144,4 +144,7 @@ class COARepository:
         return Result.success(None)
 
     def count(self) -> int:
-        return self.session.query(COAModel).count()
+        from sqlalchemy import select, func
+        return self.session.execute(
+            select(func.count()).select_from(COAModel)
+        ).scalar()

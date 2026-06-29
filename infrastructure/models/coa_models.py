@@ -1,11 +1,12 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime, timezone
 from typing import Optional, List
 import enum
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 class AccountingRegime(str, enum.Enum):
@@ -38,7 +39,8 @@ class COAModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 
-    children = relationship("COAModel", backref="parent", remote_side=[code], lazy="selectin")
+    children = relationship("COAModel", back_populates="parent", remote_side=[code], lazy="selectin")
+    parent = relationship("COAModel", back_populates="children", lazy="selectin")
 
     def to_dict(self) -> dict:
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}

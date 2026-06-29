@@ -55,3 +55,6 @@ instance/
 *.xlsx
 *.pdf
 *.csv
+
+# obsidian-mind (agent persistent memory vault)
+.obsidian-mind/

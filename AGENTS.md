@@ -251,7 +251,25 @@ print('Infrastructure imports domain correctly')
 
 ---
 
-## 8. Clarifying Questions
+## 8. Persistent Memory (obsidian-mind)
+
+An [obsidian-mind](https://github.com/breferrari/obsidian-mind) vault is installed at `.obsidian-mind/` for cross-session agent memory. Open it in Obsidian to browse/ edit memories, or use the built-in MCP (`Obsidian Bridge`) for agent-driven reads/writes.
+
+Key vault directories:
+- `brain/` — decisions, incidents, patterns, glossary
+- `bases/` — domain knowledge bases (VAS, tax law)
+- `org/` — North Star goals, team docs, roadmaps
+- `perf/` — performance tracking, benchmarks
+- `work/` — active tasks, context captures
+- `reference/` — external reference materials
+- `thinking/` — structured thinking (MOC, debate, first principles)
+- `templates/` — note templates
+
+The vault is `.gitignore`d — keep it local to each developer's machine.
+
+---
+
+## 9. Clarifying Questions
 
 When requirements are unclear, ask about:
 - Team conventions (contribution process)

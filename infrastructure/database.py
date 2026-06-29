@@ -231,8 +231,10 @@ class RepositoryError(Exception):
 class SmartACCTDatabase:
     """Base database model for SmartACCT"""
 
-    from sqlalchemy.ext.declarative import declarative_base
-    Base = declarative_base()
+    from sqlalchemy.orm import DeclarativeBase
+
+    class Base(DeclarativeBase):
+        pass
 
     def to_dict(self) -> dict:
         """Convert model to dictionary"""

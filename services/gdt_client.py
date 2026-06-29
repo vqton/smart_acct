@@ -2,7 +2,7 @@
 
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from domain import Result, EInvoice, ValidationError
 
@@ -65,9 +65,9 @@ class GDTClient:
         if not tax_code:
             return Result.failure(ValidationError("tax_code is required"))
         return Result.success({
-            "submission_id": f"GDT-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{tax_code[:5]}",
+            "submission_id": f"GDT-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{tax_code[:5]}",
             "status": DECLARATION_STATUSES["submitted"],
-            "submitted_at": datetime.utcnow().isoformat(),
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
             "form_code": form_code,
         })
 
@@ -79,7 +79,7 @@ class GDTClient:
         return Result.success({
             "submission_id": submission_id,
             "status": DECLARATION_STATUSES["accepted"],
-            "accepted_at": datetime.utcnow().isoformat(),
+            "accepted_at": datetime.now(timezone.utc).isoformat(),
             "gdt_reference": f"REF-{submission_id[-8:]}",
         })
 
@@ -90,11 +90,11 @@ class GDTClient:
             invoice.invoice_series, invoice.invoice_number, invoice.seller_tax_code,
         )
         return Result.success({
-            "transaction_id": f"TXN-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            "transaction_id": f"TXN-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
             "invoice_number": invoice.invoice_number,
             "invoice_series": invoice.invoice_series,
             "status": INVOICE_STATUSES["pending"],
-            "submitted_at": datetime.utcnow().isoformat(),
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
         })
 
     def get_invoice_status(self, transaction_id: str) -> Result:
@@ -106,7 +106,7 @@ class GDTClient:
             "transaction_id": transaction_id,
             "status": INVOICE_STATUSES["verified"],
             "verification_code": f"VC-{transaction_id[-8:]}",
-            "verified_at": datetime.utcnow().isoformat(),
+            "verified_at": datetime.now(timezone.utc).isoformat(),
         })
 
     def verify_tax_code(self, tax_code: str) -> Result:

@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional, Any, Union, ClassVar
-from pydantic import BaseModel, Field, field_validator, model_validator
-from datetime import datetime, date
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
+from datetime import datetime, date, timezone
 from decimal import Decimal
 from enum import Enum
 from abc import ABC, abstractmethod
@@ -307,7 +307,7 @@ class ChartOfAccounts(BaseModel):
         description="Detailed account description in Vietnamese"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Creation timestamp"
     )
     updated_at: Optional[datetime] = Field(
@@ -458,8 +458,8 @@ class ChartOfAccounts(BaseModel):
         else:
             return "other"
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "code": "1.1.1",
@@ -486,7 +486,8 @@ class ChartOfAccounts(BaseModel):
                     "currency": "VND"
                 },
             ]
-        }
+        },
+    )
 
 
 class Account(BaseModel):
@@ -557,7 +558,7 @@ class Account(BaseModel):
         description="User who created the account (for audit trail)"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Creation timestamp"
     )
     updated_at: Optional[datetime] = Field(
@@ -685,7 +686,7 @@ class Account(BaseModel):
         Validate date format for Vietnamese business operations
         """
         if v is None:
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
 
         if isinstance(v, str):
             try:
@@ -841,7 +842,7 @@ class Account(BaseModel):
                 setattr(self, field, value)
 
         self.balance = self.calculate_running_balance()
-        self.last_updated = datetime.utcnow()
+        self.last_updated = datetime.now(timezone.utc)
 
     def to_domain_dict(self) -> Dict[str, Any]:
         """
@@ -869,13 +870,20 @@ class Account(BaseModel):
             "is_expense": self.is_expense_account(),
         }
 
-    class Config:
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat() if dt else None,
-            Decimal: str,
-        }
+    @field_serializer('last_updated', 'created_at', 'updated_at')
+    def serialize_datetime(self, v: Optional[datetime]) -> Optional[str]:
+        return v.isoformat() if v else None
 
-        json_schema_extra = {
+    @field_serializer('exchange_rate', 'opening_balance', 'balance')
+    def serialize_decimal(self, v: Decimal) -> str:
+        return str(v)
+
+    @field_serializer('monthly_balances')
+    def serialize_monthly_balances(self, v: Dict[str, Decimal]) -> Dict[str, str]:
+        return {k: str(v) for k, v in v.items()}
+
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "account_number": "1111",
@@ -905,7 +913,8 @@ class Account(BaseModel):
                     "opening_balance": "0.00"
                 },
             ]
-        }
+        },
+    )
 class JournalEntry(BaseModel):
     """
     Journal Entry entity - the central hub for Vietnamese accounting transactions
@@ -961,7 +970,7 @@ class JournalEntry(BaseModel):
         description="User who created this entry for audit purposes"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Creation timestamp"
     )
     updated_at: Optional[datetime] = Field(
@@ -1181,8 +1190,8 @@ class JournalEntry(BaseModel):
         except Exception as e:
             raise VASValidationError(f"Unexpected error during VAS compliance validation: {e}")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "journal_number": "JV001",
@@ -1200,6 +1209,7 @@ class JournalEntry(BaseModel):
                 }
             ]
         }
+    )
 class JournalLine(BaseModel):
     """
     Journal line entity for detailed transaction recording
@@ -1250,7 +1260,7 @@ class JournalLine(BaseModel):
         description="Accounting period (YYYY-MM)"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Creation timestamp"
     )
     updated_at: Optional[datetime] = Field(
@@ -1361,8 +1371,8 @@ class JournalLine(BaseModel):
 
         return f"{formatted_integer},{decimal_part}"
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "account_id": "1111",
@@ -1380,6 +1390,7 @@ class JournalLine(BaseModel):
                 }
             ]
         }
+    )
 
 
 class FinancialStatement(BaseModel):
@@ -1421,7 +1432,7 @@ class FinancialStatement(BaseModel):
     approved_by: Optional[str] = Field(default=None, description="User who approved the statement")
     approval_date: Optional[date] = Field(default=None, description="Date of approval")
     generated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp when statement was generated"
     )
     generated_by: Optional[str] = Field(
@@ -1613,8 +1624,8 @@ class FinancialStatement(BaseModel):
         except Exception as e:
             raise VASValidationError(f"Unexpected error during VAS compliance validation: {e}")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "period": "2024-01",
@@ -1635,11 +1646,10 @@ class FinancialStatement(BaseModel):
                     "expenses": {"cost_of_sales": "30000.00"}
                 }
             ]
-        }
+        },
+        frozen=True,
+    )
     __init__ = None  # Get around Circle import issue
-
-    class Config:
-        allow_mutation = False
 class FinancialStatementError(Exception):
     """Exception for financial statement errors"""
     pass
@@ -1885,7 +1895,7 @@ class TaxDeclaration(BaseModel):
     submission_method: str = Field(default="etax", description="etax|htkk|manual")
     notes: Optional[str] = Field(default=None, max_length=2000)
     created_by: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('form_code')
@@ -1932,7 +1942,7 @@ class TaxLine(BaseModel):
     parent_line_id: Optional[int] = Field(default=None, description="FK to parent TaxLine")
     sort_order: int = Field(default=0)
     notes: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('line_code', 'label')
@@ -1969,7 +1979,7 @@ class TaxPayment(BaseModel):
     bank_reference: Optional[str] = Field(default=None, max_length=100)
     penalty_interest: Decimal = Field(default=Decimal("0.00"))
     notes: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('budget_account')
@@ -2012,7 +2022,7 @@ class TaxAdjustment(BaseModel):
     reviewed_by: Optional[str] = Field(default=None, max_length=100)
     reviewed_at: Optional[datetime] = Field(default=None)
     created_by: Optional[str] = Field(default=None, max_length=100)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('original_amount', 'adjusted_amount', 'difference_amount', 'penalty_interest', 'penalty')
@@ -2048,7 +2058,7 @@ class TaxIncentive(BaseModel):
     eligibility_condition: Optional[str] = Field(default=None, max_length=2000)
     requires_approval: bool = Field(default=False)
     status: IncentiveStatus = Field(default=IncentiveStatus.ACTIVE)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('code')
@@ -2110,7 +2120,7 @@ class EInvoice(BaseModel):
     lines: List[Dict[str, Any]] = Field(default_factory=list, description="Invoice line items")
 
     created_by: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('seller_tax_code')
@@ -2147,7 +2157,7 @@ class EInvoiceLine(BaseModel):
                               description="VAT rate as decimal (0-1)")
     vat_amount: Decimal = Field(default=Decimal("0"))
     total_line_amount: Decimal = Field(default=Decimal("0"))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
     @field_validator('unit_price', 'discount_amount', 'vat_amount', 'total_line_amount')
@@ -2172,7 +2182,7 @@ class TaxSchedule(BaseModel):
     status: ScheduleStatus = Field(default=ScheduleStatus.PENDING)
     assigned_to: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
 
