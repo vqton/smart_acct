@@ -7,9 +7,14 @@ from use_cases.coa_ifrs_use_case import COAIFRSUseCase
 from use_cases.coa_usage_use_case import COAUsageUseCase
 from use_cases.coa_template_use_case import COATemplateUseCase
 from use_cases.tax_use_cases import TaxUseCases
+from use_cases.gl_use_cases import GLUseCases
+from use_cases.cash_use_cases import CashUseCases
 
 __all__ = [
     "COAUseCases", "COAValidateUseCase", "COAImportUseCase",
-    "COAExportUseCase", "COAVersioningUseCase", "COAIFRSUseCase", "COAUsageUseCase", "COATemplateUseCase",
+    "COAExportUseCase", "COAVersioningUseCase", "COAIFRSUseCase",
+    "COAUsageUseCase", "COATemplateUseCase",
+    "GLUseCases",
     "TaxUseCases",
+    "CashUseCases",
 ]
