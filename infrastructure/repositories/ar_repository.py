@@ -698,6 +698,8 @@ class ARRepository:
         )
         self.session.add(model)
         self.session.flush()
+        req.id = model.id
+        req.created_at = model.created_at
         return Result.success(req)
 
     def get_write_off_request(self, request_id: int) -> Optional[BadDebtWriteOffRequest]:

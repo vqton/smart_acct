@@ -390,6 +390,15 @@ When requirements are unclear, ask about:
 - **Tests**: 69 tests (31 domain + 38 integration) covering all 12 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026). TK 242 for multi-period allocation, max 36 months per TT 80/2021.
 
+### AR Module — Completed (UC-AR-01 through UC-AR-13, 114 tests)
+- **Domain**: 10 enums + 11 Pydantic entities in `domain/ar.py` (296 lines) — Customer, InvoiceLine, ARInvoice, ARPayment, ARPaymentAllocation, GLAllocation, ARAgingSnapshot, ARDunningLog, BadDebtProvision, BadDebtWriteOffRequest, CEIReport
+- **DB**: 10 SQLAlchemy tables in `infrastructure/models/ar_models.py` (296 lines) — migration `8e9f0a1b2c2d`
+- **Repository**: `infrastructure/repositories/ar_repository.py` (758 lines) — full CRUD + FIFO allocation, aging snapshots, dunning, provisions, write-off workflow, credit limit checks
+- **Use cases**: `use_cases/ar/__init__.py` (702 lines) — all 13 UC-AR methods: customer CRUD, invoice CRUD (sales/credit/debit notes), payment + FIFO allocation, aging report (live) + aging snapshot (period-locked), dunning workflow (auto + manual), bad debt provisions, credit limit check (+ override), e-invoice submission (GDT), write-off approval workflow, CEI/DSO reporting, IFRS 9 ECL (simplified)
+- **Routes**: `presentation/ar/__init__.py` (blueprint) + `presentation/ar/routes.py` (30+ endpoints)
+- **Tests**: 38 domain + 76 integration = 114 tests covering all use cases + edge cases
+- **Status**: ✅ Production-ready per TT 133/2016 + TT 200/2014. TK 131 for receivables, TK 511/3331 for revenue/VAT.
+
 ### Inventory Module — Completed (UC-INV-01 through UC-INV-15, 139 tests)
 - **Domain**: 10 enums + 16 Pydantic entities in `domain/inventory.py` (~600 lines): InventoryCategory, Warehouse, InventoryItem, InventoryBatch, SerialNumber, InventoryReceipt, InventoryReceiptLine, InventoryIssue, InventoryIssueLine, InventoryTransfer, InventoryTransferLine, StockCard, InventoryCheck, InventoryCheckLine, InventoryAdjustment, InventoryAdjustmentLine, InventoryConfig, InventoryDashboard — all with validators, i18n error codes
 - **DB**: 14 SQLAlchemy tables in `infrastructure/models/inventory_models.py` (~360 lines) — migration `1fa2b3c4d5e6`
@@ -399,20 +408,27 @@ When requirements are unclear, ask about:
 - **Tests**: 139 tests (49 domain + 90 integration) covering all 15 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 133/2016 + TT 200/2014. TK 152/155/156/157 for inventory, TK 632 for COGS, TK 331/111/112 for payables.
 
-### Test count: 845 passing (all tests)
+### Test count: 938 passing (all tests)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
 - Cash: 111 (receipt 7, payment 7, bank account 5, bank reconciliation 7, petty cash 6, cash transfer 4, daily count 4, cheque 4, edge cases 6, balance 5, cash book report 3, cash count report 5, bank statements 8, cheque lifecycle 13, bank balance 4, bank book 4, reconciliation report 4, Flask routes 19)
 - AP: 64 (domain 26, integration 38)
+- AR: 114 (domain 38, integration 76)
 - FA: 173 (domain 122, integration 51)
 - CCDC: 69 (domain 31, integration 38)
 - Inventory: 139 (domain 49, integration 90)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines)
 
 ### Key files
+- `use_cases/ar/__init__.py` — ARUseCases (13 UC-AR: customer/invoice/payment CRUD, FIFO allocation, aging, dunning, provisions, write-off, CEI/DSO, ECL, credit limit, e-invoice)
+- `infrastructure/repositories/ar_repository.py` — ARRepository: full CRUD + FIFO allocation, aging, dunning, provisions, write-off approval workflow
+- `presentation/ar/__init__.py` — AR blueprint + JSON serializers
+- `presentation/ar/routes.py` — 30+ REST endpoints for AR module
+- `tests/test_ar_domain.py` — 38 domain unit tests for all AR entities
+- `tests/test_ar_integration.py` — 76 integration tests covering all use cases + edge cases
 - `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements)
 - `infrastructure/repositories/gl_repository.py` — `_count_unposted_entries`, `_has_unbalanced_entries`, `_has_tax_declarations_blocking_reopen`, `_log_audit`, `_auto_create_period`, `carry_forward`, `_period_to_dict`
 - `infrastructure/models/gl_models.py` — `AccountingPeriodModel` (upgraded), `PeriodAuditLogModel`

@@ -987,3 +987,35 @@ msgstr "Nhập khẩu thất bại"
 #: domain/inventory.py
 msgid "INV_CANNOT_DELETE"
 msgstr "Không thể xóa dữ liệu này"
+
+#: domain/ar.py
+msgid "CUSTOMER_HAS_OPEN_AR"
+msgstr "Khách hàng còn công nợ chưa thanh toán: {id}"
+
+#: domain/ar.py
+msgid "CREDIT_LIMIT_EXCEEDED"
+msgstr "Vượt quá hạn mức tín dụng: {detail}"
+
+#: domain/ar.py
+msgid "INVOICE_ALREADY_PAID"
+msgstr "Hóa đơn đã được thanh toán: {id}"
+
+#: domain/ar.py
+msgid "PAYMENT_AMOUNT_ZERO"
+msgstr "Số tiền thanh toán phải lớn hơn 0"
+
+#: domain/ar.py
+msgid "OVERPAYMENT_NOT_ALLOWED"
+msgstr "Không được phép thanh toán vượt quá số dư: {amount} > {balance}"
+
+#: domain/ar.py
+msgid "DUNNING_MAX_LEVEL_REACHED"
+msgstr "Đã đạt đến cấp độ nhắc nợ tối đa: {id}"
+
+#: domain/ar.py
+msgid "GDT_SUBMISSION_FAILED"
+msgstr "Gửi hóa đơn điện tử thất bại: {detail}"
+
+#: domain/ar.py
+msgid "SNAPSHOT_ALREADY_EXISTS"
+msgstr "Ảnh chụp công nợ đã tồn tại cho kỳ này"

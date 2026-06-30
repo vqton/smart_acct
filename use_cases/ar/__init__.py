@@ -73,6 +73,8 @@ class ARUseCases:
         city: Optional[str] = None,
         contact_person: Optional[str] = None,
         credit_limit: Decimal = Decimal("0"),
+        credit_limit_override: bool = False,
+        credit_limit_override_expires: Optional[date] = None,
         coa_account_code: Optional[str] = None,
         notes: Optional[str] = None,
         created_by: Optional[str] = None,
@@ -89,6 +91,8 @@ class ARUseCases:
             city=city,
             contact_person=contact_person,
             credit_limit=credit_limit,
+            credit_limit_override=credit_limit_override,
+            credit_limit_override_expires=credit_limit_override_expires,
             coa_account_code=coa_account_code,
             notes=notes,
         )
@@ -266,7 +270,13 @@ class ARUseCases:
                                                   type="Invoice", id=str(invoice_id)))
         if amount <= Decimal("0"):
             return Result.failure(ValidationError(ErrorCodes.PAYMENT_AMOUNT_ZERO))
-        if amount > (invoice.balance_due + Decimal("0.01")):
+        if auto_allocate:
+            total_outstanding = self.repo.get_customer_outstanding(invoice.customer_id)
+            if amount > (total_outstanding + Decimal("0.01")):
+                return Result.failure(ValidationError(ErrorCodes.OVERPAYMENT_NOT_ALLOWED,
+                                                      amount=str(amount),
+                                                      balance=str(total_outstanding)))
+        elif amount > (invoice.balance_due + Decimal("0.01")):
             return Result.failure(ValidationError(ErrorCodes.OVERPAYMENT_NOT_ALLOWED,
                                                   amount=str(amount),
                                                   balance=str(invoice.balance_due)))
@@ -656,24 +666,24 @@ class ARUseCases:
             return {"customer_id": customer_id, "stage": "stage_1", "ecl": Decimal("0")}
 
         entry = aging[0]
-        total_current = entry.get("current", Decimal("0"))
-        total_1_30 = entry.get("bucket_1_30", Decimal("0"))
-        total_31_60 = entry.get("bucket_31_60", Decimal("0"))
-        total_61_90 = entry.get("bucket_61_90", Decimal("0"))
-        total_91_180 = entry.get("bucket_91_180", Decimal("0"))
-        total_181_365 = entry.get("bucket_181_365", Decimal("0"))
-        total_365 = entry.get("bucket_365_plus", Decimal("0"))
+        buckets = entry.get("buckets", {})
+        total_current = buckets.get("current", Decimal("0"))
+        total_1_30 = buckets.get("bucket_1_30", Decimal("0"))
+        total_31_60 = buckets.get("bucket_31_60", Decimal("0"))
+        total_61_90 = buckets.get("bucket_61_90", Decimal("0"))
+        total_91_180 = buckets.get("bucket_91_180", Decimal("0"))
+        total_181_365 = buckets.get("bucket_181_365", Decimal("0"))
+        total_365 = buckets.get("bucket_365_plus", Decimal("0"))
 
-        # Simplified ECL: PD * LGD(50%) * EAD
         lgd = Decimal("0.5")
         ecl = (
-            total_current * Decimal("0.01") * lgd  # 1% PD for current
-            + total_1_30 * Decimal("0.02") * lgd   # 2% PD for 1-30
-            + total_31_60 * Decimal("0.05") * lgd  # 5% PD for 31-60
-            + total_61_90 * Decimal("0.10") * lgd  # 10% PD for 61-90
-            + total_91_180 * Decimal("0.20") * lgd # 20% PD for 91-180
-            + total_181_365 * Decimal("0.50") * lgd# 50% PD for 181-365
-            + total_365 * Decimal("0.80") * lgd    # 80% PD for 365+
+            total_current * Decimal("0.01") * lgd
+            + total_1_30 * Decimal("0.02") * lgd
+            + total_31_60 * Decimal("0.05") * lgd
+            + total_61_90 * Decimal("0.10") * lgd
+            + total_91_180 * Decimal("0.20") * lgd
+            + total_181_365 * Decimal("0.50") * lgd
+            + total_365 * Decimal("0.80") * lgd
         )
 
         if total_91_180 > Decimal("0") or total_181_365 > Decimal("0"):

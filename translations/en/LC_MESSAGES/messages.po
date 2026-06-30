@@ -999,3 +999,35 @@ msgstr "Import failed"
 #: domain/inventory.py
 msgid "INV_CANNOT_DELETE"
 msgstr "Cannot delete this data"
+
+#: domain/ar.py
+msgid "CUSTOMER_HAS_OPEN_AR"
+msgstr "Customer has outstanding receivables: {id}"
+
+#: domain/ar.py
+msgid "CREDIT_LIMIT_EXCEEDED"
+msgstr "Credit limit exceeded: {detail}"
+
+#: domain/ar.py
+msgid "INVOICE_ALREADY_PAID"
+msgstr "Invoice has already been paid: {id}"
+
+#: domain/ar.py
+msgid "PAYMENT_AMOUNT_ZERO"
+msgstr "Payment amount must be greater than zero"
+
+#: domain/ar.py
+msgid "OVERPAYMENT_NOT_ALLOWED"
+msgstr "Overpayment not allowed: {amount} > {balance}"
+
+#: domain/ar.py
+msgid "DUNNING_MAX_LEVEL_REACHED"
+msgstr "Maximum dunning level reached: {id}"
+
+#: domain/ar.py
+msgid "GDT_SUBMISSION_FAILED"
+msgstr "E-invoice submission failed: {detail}"
+
+#: domain/ar.py
+msgid "SNAPSHOT_ALREADY_EXISTS"
+msgstr "Aging snapshot already exists for this period"
