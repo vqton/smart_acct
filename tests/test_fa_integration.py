@@ -5,8 +5,9 @@ from flask import Flask
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from domain.fa import AdjustmentType as FAAdjustmentType
 from domain import (
-    AssetType, DepreciationMethod, AssetStatus, DisposalType, AdjustmentType,
+    AssetType, DepreciationMethod, AssetStatus, DisposalType,
     BiologicalType, GrowthStage, AssetClassification, FundSource, UseType,
     FACategory, FixedAsset, DepreciationRecord, FAAdjustment, FADisposal,
     FAInventory, FAInventoryLine, FATransfer, FASparePart, FAComponent,
@@ -287,7 +288,7 @@ class TestFAAdjustments:
         asset = uc.register_asset(_make_asset_data(cat.id, code="FA-ADJ-UP",
                                                     cost=Decimal("100000000"))).get_data()
         result = uc.adjust_asset(asset.id, {
-            "adjustment_type": AdjustmentType.UPGRADE.value,
+            "adjustment_type": FAAdjustmentType.UPGRADE.value,
             "amount": Decimal("20000000"),
             "reason": "Nang cap may moc",
             "effective_date": date(2026, 6, 1),
@@ -295,14 +296,14 @@ class TestFAAdjustments:
         })
         assert result.is_success()
         adj = result.get_data()
-        assert adj.adjustment_type == AdjustmentType.UPGRADE
+        assert adj.adjustment_type == FAAdjustmentType.UPGRADE
 
     def test_impairment(self, uc):
         cat = uc.create_category(_make_category_data(code="CAT-ADJ-IM")).get_data()
         asset = uc.register_asset(_make_asset_data(cat.id, code="FA-ADJ-IM",
                                                     cost=Decimal("100000000"))).get_data()
         result = uc.adjust_asset(asset.id, {
-            "adjustment_type": AdjustmentType.IMPAIRMENT.value,
+            "adjustment_type": FAAdjustmentType.IMPAIRMENT.value,
             "amount": Decimal("10000000"),
             "reason": "Hao mon binh thuong",
             "effective_date": date(2026, 6, 1),
@@ -316,7 +317,7 @@ class TestFAAdjustments:
         cat = uc.create_category(_make_category_data(code="CAT-ADJ-GET")).get_data()
         asset = uc.register_asset(_make_asset_data(cat.id, code="FA-ADJ-GET")).get_data()
         uc.adjust_asset(asset.id, {
-            "adjustment_type": AdjustmentType.UPGRADE.value,
+            "adjustment_type": FAAdjustmentType.UPGRADE.value,
             "amount": Decimal("5000000"),
             "reason": "Nang cap",
             "effective_date": date(2026, 7, 1),

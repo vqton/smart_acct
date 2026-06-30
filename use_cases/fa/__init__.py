@@ -4,8 +4,9 @@ from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
+from domain.fa import AdjustmentType as FAAdjustmentType
 from domain import (
-    AssetType, DepreciationMethod, AssetStatus, DisposalType, AdjustmentType,
+    AssetType, DepreciationMethod, AssetStatus, DisposalType,
     BiologicalType, GrowthStage, AssetClassification, FundSource, UseType,
     FACategory, FixedAsset, DepreciationRecord, FAAdjustment, FADisposal,
     FAInventory, FAInventoryLine, FATransfer, FASparePart, FAComponent,
@@ -277,10 +278,10 @@ class FAUseCases:
         except (ValidationError, ValueError) as e:
             return Result.failure(e)
 
-        if asset.depreciation_method != DepreciationMethod.STRAIGHT_LINE and adjustment.adjustment_type == AdjustmentType.UPGRADE:
+        if asset.depreciation_method != DepreciationMethod.STRAIGHT_LINE and adjustment.adjustment_type == FAAdjustmentType.UPGRADE:
             pass
 
-        if adjustment.adjustment_type in (AdjustmentType.UPGRADE, AdjustmentType.COST_CORRECTION):
+        if adjustment.adjustment_type in (FAAdjustmentType.UPGRADE, FAAdjustmentType.COST_CORRECTION):
             new_cost = adjustment.new_cost
             if new_cost <= Decimal("0"):
                 return Result.failure(AccountError(ErrorCodes.FA_ADJUSTMENT_EXCEEDS_COST, asset_id=asset_id))
@@ -288,14 +289,14 @@ class FAUseCases:
             if adj_result.is_failure():
                 return adj_result
 
-        elif adjustment.adjustment_type == AdjustmentType.IMPAIRMENT:
+        elif adjustment.adjustment_type == FAAdjustmentType.IMPAIRMENT:
             new_cost = asset.original_cost - adjustment.amount
             if new_cost < asset.residual_value:
                 return Result.failure(AccountError(ErrorCodes.FA_ADJUSTMENT_EXCEEDS_COST, asset_id=asset_id))
             self.repo.update_asset(asset_id, original_cost=new_cost)
             adjustment.previous_depreciation = asset.accumulated_depreciation
 
-        elif adjustment.adjustment_type == AdjustmentType.REVALUATION:
+        elif adjustment.adjustment_type == FAAdjustmentType.REVALUATION:
             if adjustment.amount < asset.carrying_amount:
                 return Result.failure(AccountError(ErrorCodes.FA_REVALUATION_BELOW_NBV, asset_id=asset_id))
             self.repo.update_asset(asset_id, original_cost=adjustment.amount)
@@ -750,7 +751,7 @@ class FAUseCases:
 
         adjustment = FAAdjustment(
             asset_id=asset_id,
-            adjustment_type=AdjustmentType.IMPAIRMENT,
+            adjustment_type=FAAdjustmentType.IMPAIRMENT,
             amount=Decimal("0"),
             previous_cost=asset.original_cost,
             new_cost=asset.original_cost,
@@ -799,7 +800,7 @@ class FAUseCases:
 
         adjustment = FAAdjustment(
             asset_id=asset_id,
-            adjustment_type=AdjustmentType.UPGRADE,
+            adjustment_type=FAAdjustmentType.UPGRADE,
             amount=Decimal("0"),
             previous_cost=asset.original_cost,
             new_cost=asset.original_cost,

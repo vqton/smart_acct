@@ -10,7 +10,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision: str = '5e6f7a8b9c0d'
 down_revision: Union[str, Sequence[str], None] = '4d5e6f7a8b9c'
@@ -19,8 +18,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.execute("CREATE TYPE periodtype AS ENUM ('MONTHLY', 'QUARTERLY', 'YEARLY')")
     op.add_column('accounting_periods',
-        sa.Column('type', sa.Enum('MONTHLY', 'QUARTERLY', 'YEARLY', name='periodtype'), nullable=False,
+        sa.Column('type', sa.Enum('MONTHLY', 'QUARTERLY', 'YEARLY', name='periodtype', create_type=False), nullable=False,
                   server_default='MONTHLY')
     )
     op.add_column('accounting_periods',

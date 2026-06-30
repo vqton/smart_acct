@@ -15,6 +15,8 @@ from presentation.cash_routes import cash_bp
 from presentation.ar import ar_bp
 from presentation.cc import cc_bp
 from presentation.inventory import inv_bp
+from presentation.payroll import payroll_bp
+from presentation.budget import budget_bp
 
 _start_time = time()
 
@@ -102,6 +104,8 @@ def create_app() -> Flask:
     app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
     app.register_blueprint(cc_bp)
     app.register_blueprint(inv_bp)
+    app.register_blueprint(payroll_bp)
+    app.register_blueprint(budget_bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

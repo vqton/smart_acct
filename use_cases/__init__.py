@@ -13,6 +13,7 @@ from use_cases.ap import APUseCases
 from use_cases.fa import FAUseCases
 from use_cases.cc import CCUseCases
 from use_cases.inventory import InventoryUseCases
+from use_cases.payroll import PayrollUseCases
 
 __all__ = [
     "COAUseCases", "COAValidateUseCase", "COAImportUseCase",
@@ -25,4 +26,5 @@ __all__ = [
     "FAUseCases",
     "CCUseCases",
     "InventoryUseCases",
+    "PayrollUseCases",
 ]

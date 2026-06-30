@@ -10,7 +10,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-
 revision: str = '9fa1b2c3d4e5'
 down_revision: Union[str, Sequence[str], None] = '8e9f0a1b2c3d'
 branch_labels: Union[str, Sequence[str], None] = None
@@ -135,7 +134,7 @@ def upgrade() -> None:
         sa.Column('asset_count_physical', sa.Integer(), nullable=False),
         sa.Column('surplus_count', sa.Integer(), nullable=False),
         sa.Column('deficit_count', sa.Integer(), nullable=False),
-        sa.Column('status', sa.Enum('open', 'resolved', 'cancelled', name='inventorystatusdb'), nullable=False),
+        sa.Column('status', sa.Enum('open', 'resolved', 'cancelled', name='fainventorystatusdb'), nullable=False),
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('created_by', sa.String(length=100), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -244,7 +243,7 @@ def downgrade() -> None:
     op.execute('DROP TYPE IF EXISTS usetypedb')
     op.execute('DROP TYPE IF EXISTS adjustmenttypedb')
     op.execute('DROP TYPE IF EXISTS disposaltypedb')
-    op.execute('DROP TYPE IF EXISTS inventorystatusdb')
+    op.execute('DROP TYPE IF EXISTS fainventorystatusdb')
     op.execute('DROP TYPE IF EXISTS biologicaltypedb')
     op.execute('DROP TYPE IF EXISTS growthstagedb')
     op.execute('DROP TYPE IF EXISTS provisiontypedb')

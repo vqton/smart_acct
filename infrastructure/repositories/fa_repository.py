@@ -4,8 +4,9 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, func, or_
 
+from domain.fa import AdjustmentType as FAAdjustmentType
 from domain import (
-    AssetType, DepreciationMethod, AssetStatus, DisposalType, AdjustmentType,
+    AssetType, DepreciationMethod, AssetStatus, DisposalType,
     BiologicalType, GrowthStage, AssetClassification, FundSource, UseType,
     FACategory, FixedAsset, DepreciationRecord, FAAdjustment, FADisposal,
     FAInventory, FAInventoryLine, FATransfer, FASparePart, FAComponent,
@@ -431,7 +432,7 @@ class FARepository:
     def _adj_to_domain(self, m: FAAdjustmentModel) -> FAAdjustment:
         a = FAAdjustment(
             asset_id=m.asset_id,
-            adjustment_type=AdjustmentType(m.adjustment_type.value) if isinstance(m.adjustment_type, AdjustmentTypeDB) else AdjustmentType(m.adjustment_type),
+            adjustment_type=FAAdjustmentType(m.adjustment_type.value) if isinstance(m.adjustment_type, AdjustmentTypeDB) else FAAdjustmentType(m.adjustment_type),
             amount=m.amount,
             previous_cost=m.previous_cost,
             new_cost=m.new_cost,
@@ -449,7 +450,7 @@ class FARepository:
     def _adj_to_model(self, d: FAAdjustment) -> FAAdjustmentModel:
         return FAAdjustmentModel(
             asset_id=d.asset_id,
-            adjustment_type=AdjustmentTypeDB(d.adjustment_type.value) if isinstance(d.adjustment_type, AdjustmentType) else AdjustmentTypeDB(d.adjustment_type),
+            adjustment_type=AdjustmentTypeDB(d.adjustment_type.value) if isinstance(d.adjustment_type, FAAdjustmentType) else AdjustmentTypeDB(d.adjustment_type),
             adjustment_date=d.effective_date,
             amount=_vnd(d.amount),
             previous_cost=_vnd(d.previous_cost),
