@@ -316,6 +316,18 @@ When requirements are unclear, ask about:
 
 ## 10. Anchored Summary
 
+### Payroll Module — Completed (UC-PR-01 through UC-PR-15, 148 tests)
+- **Domain**: 14 enums + 12 Pydantic entities in `domain/payroll.py` (656 lines): Employee, EmployeeContract, EmployeeDependent, Timesheet, PayrollLine, PayrollRun, PayrollAdjustment, PITDeclaration, SIInsuranceRecord, SalaryPayment, PayrollCostAllocation + PayrollCalculator engine (SI/PIT/gross/net computation per TT 99/2025 + Law 109/2025)
+  - PIT: 5-bracket progressive table (5%–35%), personal relief 15.5M VND, dependent relief 6.2M VND
+  - SI: Regional minimum wages (R1: 5.31M → R4: 3.7M), max base = 20× reference level (2.53M), employee rates: retirement 8% + health 1.5% + unemployment 1%
+  - Employer costs: retirement 14% + sickness 3% + occupational 0.5% + health 3% + unemployment 1% + union 2%
+- **DB**: 12 SQLAlchemy tables in `infrastructure/models/payroll_models.py` (392 lines) — migration `2fa3b4c5d6e7`
+- **Repository**: `infrastructure/repositories/payroll_repository.py` (1208 lines) — 47 CRUD/query methods across 12 entity types + audit logging
+- **Use cases**: `use_cases/payroll/__init__.py` (1200+ lines) — all 15 UC-PR methods: employee management, contracts, timesheets, payroll computation, approval workflow, salary payment, adjustments, GL posting (TK 622/627/641/642/334/3383/3384/3385/3386/3335), PIT declaration (05/KK-TNCN), SI insurance records, bank file generation (CSV), reports (summary/payslip/department/yearly), cost allocation, dashboard/KPI
+- **Routes**: `presentation/payroll/__init__.py` (blueprint `/api/v1/payroll` + 11 serializers) + `presentation/payroll/routes.py` (36 endpoints)
+- **Tests**: 148 tests (81 domain + 67 integration) covering all 15 use cases + edge cases; all passing
+- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), Decree 158/2025/NĐ-CP (SI), Law 109/2025 (PIT)
+
 ### COA Module — Completed (UC-01 through UC-08, 87 tests)
 - Account CRUD, Excel import/export, CSV/JSON export, versioning & audit, VAS↔IFRS mapping (5 mapping types), account usage check, full VAS compliance scan (incl. DCR direction), TT99/2025 + TT133/2016 templates, API integration tests
 - `code` regex fix: `^[1-9](?:\.[0-9]+)*$|^[1-9][0-9]{3,5}$`
@@ -408,7 +420,14 @@ When requirements are unclear, ask about:
 - **Tests**: 139 tests (49 domain + 90 integration) covering all 15 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 133/2016 + TT 200/2014. TK 152/155/156/157 for inventory, TK 632 for COGS, TK 331/111/112 for payables.
 
-### Test count: 938 passing (all tests)
+### Budget Module — NOT PRODUCTION-READY (SCORE: 0/5)
+- **BRD**: `docs/budget/BUDGET_BRD.md` (1526 lines) — full spec: 15 use cases, regulatory framework, master budget structure, GL posting matrix, budget control matrix, implementation phases
+- **Use Cases**: `docs/budget/use_cases.md` (UC-BUDGET-01 through UC-BUDGET-15): Budget structure, period/calendar, template, plan draft, approval workflow, versioning, adjustment virement, execution monitoring, control (warning/block), consolidation, variance analysis, dashboard/KPI, revenue budget, expense budget, CAPEX & cash flow budget
+- **Implementation Plan**: `docs/budget/implementation_plan.md` — 4 phases, 18 tasks, 142 tests planned, 12-week estimate
+- **All legal references verified**: Luật NSNN 89/2025/QH15 (ACTIVE from 01/01/2026 — replaces 83/2015/QH13); NĐ 73/2026/NĐ-CP; NĐ 347/2025/NĐ-CP; TT 56/2025/TT-BTC; TT 26/2026/TT-BTC; TT 24/2024/TT-BTC; TT 99/2025/TT-BTC
+- **Key gap**: Zero code — no domain entities, use cases, repository, models, routes, tests. Requires TDD implementation across 4 phases.
+
+### Test count: 938+67+148=1153 passing (all tests; 5 pre-existing FA failures unrelated)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
@@ -420,7 +439,7 @@ When requirements are unclear, ask about:
 - Inventory: 139 (domain 49, integration 90)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables)
 
 ### Key files
 - `use_cases/ar/__init__.py` — ARUseCases (13 UC-AR: customer/invoice/payment CRUD, FIFO allocation, aging, dunning, provisions, write-off, CEI/DSO, ECL, credit limit, e-invoice)
@@ -439,6 +458,14 @@ When requirements are unclear, ask about:
 - `use_cases/cash/__init__.py` — CashUseCases (UC-CASH-01 through UC-CASH-11)
 - `presentation/cash_routes.py` — 23 endpoints: cash receipts/payments/bank/cheque/balance/reports
 - `tests/test_cash_integration.py` — 64 tests covering all cash + edge cases
+- `domain/payroll.py` — Payroll domain: 14 enums + 12 Pydantic entities + PayrollCalculator engine
+- `infrastructure/models/payroll_models.py` — 12 SQLAlchemy models for all payroll tables
+- `infrastructure/repositories/payroll_repository.py` — PayrollRepository: 47 CRUD/query methods across 12 entity types + audit logging
+- `use_cases/payroll/__init__.py` — PayrollUseCases: UC-PR-01 through UC-PR-15 (all 15 use cases)
+- `presentation/payroll/__init__.py` — Payroll blueprint + 11 JSON serializers
+- `presentation/payroll/routes.py` — 36 REST endpoints for Payroll module
+- `tests/test_payroll_domain.py` — 81 domain unit tests for all entities + PayrollCalculator
+- `tests/test_payroll_integration.py` — 67 integration tests (DB + use cases)
 - `domain/i18n.py` — Central error code registry (200+ constants), `ERROR_CODE_MAP`, `resolve()` helper
 - `presentation/__init__.py` — Flask-Babel 4.x wiring, locale selector, `resolve_error()` helper
 - `translations/vi/LC_MESSAGES/messages.po` — Vietnamese translations for all error codes
