@@ -441,16 +441,17 @@ When requirements are unclear, ask about:
 - **Tests**: 166 tests (92 domain + 74 integration) covering all use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), VAS 10, IAS 7, IFRS 9.
 
-### Costing Center Module — NOT PRODUCTION-READY (SCORE: 0/5)
+### Costing Center Module — Completed (UC-CC-01 through UC-CC-15, 153 tests)
 
-- **BRD**: `docs/costing_center/BRD.md` (full gap analysis, 15 use cases mapped, regulatory compliance matrix)
-- **Use Cases**: `docs/costing_center/use_cases.md` (UC-CC-01 through UC-CC-15: hierarchy, drivers, allocation rules, execution engine, cost objects, accumulation, budget sync, variance, GL integration, reports, import/export, audit trail, dashboard, self-service)
-- **Spec**: `docs/costing_center/spec.md` (12 DB tables, allocation engine algorithm, 30+ API endpoints, GL posting integration, 130+ planned tests)
-- **Gap**: Zero code — no domain entities, models, repository, use cases, routes, or tests. Requires TDD across 3 phases.
-- **Regulatory basis**: TT99/2025/TT-BTC Art.11 (COA autonomy, analytical segments), VAS 01/16, IFRS 8
-- **All legal references verified**: TT99/2025 (ACTIVE from 01/01/2026); TT200/2014 (REPLACED eff 01/01/2026); Decree 20/2025/ND-CP (ACTIVE from 27/03/2025)
+- **Domain**: 7 enums + 15 Pydantic entities in `domain/costing_center.py` (488 lines): CostCenter, CostCenterCreate, CostCenterUpdate, CostDriver, CostDriverCreate, CostAllocationRule, CostAllocationRuleTarget, CostAllocationRuleCreate, CostAllocationRuleUpdate, CostAllocationLine, CostAllocationRun, CostObject, CostObjectCreate, CostAccumulation, CostCenterBudget, CostCenterActual, CostCenterVariance, CostingAuditLog, BulkImportResult, AccumulationResult, AllocationPreview — all with validators, i18n error codes
+- **DB**: 12 SQLAlchemy tables in `infrastructure/models/costing_center_models.py` — migration `4fa5b6c7d8e9`
+- **Repository**: `infrastructure/repositories/costing_center_repository.py` (850 lines) — 40+ CRUD/query methods + allocation engine + accumulation + variance/PL + audit logging
+- **Use cases**: `use_cases/costing_center/__init__.py` (780 lines) — all 15 UC-CC methods: hierarchy management (create/update/move/deactivate/tree/bulk import), driver CRUD, allocation rule config (create/approve/archive/preview), allocation execution (dry run/live run/post/reverse/matrix), cost object CRUD, cost accumulation, budget sync, variance analysis, P&L report, allocation summary report, import/export, audit trail, dashboard/KPI, manager self-service
+- **Routes**: `presentation/costing_center/__init__.py` (blueprint `/api/v1/costing` + 10 JSON serializers) + `presentation/costing_center/routes.py` (30+ endpoints)
+- **Tests**: 153 tests (68 domain + 85 integration) covering all 15 use cases + edge cases; all passing
+- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026). Allocation engine supports direct/percentage/proportional methods. Cost center dimension on GL lines deferred to Phase 2 (UC-CC-09).
 
-### Test count: 1504 passing (all tests)
+### Test count: 1657 passing (all tests)
 
 
 - Treasury: 166 (domain 92 + integration 74)
@@ -463,6 +464,7 @@ When requirements are unclear, ask about:
 - FA: 173 (domain 122, integration 51)
 - CCDC: 69 (domain 31, integration 38)
 - Inventory: 139 (domain 49, integration 90)
+- Costing Center: 153 (domain 68, integration 85)
 
 ### Migration chain
 `9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables) → `3fa4b5c6d7e8` (treasury tables)
