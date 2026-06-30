@@ -106,6 +106,8 @@ def create_app() -> Flask:
     app.register_blueprint(inv_bp)
     app.register_blueprint(payroll_bp)
     app.register_blueprint(budget_bp)
+    from presentation.treasury import trs_bp
+    app.register_blueprint(trs_bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

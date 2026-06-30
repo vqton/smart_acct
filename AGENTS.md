@@ -427,7 +427,24 @@ When requirements are unclear, ask about:
 - **All legal references verified**: Luật NSNN 89/2025/QH15 (ACTIVE from 01/01/2026 — replaces 83/2015/QH13); NĐ 73/2026/NĐ-CP; NĐ 347/2025/NĐ-CP; TT 56/2025/TT-BTC; TT 26/2026/TT-BTC; TT 24/2024/TT-BTC; TT 99/2025/TT-BTC
 - **Key gap**: Zero code — no domain entities, use cases, repository, models, routes, tests. Requires TDD implementation across 4 phases.
 
-### Test count: 938+67+148=1153 passing (all tests; 5 pre-existing FA failures unrelated)
+### Treasury Module — Completed (UC-TRS-01 through UC-TRS-10 excl KBNN, 166 tests)
+- **BRD**: `docs/brd/treasury_management.md` (full spec: 10 use cases, consolidated cash position, cash flow forecasting, investment/debt management, KBNN integration, FX monitoring, intercompany cash, payment factory, bank connectivity, treasury dashboard/KPIs)
+- **Use Cases**: `docs/treasury/use_cases.md` (UC-TRS-01 through UC-TRS-10) with happy/alternative/exception paths for all 10 use cases
+- **Regulatory basis**: TT 99/2025/TT-BTC (eff. 01/01/2026), TT 157/2025/TT-BTC (KBNN registration), ND 347/2025/NĐ-CP (KBNN admin procedures), Luat NSNN 89/2025/QH15, VAS 10/24, IFRS 9
+- **Outdated docs replaced**: TT 200/2014/TT-BTC → TT 99/2025/TT-BTC; TT 18/2020/TT-BTC → TT 157/2025/TT-BTC; ND 11/2020/NĐ-CP → ND 347/2025/NĐ-CP; Luat NSNN 83/2015/QH13 → 89/2025/QH15
+- **Cash&Bank overlap**: Existing Cash module (UC-CASH-01 to UC-CASH-11) + Bank module (97% PROD-ready) cover TK 111/112 ops. Treasury adds strategic layer: forecasting, liquidity, KBNN, IC cash, bank API
+- **Domain**: 15 enums + 20 Pydantic entities in `domain/treasury.py` — CashInTransit, SecurityInvestment, InvestmentTransaction, Loan, LoanPayment, FXForward, CashFlowForecast, ForecastLine, TreasuryPosition, FXExposure, FXRate, IntercompanyLoan, IntercompanySweep, PaymentBatch, PaymentBatchItem, BankConnectorConfig, BankSyncLog, TreasuryPolicy, TreasuryAuditLog
+- **DB**: 17 SQLAlchemy tables in `infrastructure/models/treasury_models.py` — migration `3fa4b5c6d7e8` (19 tables)
+- **Repository**: `infrastructure/repositories/treasury_repository.py` (1520 lines) — 117 CRUD/query methods across all entity types
+- **Use cases**: `use_cases/treasury/__init__.py` (1786 lines) — all 9 use cases (UC-TRS-01 to UC-TRS-10 excl KBNN): consolidated cash position, cash flow forecasting (3 scenarios, daily balance computation), investment lifecycle management (purchase/maturity/sale/early withdrawal with policy checks), debt management (drawdown/schedule/payments/covenants DSCR/ICR/LTV), FX exposure monitoring (multi-currency, VAS 10 revaluation), intercompany cash management (sweep proposals, IC loans), treasury dashboard (10 KPIs), payment factory (batch workflow), bank connectivity (connectors/sync logs)
+- **Routes**: `presentation/treasury/__init__.py` (blueprint `/api/v1/treasury` + 12 JSON serializers) + `presentation/treasury/routes.py` (25+ endpoints)
+- **Tests**: 166 tests (92 domain + 74 integration) covering all use cases + edge cases; all passing
+- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), VAS 10, IAS 7, IFRS 9.
+
+### Test count: 1504 passing (all tests)
+
+
+- Treasury: 166 (domain 92 + integration 74)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
@@ -439,7 +456,7 @@ When requirements are unclear, ask about:
 - Inventory: 139 (domain 49, integration 90)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables) → `3fa4b5c6d7e8` (treasury tables)
 
 ### Key files
 - `use_cases/ar/__init__.py` — ARUseCases (13 UC-AR: customer/invoice/payment CRUD, FIFO allocation, aging, dunning, provisions, write-off, CEI/DSO, ECL, credit limit, e-invoice)
@@ -489,3 +506,12 @@ When requirements are unclear, ask about:
 - `presentation/cc/routes.py` — 45 REST endpoints for CCDC module
 - `tests/test_cc_domain.py` — 31 domain unit tests
 - `tests/test_cc_integration.py` — 38 integration tests (DB + use cases)
+- `domain/treasury.py` — Treasury domain: 15 enums + 20 Pydantic entities with validators, i18n error codes
+- `infrastructure/models/treasury_models.py` — 17 SQLAlchemy models for all treasury tables
+- `infrastructure/repositories/treasury_repository.py` — TreasuryRepository: 117 CRUD/query/aggregation methods
+- `use_cases/treasury/__init__.py` — TreasuryUseCases: UC-TRS-01 through UC-TRS-10 (excl KBNN, 9 use cases)
+- `use_cases/treasury_use_cases.py` — Shim for backward compat
+- `presentation/treasury/__init__.py` — Treasury blueprint + 12 JSON serializers
+- `presentation/treasury/routes.py` — 25+ REST endpoints for Treasury module
+- `tests/test_treasury_domain.py` — 92 domain unit tests
+- `tests/test_treasury_integration.py` — 74 integration tests (DB + use cases)

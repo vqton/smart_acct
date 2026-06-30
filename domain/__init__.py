@@ -95,6 +95,19 @@ from domain.budget import (
     CAPEXRequest, CashFlowBudgetLine, CashFlowFinancing,
     BudgetAuditLog,
 )
+from domain.treasury import (
+    InvestmentType, InvestmentStatus, LoanType, LoanStatus,
+    ForecastHorizon, ScenarioType, FXRateSource, SweepType,
+    ICSweepStatus, BatchItemStatus, SyncStatus,
+    FXForwardStatus, ICInterestBasis, TreasuryKPI, FXForwardStatus as FxFStatus,
+    CashInTransit, SecurityInvestment, InvestmentTransaction,
+    Loan, LoanPayment, FXForward,
+    CashFlowForecast, ForecastLine, TreasuryPosition,
+    FXExposure, FXRate, IntercompanyLoan, IntercompanySweep,
+    PaymentBatch, PaymentBatchItem,
+    BankConnectorConfig, BankSyncLog,
+    TreasuryPolicy, TreasuryAuditLog,
+)
 from domain.payroll import (
     ContractType, EmployeeStatus, Region, PayrollRunStatus,
     PaymentMethodPR, PaymentStatus,
@@ -176,6 +189,18 @@ __all__ = [
     'HeadcountBudget', 'ExpenseBudgetLine',
     'CAPEXRequest', 'CashFlowBudgetLine', 'CashFlowFinancing',
     'BudgetAuditLog',
+    # Treasury
+    'InvestmentType', 'InvestmentStatus', 'LoanType', 'LoanStatus',
+    'ForecastHorizon', 'ScenarioType', 'FXRateSource', 'SweepType',
+    'ICSweepStatus', 'BatchStatus', 'BatchItemStatus', 'SyncStatus',
+    'FXForwardStatus', 'ICInterestBasis', 'TreasuryKPI',
+    'CashInTransit', 'SecurityInvestment', 'InvestmentTransaction',
+    'Loan', 'LoanPayment', 'FXForward',
+    'CashFlowForecast', 'ForecastLine', 'TreasuryPosition',
+    'FXExposure', 'FXRate', 'IntercompanyLoan', 'IntercompanySweep',
+    'PaymentBatch', 'PaymentBatchItem',
+    'BankConnectorConfig', 'BankSyncLog',
+    'TreasuryPolicy', 'TreasuryAuditLog',
     # Payroll
     'ContractType', 'EmployeeStatus', 'Region', 'PayrollRunStatus',
     'PaymentMethodPR', 'PaymentStatus', 'PayrollDeclarationStatus',
