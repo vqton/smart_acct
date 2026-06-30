@@ -18,6 +18,7 @@ from presentation.inventory import inv_bp
 from presentation.payroll import payroll_bp
 from presentation.budget import budget_bp
 from presentation.costing_center import ccost_bp
+from presentation.fs import fs_bp
 
 _start_time = time()
 
@@ -110,6 +111,7 @@ def create_app() -> Flask:
     from presentation.treasury import trs_bp
     app.register_blueprint(trs_bp)
     app.register_blueprint(ccost_bp)
+    app.register_blueprint(fs_bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

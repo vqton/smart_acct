@@ -1,0 +1,38 @@
+{% extends "fs/base_fs.html" %}
+{% block title %}Báo cáo lưu chuyển tiền tệ{% endblock %}
+{% block content %}
+<div class="report-title">
+    <h1>BÁO CÁO LƯU CHUYỂN TIỀN TỆ</h1>
+    <p><em>Kỳ kế toán ... tháng ... năm ...</em></p>
+    <p class="form-number">Mẫu số B 03 – DN</p>
+    <p>
+    {% if fs.cash_flow_method and fs.cash_flow_method.value == 'indirect' %}
+        <em>(Theo phương pháp gián tiếp)</em>
+    {% else %}
+        <em>(Theo phương pháp trực tiếp)</em>
+    {% endif %}
+    </p>
+    <p><em>(Theo TT 99/2025/TT-BTC)</em></p>
+</div>
+
+<table class="fs-table">
+    <thead>
+        <tr>
+            <th>Mã số</th>
+            <th>Chỉ tiêu</th>
+            <th>Năm nay</th>
+            <th>Năm trước</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in fs.lines %}
+        <tr class="{{ 'subtotal' if line.is_subtotal else 'detail' }}">
+            <td>{{ line.ma_so }}</td>
+            <td>{{ line.ten_chi_tieu }}</td>
+            <td class="amount">{{ '{:,.0f}'.format(line.current_year) }}</td>
+            <td class="amount">{{ '{:,.0f}'.format(line.previous_year) if line.previous_year is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

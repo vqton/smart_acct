@@ -1,0 +1,33 @@
+{% extends "fs/base_fs.html" %}
+{% block title %}Báo cáo tình hình tài chính{% endblock %}
+{% block content %}
+<div class="report-title">
+    <h1>BÁO CÁO TÌNH HÌNH TÀI CHÍNH</h1>
+    <p><em>Tại ngày ... tháng ... năm ...</em></p>
+    <p class="form-number">Mẫu số B 01 – DN</p>
+    <p><em>(Theo TT 99/2025/TT-BTC)</em></p>
+</div>
+
+<table class="fs-table">
+    <thead>
+        <tr>
+            <th>Mã số</th>
+            <th>Chỉ tiêu</th>
+            <th>Thuyết minh</th>
+            <th>Cuối năm</th>
+            <th>Đầu năm</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in fs.lines %}
+        <tr class="{{ 'subtotal' if line.is_subtotal else 'detail' }}">
+            <td>{{ line.ma_so }}</td>
+            <td>{{ line.ten_chi_tieu }}</td>
+            <td class="text-center">{{ line.thuyet_minh or '' }}</td>
+            <td class="amount">{{ '{:,.0f}'.format(line.current_year) }}</td>
+            <td class="amount">{{ '{:,.0f}'.format(line.previous_year) if line.previous_year is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

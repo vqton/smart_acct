@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Báo cáo tài chính{% endblock %}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 30mm;
+        }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+        }
+        .fs-report {
+            max-width: 190mm;
+            margin: 0 auto;
+        }
+        .fs-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        .entity-info {
+            text-align: left;
+            float: left;
+            font-size: 10pt;
+        }
+        .unit-info {
+            text-align: right;
+            float: right;
+            font-size: 10pt;
+            font-style: italic;
+        }
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+        .report-title {
+            clear: both;
+            text-align: center;
+            padding-top: 20px;
+        }
+        .report-title h1 {
+            font-size: 14pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 5px 0;
+        }
+        .report-title p {
+            font-size: 10pt;
+            margin: 2px 0;
+        }
+        .report-title .form-number {
+            font-weight: bold;
+            font-style: italic;
+        }
+        table.fs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+        table.fs-table th {
+            background-color: #f0f0f0;
+            border: 1px solid #000;
+            padding: 5px 3px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+        table.fs-table td {
+            border: 1px solid #000;
+            padding: 3px;
+            vertical-align: top;
+        }
+        table.fs-table tr.detail td:first-child {
+            text-align: center;
+            width: 50px;
+        }
+        table.fs-table tr.subtotal td {
+            font-weight: bold;
+            background-color: #fafafa;
+        }
+        table.fs-table tr.subtotal td:first-child {
+            text-align: center;
+        }
+        .amount {
+            text-align: right;
+            white-space: nowrap;
+            padding-right: 5px;
+        }
+        .signature-block {
+            margin-top: 40px;
+        }
+        table.signatures {
+            width: 100%;
+            border: none;
+        }
+        table.signatures td {
+            width: 33%;
+            text-align: center;
+            border: none;
+            padding: 10px;
+        }
+        .sig-space {
+            height: 40px;
+        }
+        .fs-footer {
+            text-align: right;
+            margin-top: 20px;
+            font-size: 10pt;
+        }
+        .indent-1 { padding-left: 10px !important; }
+        .indent-2 { padding-left: 20px !important; }
+        .indent-3 { padding-left: 30px !important; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .fw-bold { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="fs-report">
+        <div class="fs-header clearfix">
+            <div class="entity-info">
+                <p><strong>{{ entity.entity_name if entity.entity_name else 'Đơn vị: ...' }}</strong></p>
+                <p>Địa chỉ: {{ entity.address if entity.address else '...' }}</p>
+            </div>
+            <div class="unit-info">
+                <p>Đơn vị tính: VND</p>
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+
+        <div class="signature-block">
+            <table class="signatures">
+                <tr>
+                    <td>
+                        <p><strong>Người lập</strong></p>
+                        <p><em>(Ký, họ tên)</em></p>
+                        <div class="sig-space"></div>
+                        <p>{{ fs.generated_by or '...' }}</p>
+                    </td>
+                    <td>
+                        <p><strong>Kế toán trưởng</strong></p>
+                        <p><em>(Ký, họ tên)</em></p>
+                        <div class="sig-space"></div>
+                        <p>{{ fs.approved_by or '...' }}</p>
+                    </td>
+                    <td>
+                        <p><strong>Tổng giám đốc</strong></p>
+                        <p><em>(Ký, họ tên, đóng dấu)</em></p>
+                        <div class="sig-space"></div>
+                        <p>{{ fs.signed_by or '...' }}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="fs-footer">
+            <p>Ngày ... tháng ... năm ...</p>
+        </div>
+    </div>
+</body>
+</html>

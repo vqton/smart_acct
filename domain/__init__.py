@@ -120,6 +120,12 @@ from domain.treasury import (
     BankConnectorConfig, BankSyncLog,
     TreasuryPolicy, TreasuryAuditLog,
 )
+from domain.fs import (
+    FinancialStatementType, FSStatus, FSCashFlowMethod,
+    FSLineItem, FSAccountMapping, FSAuditLog, FSApprovalAction,
+    FinancialStatement, FSLineTemplate,
+    FSConsolidationGroup, FSConsolidationMember,
+)
 from domain.payroll import (
     ContractType, EmployeeStatus, Region, PayrollRunStatus,
     PaymentMethodPR, PaymentStatus,
@@ -224,6 +230,11 @@ __all__ = [
     'PaymentBatch', 'PaymentBatchItem',
     'BankConnectorConfig', 'BankSyncLog',
     'TreasuryPolicy', 'TreasuryAuditLog',
+    # Financial Statements
+    'FinancialStatementType', 'FSStatus', 'FSCashFlowMethod',
+    'FSLineItem', 'FSAccountMapping', 'FSAuditLog', 'FSApprovalAction',
+    'FinancialStatement', 'FSLineTemplate',
+    'FSConsolidationGroup', 'FSConsolidationMember',
     # Payroll
     'ContractType', 'EmployeeStatus', 'Region', 'PayrollRunStatus',
     'PaymentMethodPR', 'PaymentStatus', 'PayrollDeclarationStatus',
