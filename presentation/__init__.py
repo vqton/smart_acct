@@ -51,4 +51,6 @@ def resolve_error(error) -> str:
 def init_app(app):
     from presentation.ap import ap_bp
     app.register_blueprint(ap_bp)
+    from presentation.fa import fa_bp
+    app.register_blueprint(fa_bp)
     babel.init_app(app, default_locale="vi", default_domain="messages", locale_selector=get_locale)

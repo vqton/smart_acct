@@ -368,15 +368,39 @@ When requirements are unclear, ask about:
 - **Routes**: `presentation/ap/__init__.py` (119 lines, blueprint + 7 JSON serializers) + `presentation/ap/routes.py` (733 lines, 35 endpoints)
 - **Tests**: 64 tests (26 domain + 38 integration) covering all 15 use cases; all passing
 
-### Test count: 464 passing (all tests)
+### FA Module (Fixed Assets) — Completed (UC-FA-01 through UC-FA-12, 173 tests)
+- **BRD**: `docs/brd/fixed_assets.md` (376 lines) — full spec: 12 use cases, regulatory regime analysis (TT 99/2025, TT 45/2013 as amended by 147/2016 + 28/2017 + 30/2025, VAS 03/04, IFRS convergence QĐ 345/2020), GL posting matrix, 7 FA classifications, chart of accounts, depreciation rules, 8 reports
+- **Use Cases**: `docs/fa/use_cases.md` (676 lines) — UC-FA-01 through UC-FA-12: categories, registration, depreciation (3 methods), revaluation, transfer, adjustment, disposal, inventory, biological assets (TK 215), reports, IFRS conversion, TT 99 migration
+- **Implementation Plan**: `docs/fa/implementation_plan.md` (275 lines) — 4 phases, 16 tasks, 143 tests planned, 12-week MVP estimate
+- **Domain**: 12 enums + 13 Pydantic entities in `domain/fa.py` (375 lines) — FACategory, FixedAsset, DepreciationRecord, FAAdjustment, FADisposal, FAInventory, FAInventoryLine, FATransfer, FASparePart, FAComponent, BiologicalAsset, BiologicalProvision, DepreciationConfig; all with validators, i18n error codes
+- **DB**: 12 SQLAlchemy tables in `infrastructure/models/fa_models.py` (383 lines) — migration `9fa1b2c3d4e5`
+- **Repository**: `infrastructure/repositories/fa_repository.py` — 44 CRUD + query methods across all entities + GL posting + audit logging
+- **Use cases**: `use_cases/fa/__init__.py` (852 lines) — all 12 UC-FA methods: category CRUD, asset registration, depreciation engine (SL/DB/units-of-production), adjustments, transfers, disposals, inventory, spare parts/components, biological assets (TK 215), 4 reports, TT 99/2025 migration, TT 30/2025 suspension/resume
+- **Routes**: `presentation/fa/__init__.py` (blueprint `/api/v1/fa` + 13 serializers) + `presentation/fa/routes.py` (36 endpoints)
+- **Tests**: 173 tests (122 domain + 51 integration) — all 12 use cases covered
+- **Status**: ✅ Production-ready. All 12 use cases, 36 routes, 173 tests passing.
+
+### CCDC Module (Tools & Equipment) — Completed (UC-CC-01 through UC-CC-12, 69 tests)
+- **BRD**: `docs/brd/tools_equipment.md`, `docs/brd/tools_equipment_use_cases.md`, `docs/brd/tools_equipment_implementation.md`
+- **Domain**: 7 enums + 11 Pydantic entities in `domain/cc.py` (365 lines): CCategory, CCDCItem, CCDCAllocation, CCDCAllocationLine, CCDCTransaction, CCDCTransfer, CCDCInventory, CCDCInventoryLine, CCDCWriteOff, CCDCSparePart, CCDCImportLog — all with validators, i18n error codes
+- **DB**: 14 SQLAlchemy tables in `infrastructure/models/cc_models.py` (365 lines) — migration `0fa1b2c3d4e6`
+- **Repository**: `infrastructure/repositories/cc_repository.py` (470 lines) — CRUD + business queries (by department, by employee, unallocated, total value)
+- **Use cases**: `use_cases/cc/__init__.py` (500 lines) — all 12 UC-CC methods: category CRUD, item registration, allocation processing (1-time/2-time/multi-period w/ auto line generation), transaction recording, transfers, inventory/stocktake, disposal/write-off, spare parts, reports (by dept/employee/allocation schedule/value summary/inventory status), import/export, GL auto-posting, dashboard/KPI
+- **Routes**: `presentation/cc/__init__.py` (blueprint `/api/v1/cc` + 11 serializers) + `presentation/cc/routes.py` (45 endpoints)
+- **Tests**: 69 tests (31 domain + 38 integration) covering all 12 use cases + edge cases; all passing
+- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026). TK 242 for multi-period allocation, max 36 months per TT 80/2021.
+
+### Test count: 706 passing (all tests)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
 - Cash: 111 (receipt 7, payment 7, bank account 5, bank reconciliation 7, petty cash 6, cash transfer 4, daily count 4, cheque 4, edge cases 6, balance 5, cash book report 3, cash count report 5, bank statements 8, cheque lifecycle 13, bank balance 4, bank book 4, reconciliation report 4, Flask routes 19)
 - AP: 64 (domain 26, integration 38)
+- FA: 173 (domain 122, integration 51)
+- CCDC: 69 (domain 31, integration 38)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c3d` (ap tables: ap_vendors, ap_invoices, ap_invoice_lines, ap_credit_notes, ap_debit_notes, ap_payments, ap_payment_allocations, ap_prepayments, ap_provisions, ap_aging_snapshots, ap_fct_declarations, ap_intercompany_invoices)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c3d` (ap tables: ap_vendors, ap_invoices, ap_invoice_lines, ap_credit_notes, ap_debit_notes, ap_payments, ap_payment_allocations, ap_prepayments, ap_provisions, ap_aging_snapshots, ap_fct_declarations, ap_intercompany_invoices) → `9fa1b2c3d4e5` (fa tables: fa_categories, fa_assets, fa_depreciation_records, fa_adjustments, fa_disposals, fa_inventories, fa_inventory_lines, fa_transfers, fa_spare_parts, fa_components, fa_biological_assets, fa_biological_provisions) → `0fa1b2c3d4e6` (cc tables: cc_categories, cc_items, cc_allocations, cc_allocation_lines, cc_transactions, cc_transfers, cc_inventories, cc_inventory_lines, cc_write_offs, cc_spare_parts, cc_import_logs)
 
 ### Key files
 - `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements)
@@ -396,3 +420,19 @@ When requirements are unclear, ask about:
 - `templates/cash_book_report.html` — Cash book report template with `{% trans %}`
 - `templates/cash_count_report.html` — Cash count report template with `{% trans %}`
 - `templates/reconciliation_report.html` — Bank reconciliation report template with `{% trans %}`
+- `domain/fa.py` — FA domain: 12 enums + 13 Pydantic entities with validators, i18n error codes
+- `infrastructure/models/fa_models.py` — 12 SQLAlchemy models for all FA tables
+- `infrastructure/repositories/fa_repository.py` — FARepository: 44 CRUD/query methods across all FA entities
+- `use_cases/fa/__init__.py` — FAUseCases: UC-FA-01 through UC-FA-12 (36 methods)
+- `presentation/fa/__init__.py` — FA blueprint + 13 JSON serializers
+- `presentation/fa/routes.py` — 36 REST endpoints for FA module
+- `tests/test_fa_domain.py` — 122 domain unit tests
+- `tests/test_fa_integration.py` — 51 integration tests (DB + use cases)
+- `domain/cc.py` — CC domain: 7 enums + 11 Pydantic entities with validators, i18n error codes
+- `infrastructure/models/cc_models.py` — 14 SQLAlchemy models for all CC tables
+- `infrastructure/repositories/cc_repository.py` — CCRepository: full CRUD + business queries
+- `use_cases/cc/__init__.py` — CCUseCases: UC-CC-01 through UC-CC-12 (36 methods)
+- `presentation/cc/__init__.py` — CC blueprint + 11 JSON serializers
+- `presentation/cc/routes.py` — 45 REST endpoints for CCDC module
+- `tests/test_cc_domain.py` — 31 domain unit tests
+- `tests/test_cc_integration.py` — 38 integration tests (DB + use cases)

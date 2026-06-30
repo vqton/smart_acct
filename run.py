@@ -13,6 +13,7 @@ from presentation.tax_routes import tax_bp
 from presentation.gl_routes import gl_bp
 from presentation.cash_routes import cash_bp
 from presentation.ar import ar_bp
+from presentation.cc import cc_bp
 
 _start_time = time()
 
@@ -98,6 +99,7 @@ def create_app() -> Flask:
     app.register_blueprint(gl_bp, url_prefix="/api/v1/gl")
     app.register_blueprint(ar_bp, url_prefix="/api/v1/ar")
     app.register_blueprint(cash_bp, url_prefix="/api/v1/cash")
+    app.register_blueprint(cc_bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

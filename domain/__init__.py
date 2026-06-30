@@ -48,6 +48,22 @@ from domain.ap import (
     VendorPrepayment, APProvision, APAgingSnapshot,
     FCTDeclaration, IntercompanyInvoice,
 )
+from domain.fa import (
+    AssetType, DepreciationMethod, AssetStatus, DisposalType, AdjustmentType,
+    BiologicalType, GrowthStage, AssetClassification, FundSource, UseType,
+    InventoryStatus, ProvisionType,
+    FACategory, FixedAsset, DepreciationRecord, FAAdjustment, FADisposal,
+    FAInventory, FAInventoryLine, FATransfer, FASparePart, FAComponent,
+    BiologicalAsset, BiologicalProvision, DepreciationConfig,
+)
+from domain.cc import (
+    CCDCType, AllocationMethod, CCDCStatus, AllocationStatus,
+    TransactionType, InventoryStatus as CCInventoryStatus,
+    ResponsibilityType,
+    CCategory, CCDCItem, CCDCAllocation, CCDCAllocationLine,
+    CCDCTransaction, CCDCTransfer, CCDCInventory, CCDCInventoryLine,
+    CCDCWriteOff, CCDCSparePart, CCDCImportLog,
+)
 
 __all__ = [
     'VASValidationError', 'ValidationError', 'VASComplianceError', 'DoubleEntryError',
@@ -77,4 +93,16 @@ __all__ = [
     'Customer', 'InvoiceLine', 'ARInvoice', 'ARPayment', 'ARPaymentAllocation',
     'ARAgingSnapshot', 'ARDunningLog', 'BadDebtProvision', 'BadDebtWriteOffRequest',
     'WriteOffRequestStatus', 'GLAllocation', 'CEIReport',
+    'AssetType', 'DepreciationMethod', 'AssetStatus', 'DisposalType', 'AdjustmentType',
+    'BiologicalType', 'GrowthStage', 'AssetClassification', 'FundSource', 'UseType',
+    'InventoryStatus', 'ProvisionType',
+    'FACategory', 'FixedAsset', 'DepreciationRecord', 'FAAdjustment', 'FADisposal',
+    'FAInventory', 'FAInventoryLine', 'FATransfer', 'FASparePart', 'FAComponent',
+    'BiologicalAsset', 'BiologicalProvision', 'DepreciationConfig',
+    'CCDCType', 'AllocationMethod', 'CCDCStatus', 'AllocationStatus',
+    'TransactionType', 'CCInventoryStatus',
+    'ResponsibilityType',
+    'CCategory', 'CCDCItem', 'CCDCAllocation', 'CCDCAllocationLine',
+    'CCDCTransaction', 'CCDCTransfer', 'CCDCInventory', 'CCDCInventoryLine',
+    'CCDCWriteOff', 'CCDCSparePart', 'CCDCImportLog',
 ]

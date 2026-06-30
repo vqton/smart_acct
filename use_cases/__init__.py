@@ -10,6 +10,8 @@ from use_cases.gl import GLUseCases
 from use_cases.tax import TaxUseCases
 from use_cases.cash import CashUseCases
 from use_cases.ap import APUseCases
+from use_cases.fa import FAUseCases
+from use_cases.cc import CCUseCases
 
 __all__ = [
     "COAUseCases", "COAValidateUseCase", "COAImportUseCase",
@@ -19,4 +21,6 @@ __all__ = [
     "TaxUseCases",
     "CashUseCases",
     "APUseCases",
+    "FAUseCases",
+    "CCUseCases",
 ]
