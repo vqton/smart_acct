@@ -36,7 +36,9 @@ from domain.cash_bank import (
 from domain.ar import (
     CustomerType, CustomerGroup, CustomerStatus,
     ARInvoiceType, ARInvoiceStatus, ARPaymentMethod, ARAllocationStatus, ARDunningLevel,
-    Customer, InvoiceLine, ARInvoice, ARPayment, GLAllocation,
+    Customer, InvoiceLine, ARInvoice, ARPayment, ARPaymentAllocation,
+    ARAgingSnapshot, ARDunningLog, BadDebtProvision, BadDebtWriteOffRequest,
+    WriteOffRequestStatus, GLAllocation, CEIReport,
 )
 
 __all__ = [
@@ -64,5 +66,7 @@ __all__ = [
     'CashForecast', 'CashForecastLine', 'DailyCashCount', 'Advance',
     'CustomerType', 'CustomerGroup', 'CustomerStatus',
     'ARInvoiceType', 'ARInvoiceStatus', 'ARPaymentMethod', 'ARAllocationStatus', 'ARDunningLevel',
-    'Customer', 'InvoiceLine', 'ARInvoice', 'ARPayment', 'GLAllocation',
+    'Customer', 'InvoiceLine', 'ARInvoice', 'ARPayment', 'ARPaymentAllocation',
+    'ARAgingSnapshot', 'ARDunningLog', 'BadDebtProvision', 'BadDebtWriteOffRequest',
+    'WriteOffRequestStatus', 'GLAllocation', 'CEIReport',
 ]

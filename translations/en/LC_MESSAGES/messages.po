@@ -68,6 +68,18 @@ msgstr "Account number cannot be empty"
 msgid "ACCOUNT_NUMBER_NUMERIC"
 msgstr "Account number must be numeric"
 
+#: domain/i18n.py
+msgid "NOT_FOUND"
+msgstr "Resource not found"
+
+#: domain/i18n.py
+msgid "ALREADY_EXISTS"
+msgstr "Resource already exists"
+
+#: domain/i18n.py
+msgid "OVERPAYMENT_NOT_ALLOWED"
+msgstr "Overpayment not allowed"
+
 #: domain/__init__.py
 msgid "ACCOUNT_NUMBER_LENGTH"
 msgstr "Account number must be 4-20 digits"

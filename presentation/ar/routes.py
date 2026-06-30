@@ -77,11 +77,11 @@ def update_customer(customer_id):
     session = _get_session()
     try:
         uc = ARUseCases(session)
-        # Build updates dict from allowed fields
         updates = {}
-        for field in ["legal_name", "tax_code", "email", "phone", "address", "city",
+        for field in ["customer_name", "legal_name", "tax_code", "email", "phone", "address", "city",
                       "contact_person", "credit_limit", "outstanding_balance",
-                      "coa_account_code", "notes"]:
+                      "coa_account_code", "notes", "customer_type", "customer_group",
+                      "credit_limit_override"]:
             if field in data:
                 updates[field] = data[field]
         if "status" in data:
@@ -100,8 +100,19 @@ def update_customer(customer_id):
 
 @ar_bp.route("/customers/<int:customer_id>", methods=["DELETE"])
 def delete_customer(customer_id):
-    # Deletion is complex in AR - just return not implemented for now
-    return jsonify({"error": "Customer deletion not implemented"}), 501
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.delete_customer(customer_id)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify({"message": "Customer deleted"})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
 
 
 @ar_bp.route("/customers/<int:customer_id>/suspend", methods=["POST"])
@@ -229,10 +240,11 @@ def issue_invoice(invoice_id):
 
 @ar_bp.route("/invoices/<int:invoice_id>/cancel", methods=["POST"])
 def cancel_invoice(invoice_id):
+    data = request.get_json() or {}
     session = _get_session()
     try:
         uc = ARUseCases(session)
-        result = uc.cancel_invoice(invoice_id)
+        result = uc.cancel_invoice(invoice_id, reason=data.get("reason"))
         if result.is_failure():
             return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()
@@ -243,6 +255,8 @@ def cancel_invoice(invoice_id):
     finally:
         session.close()
 
+
+# ── Payments ──────────────────────────────────────────────────────
 
 @ar_bp.route("/invoices/<int:invoice_id>/payments", methods=["POST"])
 def record_payment(invoice_id):
@@ -263,6 +277,7 @@ def record_payment(invoice_id):
             received_by=data.get("received_by"),
             bank_account_id=data.get("bank_account_id"),
             coa_code=data.get("coa_code"),
+            auto_allocate=data.get("auto_allocate", True),
         )
         if result.is_failure():
             return jsonify({"error": resolve_error(result.error)}), 400
@@ -286,6 +301,25 @@ def list_payments(invoice_id):
         session.close()
 
 
+@ar_bp.route("/payments", methods=["GET"])
+def list_all_payments():
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        code = request.args.get("customer_code")
+        date_from = request.args.get("date_from")
+        date_to = request.args.get("date_to")
+        limit = int(request.args.get("limit", 50))
+        offset = int(request.args.get("offset", 0))
+        from_arg = date.fromisoformat(date_from) if date_from else None
+        to_arg = date.fromisoformat(date_to) if date_to else None
+        payments = uc.list_payments(customer_code=code, date_from=from_arg,
+                                    date_to=to_arg, limit=limit, offset=offset)
+        return jsonify({"payments": [_json_payment(p) for p in payments], "total": len(payments)})
+    finally:
+        session.close()
+
+
 # ── Aging & Reports ───────────────────────────────────────────────
 
 @ar_bp.route("/aging-report", methods=["GET"])
@@ -295,6 +329,36 @@ def get_aging_report():
         uc = ARUseCases(session)
         report = uc.get_aging_report()
         return jsonify({"aging": report})
+    finally:
+        session.close()
+
+
+@ar_bp.route("/aging/snapshot", methods=["POST"])
+def create_aging_snapshot():
+    data = request.get_json() or {}
+    period = data.get("period", date.today().strftime("%Y-%m"))
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.create_aging_snapshot(period)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data()), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@ar_bp.route("/aging/snapshot/<period>", methods=["GET"])
+def get_aging_snapshot(period):
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        snapshots = uc.get_aging_snapshots(period)
+        return jsonify({"period": period, "snapshots": snapshots})
     finally:
         session.close()
 
@@ -310,3 +374,232 @@ def get_ar_balance():
     finally:
         session.close()
 
+
+@ar_bp.route("/reports/cei", methods=["GET"])
+def get_cei_report():
+    periods_raw = request.args.get("periods", "")
+    periods = [p.strip() for p in periods_raw.split(",") if p.strip()]
+    if not periods:
+        return jsonify({"error": "periods query param required (comma-separated)"}), 400
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        report = uc.get_cei_report(periods)
+        return jsonify({"reports": report})
+    finally:
+        session.close()
+
+
+# ── Dunning ───────────────────────────────────────────────────────
+
+@ar_bp.route("/dunning/advance-all", methods=["POST"])
+def advance_all_dunning():
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.advance_dunning()
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data())
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@ar_bp.route("/invoices/<int:invoice_id>/dunning", methods=["POST"])
+def advance_dunning(invoice_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.manual_dunning(
+            invoice_id=invoice_id,
+            dunning_method=data.get("method", "email"),
+            notes=data.get("notes"),
+            performed_by=data.get("performed_by"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data())
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@ar_bp.route("/invoices/<int:invoice_id>/dunning-logs", methods=["GET"])
+def get_dunning_logs(invoice_id):
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        logs = uc.get_dunning_logs(invoice_id)
+        return jsonify({"logs": logs})
+    finally:
+        session.close()
+
+
+# ── Bad Debt Provisions ───────────────────────────────────────────
+
+@ar_bp.route("/bad-debt/provisions", methods=["POST"])
+def create_provisions():
+    data = request.get_json() or {}
+    period = data.get("period", date.today().strftime("%Y-%m"))
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.create_bad_debt_provision(period)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data()), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@ar_bp.route("/bad-debt/provisions/<period>", methods=["GET"])
+def get_provisions(period):
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        provisions = uc.get_provisions(period)
+        return jsonify({"period": period, "provisions": provisions})
+    finally:
+        session.close()
+
+
+# ── Write-Off Workflow ────────────────────────────────────────────
+
+@ar_bp.route("/bad-debt/write-off-request", methods=["POST"])
+def create_write_off_request():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body required"}), 400
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.create_write_off_request(
+            invoice_id=data["invoice_id"],
+            reason=data["reason"],
+            created_by=data.get("created_by"),
+            supporting_docs=data.get("supporting_docs"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data()), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@ar_bp.route("/bad-debt/write-off-requests", methods=["GET"])
+def list_write_off_requests():
+    status = request.args.get("status")
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        reqs = uc.get_write_off_requests(status)
+        return jsonify({"requests": reqs})
+    finally:
+        session.close()
+
+
+@ar_bp.route("/bad-debt/write-off-request/<int:request_id>/approve", methods=["POST"])
+def approve_write_off(request_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.approve_write_off(
+            request_id=request_id,
+            approval_by=data.get("approval_by", "system"),
+            approval_notes=data.get("notes"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify({"message": "Write-off approved"})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@ar_bp.route("/bad-debt/write-off-request/<int:request_id>/reject", methods=["POST"])
+def reject_write_off(request_id):
+    data = request.get_json() or {}
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.reject_write_off(
+            request_id=request_id,
+            approval_by=data.get("approval_by", "system"),
+            reason=data.get("reason"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify({"message": "Write-off rejected"})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+# ── E-Invoice Submission ──────────────────────────────────────────
+
+@ar_bp.route("/invoices/<int:invoice_id}/e-invoice/submit", methods=["POST"])
+def submit_einvoice(invoice_id):
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.submit_einvoice(invoice_id)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data()), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+# ── Credit Limit Check ────────────────────────────────────────────
+
+@ar_bp.route("/customers/<int:customer_id>/credit-limit-check", methods=["POST"])
+def check_credit_limit(customer_id):
+    data = request.get_json() or {}
+    amount = Decimal(str(data.get("amount", "0")))
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.check_credit_limit(customer_id, amount)
+        return jsonify(result)
+    finally:
+        session.close()
+
+
+# ── ECL Calculation (IFRS 9) ──────────────────────────────────────
+
+@ar_bp.route("/customers/<int:customer_id>/ecl", methods=["GET"])
+def calculate_ecl(customer_id):
+    session = _get_session()
+    try:
+        uc = ARUseCases(session)
+        result = uc.calculate_ecl(customer_id)
+        return jsonify(result)
+    finally:
+        session.close()
