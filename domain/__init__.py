@@ -40,6 +40,14 @@ from domain.ar import (
     ARAgingSnapshot, ARDunningLog, BadDebtProvision, BadDebtWriteOffRequest,
     WriteOffRequestStatus, GLAllocation, CEIReport,
 )
+from domain.ap import (
+    VendorType, VendorGroup, VendorStatus,
+    APInvoiceType, APInvoiceStatus, APPaymentStatus, APPaymentMethod,
+    FCTMethod, FCTStatus, PrepaymentStatus, ProvisionStatus,
+    Vendor, APInvoice, APInvoiceLine, APPayment, APPaymentAllocation,
+    VendorPrepayment, APProvision, APAgingSnapshot,
+    FCTDeclaration, IntercompanyInvoice,
+)
 
 __all__ = [
     'VASValidationError', 'ValidationError', 'VASComplianceError', 'DoubleEntryError',

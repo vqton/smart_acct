@@ -12,7 +12,7 @@ from domain.common import (
 
 class JournalEntry(BaseModel):
     id: Optional[int] = Field(default=None)
-    journal_number: str = Field(..., min_length=1, max_length=50, pattern=r'^JV\d{6,8}$',
+    journal_number: str = Field(..., min_length=1, max_length=50, pattern=r'^JV\d{6,14}$',
                                 description="Journal entry number with JV prefix")
     transaction_date: date = Field(..., description="Transaction date")
     description: str = Field(..., min_length=1, max_length=500, description="Transaction description")

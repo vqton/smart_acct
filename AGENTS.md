@@ -359,14 +359,24 @@ When requirements are unclear, ask about:
 - Cash report HTML extracted to Jinja2 templates with `{% trans %}` blocks: `templates/cash_book_report.html`, `templates/cash_count_report.html`, `templates/reconciliation_report.html`
 - JWT locale claim verified with HS256 signature when `JWT_SECRET_KEY` configured
 
-### Test count: 379 passing (all tests)
+### AP Module — Completed (UC-AP-01 through UC-AP-15, 64 tests)
+- **BRD**: `docs/brd/ap.md` (1526 lines) — full spec: 15 use cases, GL posting matrix, regulatory framework (TT99/2025, TT200/2014, Circular 103/2014 FCT)
+- **Domain**: 10 entities (Vendor, APInvoice, APInvoiceLine, APPayment, APPaymentAllocation, VendorPrepayment, APProvision, APAgingSnapshot, FCTDeclaration, IntercompanyInvoice) + 15+ enums in `domain/ap.py` (333 lines)
+- **DB**: 12 SQLAlchemy tables in `infrastructure/models/ap_models.py` (410 lines)
+- **Repository**: `infrastructure/repositories/ap_repository.py` (890 lines) — 40+ CRUD + query methods
+- **Use cases**: `use_cases/ap/__init__.py` (1272 lines) — all 15 UC-AP methods: vendor lifecycle, invoice CRUD (3-way match), credit/debit notes, payment + allocation, prepayments, aging report + snapshots (TT48/2019), provisions, FCT (Circular 103/2014), GL auto-posting, FX revaluation, intercompany
+- **Routes**: `presentation/ap/__init__.py` (119 lines, blueprint + 7 JSON serializers) + `presentation/ap/routes.py` (733 lines, 35 endpoints)
+- **Tests**: 64 tests (26 domain + 38 integration) covering all 15 use cases; all passing
+
+### Test count: 464 passing (all tests)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
 - Cash: 111 (receipt 7, payment 7, bank account 5, bank reconciliation 7, petty cash 6, cash transfer 4, daily count 4, cheque 4, edge cases 6, balance 5, cash book report 3, cash count report 5, bank statements 8, cheque lifecycle 13, bank balance 4, bank book 4, reconciliation report 4, Flask routes 19)
+- AP: 64 (domain 26, integration 38)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c3d` (ap tables: ap_vendors, ap_invoices, ap_invoice_lines, ap_credit_notes, ap_debit_notes, ap_payments, ap_payment_allocations, ap_prepayments, ap_provisions, ap_aging_snapshots, ap_fct_declarations, ap_intercompany_invoices)
 
 ### Key files
 - `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements)
