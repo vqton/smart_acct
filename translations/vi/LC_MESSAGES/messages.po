@@ -771,3 +771,219 @@ msgstr "Định dạng mã số thuế không hợp lệ: %(tax_code)s"
 #: services/signing_service.py
 msgid "NO_PRIVATE_KEY"
 msgstr "Chưa cấu hình khóa bí mật để ký"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_CODE_EMPTY"
+msgstr "Mã nhóm hàng hóa không được để trống"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_NAME_EMPTY"
+msgstr "Tên nhóm hàng hóa không được để trống"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_NOT_FOUND"
+msgstr "Không tìm thấy nhóm hàng hóa %(category_id)s"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_CODE_DUPLICATE"
+msgstr "Mã nhóm hàng hóa %(code)s đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_HAS_ITEMS"
+msgstr "Nhóm hàng hóa %(category_id)s đã có hàng hóa, không thể xóa"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_CODE_EMPTY"
+msgstr "Mã kho không được để trống"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_NAME_EMPTY"
+msgstr "Tên kho không được để trống"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_NOT_FOUND"
+msgstr "Không tìm thấy kho %(warehouse_id)s"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_CODE_DUPLICATE"
+msgstr "Mã kho %(code)s đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_HAS_STOCK"
+msgstr "Kho %(warehouse_id)s đang có hàng tồn, không thể xóa"
+
+#: domain/inventory.py
+msgid "INV_ITEM_CODE_EMPTY"
+msgstr "Mã hàng hóa không được để trống"
+
+#: domain/inventory.py
+msgid "INV_ITEM_NAME_EMPTY"
+msgstr "Tên hàng hóa không được để trống"
+
+#: domain/inventory.py
+msgid "INV_ITEM_NOT_FOUND"
+msgstr "Không tìm thấy hàng hóa %(item_id)s"
+
+#: domain/inventory.py
+msgid "INV_ITEM_CODE_DUPLICATE"
+msgstr "Mã hàng hóa %(code)s đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_NEGATIVE_PRICE"
+msgstr "Giá không được âm"
+
+#: domain/inventory.py
+msgid "INV_BATCH_CODE_EMPTY"
+msgstr "Mã lô không được để trống"
+
+#: domain/inventory.py
+msgid "INV_BATCH_NOT_FOUND"
+msgstr "Không tìm thấy lô %(batch_id)s"
+
+#: domain/inventory.py
+msgid "INV_BATCH_CODE_DUPLICATE"
+msgstr "Mã lô %(code)s đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_BATCH_EXPIRED"
+msgstr "Lô %(batch_id)s đã hết hạn"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_CODE_EMPTY"
+msgstr "Số serial không được để trống"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_NOT_FOUND"
+msgstr "Không tìm thấy serial %(serial_id)s"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_CODE_DUPLICATE"
+msgstr "Số serial %(code)s đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_ALREADY_ISSUED"
+msgstr "Serial %(serial_id)s đã được xuất kho"
+
+#: domain/inventory.py
+msgid "INV_EXPIRY_BEFORE_MANUFACTURING"
+msgstr "Hạn sử dụng phải sau ngày sản xuất"
+
+#: domain/inventory.py
+msgid "INV_RECEIPT_CODE_EMPTY"
+msgstr "Mã phiếu nhập không được để trống"
+
+#: domain/inventory.py
+msgid "INV_RECEIPT_NOT_FOUND"
+msgstr "Không tìm thấy phiếu nhập %(receipt_id)s"
+
+#: domain/inventory.py
+msgid "INV_RECEIPT_ALREADY_POSTED"
+msgstr "Phiếu nhập %(receipt_id)s đã được hạch toán"
+
+#: domain/inventory.py
+msgid "INV_ISSUE_CODE_EMPTY"
+msgstr "Mã phiếu xuất không được để trống"
+
+#: domain/inventory.py
+msgid "INV_ISSUE_NOT_FOUND"
+msgstr "Không tìm thấy phiếu xuất %(issue_id)s"
+
+#: domain/inventory.py
+msgid "INV_ISSUE_ALREADY_POSTED"
+msgstr "Phiếu xuất %(issue_id)s đã được hạch toán"
+
+#: domain/inventory.py
+msgid "INV_INSUFFICIENT_STOCK"
+msgstr "Hàng hóa %(item_id)s không đủ tồn kho (có %(available)s, yêu cầu %(requested)s)"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_CODE_EMPTY"
+msgstr "Mã phiếu chuyển kho không được để trống"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_SAME_WAREHOUSE"
+msgstr "Kho xuất và kho nhập phải khác nhau"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_NOT_FOUND"
+msgstr "Không tìm thấy phiếu chuyển kho %(transfer_id)s"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_ALREADY_POSTED"
+msgstr "Phiếu chuyển kho %(transfer_id)s đã được hạch toán"
+
+#: domain/inventory.py
+msgid "INV_CHECK_CODE_EMPTY"
+msgstr "Mã phiếu kiểm kê không được để trống"
+
+#: domain/inventory.py
+msgid "INV_CHECK_NOT_FOUND"
+msgstr "Không tìm thấy phiếu kiểm kê %(check_id)s"
+
+#: domain/inventory.py
+msgid "INV_CHECK_ALREADY_APPROVED"
+msgstr "Phiếu kiểm kê %(check_id)s đã được duyệt"
+
+#: domain/inventory.py
+msgid "INV_ADJ_CODE_EMPTY"
+msgstr "Mã phiếu điều chỉnh không được để trống"
+
+#: domain/inventory.py
+msgid "INV_ADJ_REASON_EMPTY"
+msgstr "Lý do điều chỉnh không được để trống"
+
+#: domain/inventory.py
+msgid "INV_ADJ_NOT_FOUND"
+msgstr "Không tìm thấy phiếu điều chỉnh %(adjustment_id)s"
+
+#: domain/inventory.py
+msgid "INV_ADJ_ALREADY_POSTED"
+msgstr "Phiếu điều chỉnh %(adjustment_id)s đã được hạch toán"
+
+#: domain/inventory.py
+msgid "INV_STOCK_CARD_NOT_FOUND"
+msgstr "Không tìm thấy thẻ kho"
+
+#: domain/inventory.py
+msgid "INV_PERIOD_CLOSED"
+msgstr "Kỳ %(period)s đã khóa"
+
+#: domain/inventory.py
+msgid "INV_ZERO_QUANTITY"
+msgstr "Số lượng phải lớn hơn 0"
+
+#: domain/inventory.py
+msgid "INV_NEGATIVE_STOCK_NOT_ALLOWED"
+msgstr "Hàng hóa %(item_id)s không cho phép tồn kho âm"
+
+#: domain/inventory.py
+msgid "INV_GL_ACCOUNT_MISSING"
+msgstr "Thiếu tài khoản kế toán cho hàng hóa %(item_id)s"
+
+#: domain/inventory.py
+msgid "INV_REPORT_TYPE_NOT_FOUND"
+msgstr "Loại báo cáo không hợp lệ"
+
+#: domain/inventory.py
+msgid "INV_NO_DATA"
+msgstr "Không có dữ liệu"
+
+#: domain/inventory.py
+msgid "INV_DUPLICATE_BATCH"
+msgstr "Mã lô đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_DUPLICATE_SERIAL"
+msgstr "Số serial đã tồn tại"
+
+#: domain/inventory.py
+msgid "INV_FORMAT_NOT_SUPPORTED"
+msgstr "Định dạng không được hỗ trợ"
+
+#: domain/inventory.py
+msgid "INV_IMPORT_FAILED"
+msgstr "Nhập khẩu thất bại"
+
+#: domain/inventory.py
+msgid "INV_CANNOT_DELETE"
+msgstr "Không thể xóa dữ liệu này"

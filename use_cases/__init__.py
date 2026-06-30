@@ -12,6 +12,7 @@ from use_cases.cash import CashUseCases
 from use_cases.ap import APUseCases
 from use_cases.fa import FAUseCases
 from use_cases.cc import CCUseCases
+from use_cases.inventory import InventoryUseCases
 
 __all__ = [
     "COAUseCases", "COAValidateUseCase", "COAImportUseCase",
@@ -23,4 +24,5 @@ __all__ = [
     "APUseCases",
     "FAUseCases",
     "CCUseCases",
+    "InventoryUseCases",
 ]

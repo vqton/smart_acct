@@ -390,7 +390,16 @@ When requirements are unclear, ask about:
 - **Tests**: 69 tests (31 domain + 38 integration) covering all 12 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026). TK 242 for multi-period allocation, max 36 months per TT 80/2021.
 
-### Test count: 706 passing (all tests)
+### Inventory Module — Completed (UC-INV-01 through UC-INV-15, 139 tests)
+- **Domain**: 10 enums + 16 Pydantic entities in `domain/inventory.py` (~600 lines): InventoryCategory, Warehouse, InventoryItem, InventoryBatch, SerialNumber, InventoryReceipt, InventoryReceiptLine, InventoryIssue, InventoryIssueLine, InventoryTransfer, InventoryTransferLine, StockCard, InventoryCheck, InventoryCheckLine, InventoryAdjustment, InventoryAdjustmentLine, InventoryConfig, InventoryDashboard — all with validators, i18n error codes
+- **DB**: 14 SQLAlchemy tables in `infrastructure/models/inventory_models.py` (~360 lines) — migration `1fa2b3c4d5e6`
+- **Repository**: `infrastructure/repositories/inventory_repository.py` (~1220 lines) — full CRUD + stock adjustment, batch/serial tracking, stock card upsert, GL account resolution, dashboard metrics, 40+ methods
+- **Use cases**: `use_cases/inventory/__init__.py` (~600 lines) — all 15 UC-INV methods: categories, item master data, warehouse management, goods receipt (post + stock update), goods issue (post + stock deduction), transfers (multi-warehouse), batch/serial tracking, stock card/balance enquiry, physical stocktake, adjustments, valuation (moving average), GL auto-posting (receipt/issue entries), reports (inventory/low-stock/movements), import/export, dashboard/KPI
+- **Routes**: `presentation/inventory/__init__.py` (blueprint `/api/v1/inv` + 12 serializers) + `presentation/inventory/routes.py` (40+ endpoints)
+- **Tests**: 139 tests (49 domain + 90 integration) covering all 15 use cases + edge cases; all passing
+- **Status**: ✅ Production-ready per TT 133/2016 + TT 200/2014. TK 152/155/156/157 for inventory, TK 632 for COGS, TK 331/111/112 for payables.
+
+### Test count: 845 passing (all tests)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
 - GL: 47 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
@@ -398,9 +407,10 @@ When requirements are unclear, ask about:
 - AP: 64 (domain 26, integration 38)
 - FA: 173 (domain 122, integration 51)
 - CCDC: 69 (domain 31, integration 38)
+- Inventory: 139 (domain 49, integration 90)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c3d` (ap tables: ap_vendors, ap_invoices, ap_invoice_lines, ap_credit_notes, ap_debit_notes, ap_payments, ap_payment_allocations, ap_prepayments, ap_provisions, ap_aging_snapshots, ap_fct_declarations, ap_intercompany_invoices) → `9fa1b2c3d4e5` (fa tables: fa_categories, fa_assets, fa_depreciation_records, fa_adjustments, fa_disposals, fa_inventories, fa_inventory_lines, fa_transfers, fa_spare_parts, fa_components, fa_biological_assets, fa_biological_provisions) → `0fa1b2c3d4e6` (cc tables: cc_categories, cc_items, cc_allocations, cc_allocation_lines, cc_transactions, cc_transfers, cc_inventories, cc_inventory_lines, cc_write_offs, cc_spare_parts, cc_import_logs)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines)
 
 ### Key files
 - `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements)

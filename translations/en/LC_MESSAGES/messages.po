@@ -783,3 +783,219 @@ msgstr "Invalid tax code format: %(tax_code)s"
 #: services/signing_service.py
 msgid "NO_PRIVATE_KEY"
 msgstr "No private key configured for signing"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_CODE_EMPTY"
+msgstr "Inventory category code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_NAME_EMPTY"
+msgstr "Inventory category name cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_NOT_FOUND"
+msgstr "Inventory category %(category_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_CODE_DUPLICATE"
+msgstr "Inventory category code %(code)s already exists"
+
+#: domain/inventory.py
+msgid "INV_CATEGORY_HAS_ITEMS"
+msgstr "Category %(category_id)s has items, cannot delete"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_CODE_EMPTY"
+msgstr "Warehouse code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_NAME_EMPTY"
+msgstr "Warehouse name cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_NOT_FOUND"
+msgstr "Warehouse %(warehouse_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_CODE_DUPLICATE"
+msgstr "Warehouse code %(code)s already exists"
+
+#: domain/inventory.py
+msgid "INV_WAREHOUSE_HAS_STOCK"
+msgstr "Warehouse %(warehouse_id)s has stock, cannot delete"
+
+#: domain/inventory.py
+msgid "INV_ITEM_CODE_EMPTY"
+msgstr "Item code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_ITEM_NAME_EMPTY"
+msgstr "Item name cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_ITEM_NOT_FOUND"
+msgstr "Item %(item_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_ITEM_CODE_DUPLICATE"
+msgstr "Item code %(code)s already exists"
+
+#: domain/inventory.py
+msgid "INV_NEGATIVE_PRICE"
+msgstr "Price cannot be negative"
+
+#: domain/inventory.py
+msgid "INV_BATCH_CODE_EMPTY"
+msgstr "Batch code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_BATCH_NOT_FOUND"
+msgstr "Batch %(batch_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_BATCH_CODE_DUPLICATE"
+msgstr "Batch code %(code)s already exists"
+
+#: domain/inventory.py
+msgid "INV_BATCH_EXPIRED"
+msgstr "Batch %(batch_id)s has expired"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_CODE_EMPTY"
+msgstr "Serial number cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_NOT_FOUND"
+msgstr "Serial %(serial_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_CODE_DUPLICATE"
+msgstr "Serial number %(code)s already exists"
+
+#: domain/inventory.py
+msgid "INV_SERIAL_ALREADY_ISSUED"
+msgstr "Serial %(serial_id)s has already been issued"
+
+#: domain/inventory.py
+msgid "INV_EXPIRY_BEFORE_MANUFACTURING"
+msgstr "Expiry date must be after manufacturing date"
+
+#: domain/inventory.py
+msgid "INV_RECEIPT_CODE_EMPTY"
+msgstr "Receipt code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_RECEIPT_NOT_FOUND"
+msgstr "Receipt %(receipt_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_RECEIPT_ALREADY_POSTED"
+msgstr "Receipt %(receipt_id)s has already been posted"
+
+#: domain/inventory.py
+msgid "INV_ISSUE_CODE_EMPTY"
+msgstr "Issue code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_ISSUE_NOT_FOUND"
+msgstr "Issue %(issue_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_ISSUE_ALREADY_POSTED"
+msgstr "Issue %(issue_id)s has already been posted"
+
+#: domain/inventory.py
+msgid "INV_INSUFFICIENT_STOCK"
+msgstr "Item %(item_id)s insufficient stock (available: %(available)s, requested: %(requested)s)"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_CODE_EMPTY"
+msgstr "Transfer code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_SAME_WAREHOUSE"
+msgstr "Source and destination warehouses must differ"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_NOT_FOUND"
+msgstr "Transfer %(transfer_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_TRANSFER_ALREADY_POSTED"
+msgstr "Transfer %(transfer_id)s has already been posted"
+
+#: domain/inventory.py
+msgid "INV_CHECK_CODE_EMPTY"
+msgstr "Stocktake code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_CHECK_NOT_FOUND"
+msgstr "Stocktake %(check_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_CHECK_ALREADY_APPROVED"
+msgstr "Stocktake %(check_id)s has already been approved"
+
+#: domain/inventory.py
+msgid "INV_ADJ_CODE_EMPTY"
+msgstr "Adjustment code cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_ADJ_REASON_EMPTY"
+msgstr "Adjustment reason cannot be empty"
+
+#: domain/inventory.py
+msgid "INV_ADJ_NOT_FOUND"
+msgstr "Adjustment %(adjustment_id)s not found"
+
+#: domain/inventory.py
+msgid "INV_ADJ_ALREADY_POSTED"
+msgstr "Adjustment %(adjustment_id)s has already been posted"
+
+#: domain/inventory.py
+msgid "INV_STOCK_CARD_NOT_FOUND"
+msgstr "Stock card not found"
+
+#: domain/inventory.py
+msgid "INV_PERIOD_CLOSED"
+msgstr "Period %(period)s is closed"
+
+#: domain/inventory.py
+msgid "INV_ZERO_QUANTITY"
+msgstr "Quantity must be greater than zero"
+
+#: domain/inventory.py
+msgid "INV_NEGATIVE_STOCK_NOT_ALLOWED"
+msgstr "Item %(item_id)s does not allow negative stock"
+
+#: domain/inventory.py
+msgid "INV_GL_ACCOUNT_MISSING"
+msgstr "GL account missing for item %(item_id)s"
+
+#: domain/inventory.py
+msgid "INV_REPORT_TYPE_NOT_FOUND"
+msgstr "Invalid report type"
+
+#: domain/inventory.py
+msgid "INV_NO_DATA"
+msgstr "No data available"
+
+#: domain/inventory.py
+msgid "INV_DUPLICATE_BATCH"
+msgstr "Duplicate batch code"
+
+#: domain/inventory.py
+msgid "INV_DUPLICATE_SERIAL"
+msgstr "Duplicate serial number"
+
+#: domain/inventory.py
+msgid "INV_FORMAT_NOT_SUPPORTED"
+msgstr "Format not supported"
+
+#: domain/inventory.py
+msgid "INV_IMPORT_FAILED"
+msgstr "Import failed"
+
+#: domain/inventory.py
+msgid "INV_CANNOT_DELETE"
+msgstr "Cannot delete this data"

@@ -43,6 +43,19 @@ from infrastructure.models.cc_models import (
     CCDCTypeDB, AllocationMethodDB, CCDCStatusDB, AllocationStatusDB as CCAllocStatusDB,
     TransactionTypeDB, CCInventoryStatusDB, ResponsibilityTypeDB,
 )
+from infrastructure.models.inventory_models import (
+    InventoryCategoryModel, WarehouseModel, InventoryItemModel,
+    InventoryBatchModel, SerialNumberModel,
+    InventoryReceiptModel, InventoryReceiptLineModel,
+    InventoryIssueModel, InventoryIssueLineModel,
+    InventoryTransferModel, InventoryTransferLineModel,
+    StockCardModel,
+    InventoryCheckModel, InventoryCheckLineModel,
+    InventoryAdjustmentModel, InventoryAdjustmentLineModel,
+    InventoryTypeDB, InventoryStatusDB, MovementTypeDB, ValuationMethodDB,
+    CheckMethodDB, InventoryCheckStatusDB, BatchStatusDB, SerialStatusDB,
+    AdjustmentTypeDB, TransferStatusDB,
+)
 
 __all__ = [
     "Base", "COAModel", "AccountModel",
@@ -77,5 +90,16 @@ __all__ = [
     "CCDCInventoryLineModel", "CCDCWriteOffModel", "CCDCSparePartModel",
     "CCDCImportLogModel",
     "CCDCTypeDB", "AllocationMethodDB", "CCDCStatusDB", "CCAllocStatusDB",
-    "TransactionTypeDB", "CCInventoryStatusDB", "ResponsibilityTypeDB",
+    "TransactionTypeDB",     "CCInventoryStatusDB", "ResponsibilityTypeDB",
+    "InventoryCategoryModel", "WarehouseModel", "InventoryItemModel",
+    "InventoryBatchModel", "SerialNumberModel",
+    "InventoryReceiptModel", "InventoryReceiptLineModel",
+    "InventoryIssueModel", "InventoryIssueLineModel",
+    "InventoryTransferModel", "InventoryTransferLineModel",
+    "StockCardModel",
+    "InventoryCheckModel", "InventoryCheckLineModel",
+    "InventoryAdjustmentModel", "InventoryAdjustmentLineModel",
+    "InventoryTypeDB", "InventoryStatusDB", "MovementTypeDB", "ValuationMethodDB",
+    "CheckMethodDB", "InventoryCheckStatusDB", "BatchStatusDB", "SerialStatusDB",
+    "AdjustmentTypeDB", "TransferStatusDB",
 ]

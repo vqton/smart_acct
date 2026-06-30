@@ -64,6 +64,17 @@ from domain.cc import (
     CCDCTransaction, CCDCTransfer, CCDCInventory, CCDCInventoryLine,
     CCDCWriteOff, CCDCSparePart, CCDCImportLog,
 )
+from domain.inventory import (
+    InventoryType, MovementType, ValuationMethod,
+    CheckMethod, InventoryCheckStatus, BatchStatus, SerialStatus,
+    TransferStatus,
+    InventoryCategory, Warehouse, InventoryItem, InventoryBatch,
+    SerialNumber, InventoryReceipt, InventoryReceiptLine,
+    InventoryIssue, InventoryIssueLine, InventoryTransfer,
+    InventoryTransferLine, StockCard, InventoryCheck, InventoryCheckLine,
+    InventoryAdjustment, InventoryAdjustmentLine, InventoryConfig,
+    InventoryDashboard,
+)
 
 __all__ = [
     'VASValidationError', 'ValidationError', 'VASComplianceError', 'DoubleEntryError',
@@ -105,4 +116,13 @@ __all__ = [
     'CCategory', 'CCDCItem', 'CCDCAllocation', 'CCDCAllocationLine',
     'CCDCTransaction', 'CCDCTransfer', 'CCDCInventory', 'CCDCInventoryLine',
     'CCDCWriteOff', 'CCDCSparePart', 'CCDCImportLog',
+    'InventoryType', 'MovementType', 'ValuationMethod',
+    'CheckMethod', 'InventoryCheckStatus', 'BatchStatus', 'SerialStatus',
+    'TransferStatus',
+    'InventoryCategory', 'Warehouse', 'InventoryItem', 'InventoryBatch',
+    'SerialNumber', 'InventoryReceipt', 'InventoryReceiptLine',
+    'InventoryIssue', 'InventoryIssueLine', 'InventoryTransfer',
+    'InventoryTransferLine', 'StockCard', 'InventoryCheck', 'InventoryCheckLine',
+    'InventoryAdjustment', 'InventoryAdjustmentLine', 'InventoryConfig',
+    'InventoryDashboard',
 ]
