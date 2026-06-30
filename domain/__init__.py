@@ -10,7 +10,10 @@ from domain.coa import (
     ChartOfAccounts, Account, IFRSMapping,
 )
 from domain.gl import (
+    JournalType, CorrectionMethod, JournalTypeSequence,
     JournalEntry, JournalLine, FinancialStatement,
+    SubsidiaryType, SubsidiaryLedger,
+    JOURNAL_TYPE_PREFIX_MAP, JOURNAL_PREFIX_TYPE_MAP, VALID_JOURNAL_PREFIXES,
 )
 from domain.tax import (
     TaxType, VATCalculationMethod, PITRateType,
@@ -147,7 +150,10 @@ __all__ = [
     'FinancialReportError', 'VIETNAMESE_CURRENCY_SYMBOLS',
     'AccountType', 'DCRDirection', 'AccountingRegime', 'AccountStatus',
     'ChartOfAccounts', 'Account', 'IFRSMapping',
+    'JournalType', 'CorrectionMethod', 'JournalTypeSequence',
     'JournalEntry', 'JournalLine', 'FinancialStatement',
+    'SubsidiaryType', 'SubsidiaryLedger',
+    'JOURNAL_TYPE_PREFIX_MAP', 'JOURNAL_PREFIX_TYPE_MAP', 'VALID_JOURNAL_PREFIXES',
     'TaxType', 'VATCalculationMethod', 'PITRateType',
     'DeclarationType', 'DeclarationStatus', 'TaxPaymentStatus',
     'InvoiceStatus', 'TaxAdjustmentType', 'TaxIncentiveType',

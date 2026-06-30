@@ -21,13 +21,17 @@ def create_entry():
     try:
         uc = GLUseCases(session)
         result = uc.create_entry(
-            journal_number=data["journal_number"],
+            journal_number=data.get("journal_number", ""),
             transaction_date=date.fromisoformat(data["transaction_date"]),
             description=data["description"],
             lines=data["lines"],
             period=data.get("period"),
+            journal_type=data.get("journal_type"),
             source_module=data.get("source_module"),
             created_by=data.get("created_by"),
+            auto_number=data.get("auto_number", False),
+            approved_by=data.get("approved_by"),
+            ref_journal_number=data.get("ref_journal_number"),
         )
         if result.is_failure():
             return jsonify({"error": resolve_error(result.error)}), 400

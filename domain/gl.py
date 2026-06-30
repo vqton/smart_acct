@@ -3,6 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from datetime import datetime, date, timezone
 from decimal import Decimal
 import re
+import enum
 from domain.i18n import ErrorCodes
 from domain.common import (
     VASValidationError, ValidationError, DoubleEntryError, DateError,
@@ -10,10 +11,56 @@ from domain.common import (
 )
 
 
+class JournalType(str, enum.Enum):
+    GENERAL = "general"
+    SALES = "sales"
+    PURCHASE = "purchase"
+    CASH_RECEIPT = "cash_receipt"
+    CASH_PAYMENT = "cash_payment"
+    PAYROLL = "payroll"
+    INVENTORY = "inventory"
+    FIXED_ASSET = "fixed_asset"
+    ADJUSTMENT = "adjustment"
+    OPENING = "opening"
+    CLOSING = "closing"
+
+
+class CorrectionMethod(str, enum.Enum):
+    RED_STORNO = "red_storno"
+    ADDITIONAL = "additional"
+
+
+JOURNAL_TYPE_PREFIX_MAP = {
+    JournalType.GENERAL: "JV",
+    JournalType.SALES: "SJ",
+    JournalType.PURCHASE: "PJ",
+    JournalType.CASH_RECEIPT: "CR",
+    JournalType.CASH_PAYMENT: "CP",
+    JournalType.PAYROLL: "PR",
+    JournalType.INVENTORY: "IV",
+    JournalType.FIXED_ASSET: "FA",
+    JournalType.ADJUSTMENT: "AD",
+    JournalType.OPENING: "OP",
+    JournalType.CLOSING: "CL",
+}
+
+JOURNAL_PREFIX_TYPE_MAP = {v: k for k, v in JOURNAL_TYPE_PREFIX_MAP.items()}
+VALID_JOURNAL_PREFIXES = set(JOURNAL_PREFIX_TYPE_MAP.keys())
+
+
+class JournalTypeSequence(BaseModel):
+    id: Optional[int] = Field(default=None)
+    journal_type: JournalType = Field(...)
+    fiscal_year: int = Field(default=2026, ge=2000, le=2100)
+    last_sequence: int = Field(default=0, ge=0)
+    prefix: str = Field(default="JV", min_length=2, max_length=4)
+
+
 class JournalEntry(BaseModel):
     id: Optional[int] = Field(default=None)
-    journal_number: str = Field(..., min_length=1, max_length=50, pattern=r'^JV\d{6,14}$',
-                                description="Journal entry number with JV prefix")
+    journal_number: str = Field(..., min_length=1, max_length=50, pattern=r'^[A-Z]{2,4}\d{6,14}$',
+                                description="Journal entry number with type prefix")
+    journal_type: JournalType = Field(default=JournalType.GENERAL)
     transaction_date: date = Field(..., description="Transaction date")
     description: str = Field(..., min_length=1, max_length=500, description="Transaction description")
     lines: List[Any] = Field(default_factory=list, description="Journal entry lines")
@@ -25,6 +72,11 @@ class JournalEntry(BaseModel):
     period: str = Field(default_factory=lambda: date.today().strftime("%Y-%m"), description="Accounting period")
     source_module: Optional[str] = Field(default=None, description="Module that created this entry")
     created_by: Optional[str] = Field(default=None)
+    approved_by: Optional[str] = Field(default=None)
+    is_approved: bool = Field(default=False)
+    approval_date: Optional[date] = Field(default=None)
+    correction_method: Optional[CorrectionMethod] = Field(default=None)
+    ref_journal_number: Optional[str] = Field(default=None, max_length=50)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
@@ -37,12 +89,28 @@ class JournalEntry(BaseModel):
     @field_validator('journal_number')
     @classmethod
     def validate_journal_number(cls, v):
-        if not v.startswith('JV'):
+        if not v:
+            raise ValidationError(ErrorCodes.JOURNAL_NUMBER_EMPTY)
+        v_stripped = v.strip()
+        prefix_match = re.match(r'^([A-Z]{2,4})(\d+)$', v_stripped)
+        if not prefix_match:
+            raise ValidationError(ErrorCodes.JOURNAL_NUMBER_FORMAT)
+        prefix = prefix_match.group(1)
+        if prefix not in VALID_JOURNAL_PREFIXES:
             raise ValidationError(ErrorCodes.JOURNAL_NUMBER_PREFIX)
-        suffix = v[2:]
-        if not suffix.isdigit():
-            raise ValidationError(ErrorCodes.JOURNAL_NUMBER_SUFFIX)
-        return v
+        return v_stripped
+
+    @model_validator(mode='after')
+    def validate_journal_type_prefix(self):
+        expected_prefix = JOURNAL_TYPE_PREFIX_MAP.get(self.journal_type, "JV")
+        if not self.journal_number.startswith(expected_prefix):
+            raise ValidationError(
+                ErrorCodes.JOURNAL_TYPE_PREFIX_MISMATCH,
+                journal_type=self.journal_type.value,
+                expected_prefix=expected_prefix,
+                journal_number=self.journal_number,
+            )
+        return self
 
     @field_validator('transaction_date')
     @classmethod
@@ -182,6 +250,34 @@ class JournalEntry(BaseModel):
             ]
         }
     )
+
+
+class SubsidiaryType(str, enum.Enum):
+    AR = "ar"
+    AP = "ap"
+    INVENTORY = "inv"
+    FA = "fa"
+    COST = "cost"
+    PREPAID = "prepaid"
+    LOAN = "loan"
+
+
+class SubsidiaryLedger(BaseModel):
+    id: Optional[int] = Field(default=None)
+    subsidiary_type: SubsidiaryType = Field(...)
+    account_code: str = Field(..., min_length=1, max_length=20)
+    entity_id: int = Field(...)
+    entity_name: str = Field(..., min_length=1, max_length=200)
+    transaction_date: date = Field(...)
+    doc_ref: str = Field(..., min_length=1, max_length=50)
+    doc_type: str = Field(..., min_length=1, max_length=30)
+    description: str = Field(..., min_length=1, max_length=500)
+    debit: Decimal = Field(default=Decimal("0.00"), ge=0)
+    credit: Decimal = Field(default=Decimal("0.00"), ge=0)
+    balance: Decimal = Field(default=Decimal("0.00"))
+    period: str = Field(..., pattern=r'\d{4}-\d{2}')
+    journal_entry_id: Optional[int] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class JournalLine(BaseModel):

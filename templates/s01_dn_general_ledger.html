@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head><meta charset="utf-8">
+<title>{{ template_name }}</title>
+<style>
+    body { font-family: 'Times New Roman', serif; font-size: 11px; }
+    h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
+    h2 { text-align: center; font-size: 13px; margin-top: 2px; font-weight: normal; }
+    .header { text-align: center; margin-bottom: 15px; }
+    .company { font-weight: bold; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #000; padding: 2px 4px; vertical-align: top; }
+    th { text-align: center; font-weight: bold; background: #f0f0f0; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .total-row { font-weight: bold; background: #f9f9f9; }
+    .signature { float: left; width: 30%; text-align: center; margin-top: 50px; }
+    .signatures { overflow: hidden; }
+</style></head>
+<body>
+<div class="header">
+    <div class="company">{{ company_name }}</div>
+    <div>{{ address }}</div>
+    <hr>
+    <h1>{{ template_name }}</h1>
+    <h2>({{ template_name_en }})</h2>
+    <p><strong>{% trans %}Nam:{% endtrans %}</strong> {{ year }}</p>
+</div>
+<p><strong>{% trans %}Ten tai khoan:{% endtrans %}</strong> {{ account_name }}</p>
+<p><strong>{% trans %}So hieu:{% endtrans %}</strong> {{ account_code }}</p>
+<table>
+<thead><tr>
+    <th>{% trans %}NT ghi so{% endtrans %}</th>
+    <th>{% trans %}So hieu CT{% endtrans %}</th>
+    <th>{% trans %}Dien giai{% endtrans %}</th>
+    <th>{% trans %}TK doi ung{% endtrans %}</th>
+    <th>{% trans %}So tien{% endtrans %}</th>
+    <th>{% trans %}So du{% endtrans %}</th>
+</tr>
+<tr><th colspan="4"></th><th>{% trans %}No{% endtrans %}</th><th>{% trans %}Co{% endtrans %}</th></tr>
+</thead>
+<tbody>
+<tr class="total-row">
+    <td colspan="3">{% trans %}So du dau ky{% endtrans %}</td>
+    <td></td><td></td><td class="right">{{ opening_balance }}</td>
+</tr>
+{% for r in rows %}
+<tr>
+    <td class="center">{{ r.posting_date }}</td>
+    <td class="center">{{ r.journal_number }}</td>
+    <td>{{ r.description }}</td>
+    <td class="center">{{ r.opposite_account }}</td>
+    <td class="right">{{ r.debit }}</td>
+    <td class="right">{{ r.balance }}</td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="center">{% trans %}Khong co du lieu{% endtrans %}</td></tr>
+{% endfor %}
+<tr class="total-row">
+    <td colspan="3">{% trans %}Cong phat sinh{% endtrans %}</td>
+    <td></td>
+    <td class="right">{{ period_debit }}</td>
+    <td class="right">{{ period_credit }}</td>
+</tr>
+<tr class="total-row">
+    <td colspan="3">{% trans %}So du cuoi ky{% endtrans %}</td>
+    <td></td><td></td>
+    <td class="right">{{ closing_balance }}</td>
+</tr>
+</tbody>
+</table>
+<p><em>{% trans %}Ngay{% endtrans %} {{ generated_at }}</em></p>
+<div class="signatures">
+    <div class="signature">{% trans %}Nguoi lap{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Ke toan truong{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Giam doc{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+</div>
+</body>
+</html>

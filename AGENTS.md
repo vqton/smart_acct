@@ -459,7 +459,22 @@ When requirements are unclear, ask about:
 - **Tests**: 153 tests (68 domain + 85 integration) covering all 15 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026). Allocation engine supports direct/percentage/proportional methods. Cost center dimension on GL lines deferred to Phase 2 (UC-CC-09).
 
-### Test count: 1657 passing (all tests)
+### GL Journals & Subsidiary Ledger Module — Completed (Phase 1-3, 44 new tests)
+- **BRD**: `docs/brd/accounting_journals_and_ledgers.md` (1600 lines) — full spec: 10 modules, 7 use cases, 42 TT99 templates, GL posting matrix, data model, implementation roadmap
+- **JournalType enum** (11 types): GENERAL(JV), SALES(SJ), PURCHASE(PJ), CASH_RECEIPT(CR), CASH_PAYMENT(CP), PAYROLL(PR), INVENTORY(IV), FIXED_ASSET(FA), ADJUSTMENT(AD), OPENING(OP), CLOSING(CL) — `domain/gl.py`
+- **CorrectionMethod enum**: RED_STORNO, ADDITIONAL — for TT99 Art.18 correction entries
+- **JV prefix fix**: Relaxed from `^JV\d{6,14}$` to `^[A-Z]{2,4}\d{6,14}$` — accepts all journal type prefixes; backward-compatible with existing JV data
+- **JournalTypeSequence**: Auto-numbering per journal type per fiscal year — `get_next_journal_number()` generates `{PREFIX}{YEAR}{SEQ6}` format
+- **Journal entry fields added**: `journal_type`, `approved_by`, `is_approved`, `approval_date`, `correction_method`, `ref_journal_number` — domain + model + migration `f5a6b7c8d9e1`
+- **SubsidiaryLedger**: Unified sub-ledger with `SubsidiaryType` enum (AR/AP/INVENTORY/FA/COST/PREPAID/LOAN), running balance computation, per-entity summaries — `domain/gl.py`, `SubsidiaryLedgerModel` in `gl_models.py`, `subsidiary_ledger` table in migration
+- **GLRepository updates**: `_entry_to_domain`/`_entry_to_model` for all new fields, `get_or_create_sequence`, `get_next_journal_number`, `get_journal_sequence`, `list_journal_sequences`, `create_subsidiary_entry`, `post_to_subsidiary_ledger`, `get_subsidiary_ledger`, `get_subsidiary_summary` (raw SQL aggregation), `update_entry` allowed fields expanded
+- **Use cases**: `GLUseCases` — `create_entry` accepts `journal_type`/`auto_number`/`approved_by`/`ref_journal_number`, `get_next_journal_number`, `get_journal_sequence`, `list_journal_sequences`, `post_to_subsidiary`, `get_subsidiary_ledger`, `get_subsidiary_summary`
+- **Routes** (`presentation/gl/`): `entries.py` (updated for journal_type), `sequences.py` (list/get/next-number), `subsidiary.py` (list/post/summary), `reports.py` (journal/S01/subsidiary template generation with JSON+HTML output)
+- **TT99 templates**: `S03c-DN` / `S03a1-DN` / `S03a2-DN` / `S03b1-DN` / `S03b2-DN` journal formats, `S01-DN` General Ledger, `S05-DN` AP Subsidiary, `S06-DN` AR Subsidiary — Jinja2 templates in `templates/s03_dn_journal.html`, `templates/s01_dn_general_ledger.html`, `templates/s05_s06_dn_subsidiary.html` with `{% trans %}` i18n blocks
+- **Tests**: 44 new integration tests (91 total in `tests/test_gl_integration.py`) — journal type validation, prefix mismatch, auto-numbering, sequence CRUD, subsidiary CRUD, running balance, sub-ledger summary, template generation
+- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), TT 133/2016. GL posting matrix documented in BRD §13.
+
+### Test count: 1791 passing (all tests)
 
 
 - Treasury: 166 (domain 92 + integration 74)
@@ -475,7 +490,7 @@ When requirements are unclear, ask about:
 - Costing Center: 153 (domain 68, integration 85)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables) → `3fa4b5c6d7e8` (treasury tables)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables) → `3fa4b5c6d7e8` (treasury tables) → `f5a6b7c8d9e0` (FS tables) → `f5a6b7c8d9e1` (journal type, sequences, subsidiary ledger)
 
 ### Key files
 - `use_cases/ar/__init__.py` — ARUseCases (13 UC-AR: customer/invoice/payment CRUD, FIFO allocation, aging, dunning, provisions, write-off, CEI/DSO, ECL, credit limit, e-invoice)

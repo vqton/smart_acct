@@ -2,15 +2,18 @@ from typing import Optional, List, Dict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, desc
 
 from domain import (
-    JournalEntry, JournalLine, Result, ValidationError, DoubleEntryError,
-    AccountType, DCRDirection,
+    JournalEntry, JournalLine, JournalType, JournalTypeSequence,
+    SubsidiaryType, SubsidiaryLedger,
+    Result, ValidationError, DoubleEntryError,
+    AccountType, DCRDirection, JOURNAL_TYPE_PREFIX_MAP,
 )
 from infrastructure.models.gl_models import (
     JournalEntryModel, JournalLineModel, AccountingPeriodModel,
-    PeriodAuditLogModel, PeriodType,
+    PeriodAuditLogModel, PeriodType, JournalTypeSequenceModel,
+    SubsidiaryLedgerModel,
 )
 from infrastructure.models.coa_models import COAModel
 from infrastructure.models.tax_models import TaxDeclarationModel, DeclarationStatusDB
@@ -24,8 +27,16 @@ class GLRepository:
     # ── Domain mapping helpers ──────────────────────────────────────────
 
     def _entry_to_domain(self, model: JournalEntryModel) -> JournalEntry:
+        jt = JournalType.GENERAL
+        if model.journal_type:
+            try:
+                jt = JournalType(model.journal_type)
+            except ValueError:
+                jt = JournalType.GENERAL
+
         entry = JournalEntry(
             journal_number=model.journal_number,
+            journal_type=jt,
             transaction_date=model.transaction_date,
             description=model.description,
             is_posted=model.is_posted,
@@ -33,6 +44,11 @@ class GLRepository:
             period=model.period,
             source_module=model.source_module,
             created_by=model.created_by,
+            approved_by=model.approved_by,
+            is_approved=model.is_approved,
+            approval_date=model.approval_date.date() if model.approval_date else None,
+            correction_method=model.correction_method,
+            ref_journal_number=model.ref_journal_number,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
@@ -75,6 +91,7 @@ class GLRepository:
     def _entry_to_model(self, entry: JournalEntry) -> JournalEntryModel:
         return JournalEntryModel(
             journal_number=entry.journal_number,
+            journal_type=entry.journal_type.value if entry.journal_type else "general",
             transaction_date=entry.transaction_date,
             description=entry.description,
             period=entry.period,
@@ -82,6 +99,11 @@ class GLRepository:
             posted_date=entry.posted_date,
             source_module=entry.source_module,
             created_by=entry.created_by,
+            approved_by=entry.approved_by,
+            is_approved=entry.is_approved,
+            approval_date=entry.approval_date,
+            correction_method=entry.correction_method.value if entry.correction_method else None,
+            ref_journal_number=entry.ref_journal_number,
         )
 
     # ── JournalEntry CRUD ───────────────────────────────────────────────
@@ -156,7 +178,7 @@ class GLRepository:
         if self.is_period_closed(model.period):
             return Result.failure(ValidationError(ErrorCodes.PERIOD_CLOSED_OP, period=model.period, action="update journal entry"))
 
-        allowed = {"description", "period", "source_module"}
+        allowed = {"description", "period", "source_module", "approved_by", "is_approved", "correction_method", "ref_journal_number"}
         for key, value in kwargs.items():
             if key not in allowed:
                 return Result.failure(ValidationError(ErrorCodes.FIELD_CANNOT_BE_UPDATED, field=key))
@@ -178,6 +200,240 @@ class GLRepository:
         self.session.delete(model)
         self.session.flush()
         return Result.success(None)
+
+    # ── Journal Type Sequence ──────────────────────────────────────────
+
+    def get_or_create_sequence(self, journal_type: JournalType, fiscal_year: int) -> JournalTypeSequenceModel:
+        seq = self.session.execute(
+            select(JournalTypeSequenceModel).where(
+                JournalTypeSequenceModel.journal_type == journal_type.value,
+                JournalTypeSequenceModel.fiscal_year == fiscal_year,
+            )
+        ).scalar_one_or_none()
+
+        if not seq:
+            prefix = JOURNAL_TYPE_PREFIX_MAP.get(journal_type, "JV")
+            seq = JournalTypeSequenceModel(
+                journal_type=journal_type.value,
+                fiscal_year=fiscal_year,
+                last_sequence=0,
+                prefix=prefix,
+            )
+            self.session.add(seq)
+            self.session.flush()
+        return seq
+
+    def get_next_journal_number(self, journal_type: JournalType, period: str) -> str:
+        parts = period.split("-")
+        year = int(parts[0]) if parts[0].isdigit() else date.today().year
+        seq = self.get_or_create_sequence(journal_type, year)
+        seq.last_sequence += 1
+        self.session.flush()
+        prefix = JOURNAL_TYPE_PREFIX_MAP.get(journal_type, "JV")
+        return f"{prefix}{year}{str(seq.last_sequence).zfill(6)}"
+
+    def get_journal_sequence(self, journal_type: JournalType, fiscal_year: int) -> Optional[dict]:
+        seq = self.session.execute(
+            select(JournalTypeSequenceModel).where(
+                JournalTypeSequenceModel.journal_type == journal_type.value,
+                JournalTypeSequenceModel.fiscal_year == fiscal_year,
+            )
+        ).scalar_one_or_none()
+        if not seq:
+            return None
+        return {
+            "id": seq.id,
+            "journal_type": seq.journal_type,
+            "fiscal_year": seq.fiscal_year,
+            "last_sequence": seq.last_sequence,
+            "prefix": seq.prefix,
+        }
+
+    def list_journal_sequences(self, fiscal_year: Optional[int] = None) -> List[dict]:
+        stmt = select(JournalTypeSequenceModel)
+        if fiscal_year:
+            stmt = stmt.where(JournalTypeSequenceModel.fiscal_year == fiscal_year)
+        stmt = stmt.order_by(JournalTypeSequenceModel.journal_type)
+        models = self.session.execute(stmt).scalars().all()
+        return [
+            {
+                "id": s.id,
+                "journal_type": s.journal_type,
+                "fiscal_year": s.fiscal_year,
+                "last_sequence": s.last_sequence,
+                "prefix": s.prefix,
+            }
+            for s in models
+        ]
+
+    # ── Subsidiary Ledger ───────────────────────────────────────────
+
+    def _subsidiary_to_domain(self, model: SubsidiaryLedgerModel) -> SubsidiaryLedger:
+        st = SubsidiaryType.AR
+        try:
+            st = SubsidiaryType(model.subsidiary_type)
+        except ValueError:
+            pass
+        return SubsidiaryLedger(
+            id=model.id,
+            subsidiary_type=st,
+            account_code=model.account_code,
+            entity_id=model.entity_id,
+            entity_name=model.entity_name,
+            transaction_date=model.transaction_date,
+            doc_ref=model.doc_ref,
+            doc_type=model.doc_type,
+            description=model.description,
+            debit=model.debit,
+            credit=model.credit,
+            balance=model.balance,
+            period=model.period,
+            journal_entry_id=model.journal_entry_id,
+            created_at=model.created_at,
+        )
+
+    def create_subsidiary_entry(self, entry: SubsidiaryLedger) -> Result:
+        model = SubsidiaryLedgerModel(
+            subsidiary_type=entry.subsidiary_type.value if hasattr(entry.subsidiary_type, 'value') else str(entry.subsidiary_type),
+            account_code=entry.account_code,
+            entity_id=entry.entity_id,
+            entity_name=entry.entity_name,
+            transaction_date=entry.transaction_date,
+            doc_ref=entry.doc_ref,
+            doc_type=entry.doc_type,
+            description=entry.description,
+            debit=entry.debit,
+            credit=entry.credit,
+            balance=entry.balance,
+            period=entry.period,
+            journal_entry_id=entry.journal_entry_id,
+        )
+        self.session.add(model)
+        self.session.flush()
+        return Result.success(self._subsidiary_to_domain(model))
+
+    def post_to_subsidiary_ledger(
+        self, journal_entry_id: int, lines: List[JournalLineModel],
+        subsidiary_type: str, entity_id: int, entity_name: str,
+        doc_ref: str, doc_type: str, period: str, transaction_date: date,
+    ) -> Result:
+        """Post journal lines to subsidiary ledger, computing running balance."""
+        try:
+            st = SubsidiaryType(subsidiary_type)
+        except ValueError:
+            return Result.failure(ValidationError(ErrorCodes.SUBSIDIARY_TYPE_INVALID, subsidiary_type=subsidiary_type))
+
+        for line in lines:
+            last_balance = Decimal("0")
+            last_entry = self.session.execute(
+                select(SubsidiaryLedgerModel)
+                .where(
+                    SubsidiaryLedgerModel.subsidiary_type == st.value,
+                    SubsidiaryLedgerModel.entity_id == entity_id,
+                    SubsidiaryLedgerModel.account_code == line.account_id,
+                )
+                .order_by(desc(SubsidiaryLedgerModel.id))
+                .limit(1)
+            ).scalar_one_or_none()
+            if last_entry:
+                last_balance = last_entry.balance
+
+            new_balance = last_balance + line.debit - line.credit
+            sl = SubsidiaryLedger(
+                subsidiary_type=st,
+                account_code=line.account_id,
+                entity_id=entity_id,
+                entity_name=entity_name,
+                transaction_date=transaction_date,
+                doc_ref=doc_ref,
+                doc_type=doc_type,
+                description=line.description or f"Auto-post from JE #{journal_entry_id}",
+                debit=line.debit,
+                credit=line.credit,
+                balance=new_balance,
+                period=period,
+                journal_entry_id=journal_entry_id,
+            )
+            sl = self.create_subsidiary_entry(sl)
+            if sl.is_failure():
+                return sl
+
+        return Result.success(None)
+
+    def get_subsidiary_ledger(
+        self, subsidiary_type: str, entity_id: Optional[int] = None,
+        period: Optional[str] = None, account_code: Optional[str] = None,
+        limit: int = 100, offset: int = 0,
+    ) -> List[SubsidiaryLedger]:
+        stmt = select(SubsidiaryLedgerModel).where(
+            SubsidiaryLedgerModel.subsidiary_type == subsidiary_type,
+        )
+        if entity_id is not None:
+            stmt = stmt.where(SubsidiaryLedgerModel.entity_id == entity_id)
+        if period:
+            stmt = stmt.where(SubsidiaryLedgerModel.period == period)
+        if account_code:
+            stmt = stmt.where(SubsidiaryLedgerModel.account_code == account_code)
+        stmt = stmt.order_by(SubsidiaryLedgerModel.transaction_date.asc(), SubsidiaryLedgerModel.id.asc())
+        stmt = stmt.limit(limit).offset(offset)
+        models = self.session.execute(stmt).scalars().all()
+        return [self._subsidiary_to_domain(m) for m in models]
+
+    def get_subsidiary_summary(
+        self, subsidiary_type: str, period: str,
+    ) -> List[dict]:
+        """Get opening/closing balance per entity for a subsidiary type."""
+        from sqlalchemy import text
+        sql = text("""
+            SELECT
+                entity_id,
+                entity_name,
+                account_code,
+                MIN(s.transaction_date) AS first_date,
+                MAX(s.transaction_date) AS last_date,
+                SUM(s.debit) AS total_debit,
+                SUM(s.credit) AS total_credit,
+                (
+                    SELECT COALESCE(balance, 0)
+                    FROM subsidiary_ledger b
+                    WHERE b.subsidiary_type = s.subsidiary_type
+                      AND b.entity_id = s.entity_id
+                      AND b.account_code = s.account_code
+                      AND b.id = (
+                          SELECT MAX(b2.id)
+                          FROM subsidiary_ledger b2
+                          WHERE b2.subsidiary_type = s.subsidiary_type
+                            AND b2.entity_id = s.entity_id
+                            AND b2.account_code = s.account_code
+                            AND b2.period = s.period
+                      )
+                ) AS closing_balance
+            FROM subsidiary_ledger s
+            WHERE s.subsidiary_type = :stype AND s.period = :period
+            GROUP BY s.entity_id, s.entity_name, s.account_code, s.subsidiary_type
+            ORDER BY s.entity_name
+        """)
+        rows = self.session.execute(sql, {"stype": subsidiary_type, "period": period}).fetchall()
+        def _fmt_date(d):
+            if d is None:
+                return None
+            if hasattr(d, 'isoformat'):
+                return d.isoformat()
+            return str(d)
+
+        return [
+            {
+                "entity_id": r.entity_id,
+                "entity_name": r.entity_name,
+                "account_code": r.account_code,
+                "first_date": _fmt_date(r.first_date),
+                "last_date": _fmt_date(r.last_date),
+                "total_debit": str(r.total_debit),
+                "total_credit": str(r.total_credit),
+                "closing_balance": str(r.closing_balance),
+            }
+            for r in rows
+        ]
 
     # ── Posting ─────────────────────────────────────────────────────────
 

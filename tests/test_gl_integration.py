@@ -4,10 +4,19 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from domain import JournalEntry, JournalLine, Result, ValidationError, DoubleEntryError
+from domain import (
+    JournalEntry, JournalLine, JournalType, JournalTypeSequence,
+    SubsidiaryType, SubsidiaryLedger,
+    Result, ValidationError, DoubleEntryError,
+    JOURNAL_TYPE_PREFIX_MAP, JOURNAL_PREFIX_TYPE_MAP,
+)
+from use_cases.gl.templates import (
+    generate_journal_template, generate_s01_ledger, generate_subsidiary_template,
+    JOURNAL_TYPE_TEMPLATE_MAP, TEMPLATE_NAMES, TEMPLATE_NAMES_EN,
+)
 from domain.i18n import ErrorCodes
 from infrastructure.models.coa_models import Base, COAModel, AccountingRegime, AccountStatus
-from infrastructure.models.gl_models import JournalEntryModel, JournalLineModel, AccountingPeriodModel
+from infrastructure.models.gl_models import JournalEntryModel, JournalLineModel, AccountingPeriodModel, JournalTypeSequenceModel
 from infrastructure.repositories.gl_repository import GLRepository
 from use_cases.gl_use_cases import GLUseCases
 
@@ -848,3 +857,583 @@ class TestFinancialStatements:
         closing_entries = [e for e in entries if e.journal_number == "JV20249999"]
         assert len(closing_entries) == 1
         assert closing_entries[0].is_posted is True
+
+
+class TestJournalType:
+    def test_default_journal_type(self):
+        entry = JournalEntry(
+            journal_number="JV000200", transaction_date=date(2024, 1, 1),
+            description="Default type", period="2024-01",
+            lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                   JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+        )
+        assert entry.journal_type == JournalType.GENERAL
+
+    def test_explicit_journal_type(self):
+        entry = JournalEntry(
+            journal_number="SJ202400001", journal_type=JournalType.SALES,
+            transaction_date=date(2024, 1, 1), description="Sales journal", period="2024-01",
+            lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                   JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+        )
+        assert entry.journal_type == JournalType.SALES
+        assert entry.journal_number.startswith("SJ")
+
+    def test_prefix_mismatch_raises_error(self):
+        with pytest.raises(ValidationError):
+            JournalEntry(
+                journal_number="SJ202400001", journal_type=JournalType.GENERAL,
+                transaction_date=date(2024, 1, 1), description="Mismatch", period="2024-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+            )
+
+    def test_invalid_prefix_raises_error(self):
+        with pytest.raises(ValidationError):
+            JournalEntry(
+                journal_number="XX202400001",
+                transaction_date=date(2024, 1, 1), description="Invalid prefix", period="2024-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+            )
+
+    def test_empty_journal_number_raises_error(self):
+        with pytest.raises(Exception):
+            JournalEntry(
+                journal_number="",
+                transaction_date=date(2024, 1, 1), description="Empty", period="2024-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+            )
+
+    def test_all_journal_type_prefixes(self):
+        for jt in JournalType:
+            prefix = JOURNAL_TYPE_PREFIX_MAP[jt]
+            number = f"{prefix}2026000001"
+            entry = JournalEntry(
+                journal_number=number, journal_type=jt,
+                transaction_date=date(2024, 1, 1), description=f"Test {jt.value}", period="2024-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+            )
+            assert entry.journal_number == number
+            assert entry.journal_type == jt
+
+    def test_enum_values(self):
+        assert JournalType.GENERAL.value == "general"
+        assert JournalType.SALES.value == "sales"
+        assert JournalType.PURCHASE.value == "purchase"
+        assert JournalType.CASH_RECEIPT.value == "cash_receipt"
+        assert JournalType.CASH_PAYMENT.value == "cash_payment"
+        assert JournalType.CLOSING.value == "closing"
+
+    def test_prefix_map_consistency(self):
+        assert JOURNAL_TYPE_PREFIX_MAP[JournalType.GENERAL] == "JV"
+        assert JOURNAL_TYPE_PREFIX_MAP[JournalType.SALES] == "SJ"
+        assert JOURNAL_PREFIX_TYPE_MAP["JV"] == JournalType.GENERAL
+        assert JOURNAL_PREFIX_TYPE_MAP["SJ"] == JournalType.SALES
+        assert JOURNAL_PREFIX_TYPE_MAP["FA"] == JournalType.FIXED_ASSET
+
+    def test_create_entry_with_journal_type(self, session):
+        repo = GLRepository(session)
+        entry = JournalEntry(
+            journal_number="SJ202400001", journal_type=JournalType.SALES,
+            transaction_date=date(2024, 1, 1), description="Sales entry", period="2024-01",
+            lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=500, credit=0, period="2024-01"),
+                   JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=500, period="2024-01")],
+        )
+        result = repo.create_entry(entry)
+        assert result.is_success()
+        created = result.get_data()
+        assert created.journal_type == JournalType.SALES
+        assert created.journal_number == "SJ202400001"
+
+    def test_create_entry_with_purchase_type(self, session):
+        repo = GLRepository(session)
+        entry = JournalEntry(
+            journal_number="PJ202400001", journal_type=JournalType.PURCHASE,
+            transaction_date=date(2024, 2, 1), description="Purchase entry", period="2024-02",
+            lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=300, credit=0, period="2024-02"),
+                   JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=300, period="2024-02")],
+        )
+        result = repo.create_entry(entry)
+        assert result.is_success()
+        created = result.get_data()
+        assert created.journal_type == JournalType.PURCHASE
+        assert created.journal_number.startswith("PJ")
+
+
+class TestJournalTypeSequence:
+    def test_get_or_create_sequence(self, session):
+        repo = GLRepository(session)
+        seq = repo.get_or_create_sequence(JournalType.SALES, 2026)
+        assert seq.id is not None
+        assert seq.journal_type == "sales"
+        assert seq.fiscal_year == 2026
+        assert seq.last_sequence == 0
+        assert seq.prefix == "SJ"
+
+    def test_get_or_create_sequence_reuses_existing(self, session):
+        repo = GLRepository(session)
+        seq1 = repo.get_or_create_sequence(JournalType.GENERAL, 2026)
+        seq1.last_sequence = 5
+        session.flush()
+        seq2 = repo.get_or_create_sequence(JournalType.GENERAL, 2026)
+        assert seq2.id == seq1.id
+        assert seq2.last_sequence == 5
+
+    def test_get_next_journal_number(self, session):
+        repo = GLRepository(session)
+        number = repo.get_next_journal_number(JournalType.SALES, "2026-01")
+        assert number == "SJ2026000001"
+        number2 = repo.get_next_journal_number(JournalType.SALES, "2026-01")
+        assert number2 == "SJ2026000002"
+
+    def test_get_next_journal_number_separate_types(self, session):
+        repo = GLRepository(session)
+        sales_num = repo.get_next_journal_number(JournalType.SALES, "2026-01")
+        assert sales_num == "SJ2026000001"
+        purchase_num = repo.get_next_journal_number(JournalType.PURCHASE, "2026-01")
+        assert purchase_num == "PJ2026000001"
+        assert sales_num != purchase_num
+
+    def test_get_next_journal_number_separate_years(self, session):
+        repo = GLRepository(session)
+        n1 = repo.get_next_journal_number(JournalType.GENERAL, "2026-01")
+        assert n1 == "JV2026000001"
+        n2 = repo.get_next_journal_number(JournalType.GENERAL, "2027-01")
+        assert n2 == "JV2027000001"
+
+    def test_sequence_resets_per_year(self, session):
+        repo = GLRepository(session)
+        repo.get_next_journal_number(JournalType.GENERAL, "2026-12")
+        repo.get_next_journal_number(JournalType.GENERAL, "2026-12")
+        n3 = repo.get_next_journal_number(JournalType.GENERAL, "2027-01")
+        assert n3 == "JV2027000001"
+
+    def test_get_journal_sequence(self, session):
+        repo = GLRepository(session)
+        repo.get_next_journal_number(JournalType.PURCHASE, "2026-01")
+        seq = repo.get_journal_sequence(JournalType.PURCHASE, 2026)
+        assert seq is not None
+        assert seq["journal_type"] == "purchase"
+        assert seq["last_sequence"] >= 1
+
+    def test_get_journal_sequence_not_found(self, session):
+        repo = GLRepository(session)
+        seq = repo.get_journal_sequence(JournalType.CLOSING, 2099)
+        assert seq is None
+
+    def test_list_journal_sequences(self, session):
+        repo = GLRepository(session)
+        repo.get_next_journal_number(JournalType.GENERAL, "2026-01")
+        repo.get_next_journal_number(JournalType.SALES, "2026-01")
+        seqs = repo.list_journal_sequences(2026)
+        assert len(seqs) >= 2
+
+    def test_list_journal_sequences_filtered(self, session):
+        repo = GLRepository(session)
+        repo.get_next_journal_number(JournalType.GENERAL, "2026-01")
+        repo.get_next_journal_number(JournalType.SALES, "2027-01")
+        seqs_2026 = repo.list_journal_sequences(2026)
+        seqs_2027 = repo.list_journal_sequences(2027)
+        all_seqs = repo.list_journal_sequences()
+        assert len(seqs_2026) >= 1
+        assert len(seqs_2027) >= 1
+        assert len(all_seqs) >= len(seqs_2026) + len(seqs_2027)
+
+
+class TestJournalTypeUseCase:
+    def test_create_entry_with_journal_type(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="SJ202400002",
+            transaction_date=date(2024, 6, 1),
+            description="Sales via use case",
+            journal_type="sales",
+            lines=[{"account_id": "1111", "debit": "2000.00", "credit": "0.00"},
+                   {"account_id": "5111", "debit": "0.00", "credit": "2000.00"}],
+            period="2024-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+        assert entry.journal_type == JournalType.SALES
+
+    def test_create_entry_auto_number(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="",
+            transaction_date=date(2026, 3, 15),
+            description="Auto-numbered",
+            journal_type="sales",
+            lines=[{"account_id": "1111", "debit": "1000.00", "credit": "0.00"},
+                   {"account_id": "5111", "debit": "0.00", "credit": "1000.00"}],
+            period="2026-03",
+            auto_number=True,
+        )
+        assert result.is_success()
+        entry = result.get_data()
+        assert entry.journal_number.startswith("SJ2026")
+
+    def test_get_next_journal_number_use_case(self, session):
+        uc = GLUseCases(session)
+        result = uc.get_next_journal_number("purchase", "2026-04")
+        assert result.is_success()
+        data = result.get_data()
+        assert "journal_number" in data
+        assert data["journal_number"].startswith("PJ2026")
+
+    def test_get_journal_sequence_use_case(self, session):
+        uc = GLUseCases(session)
+        uc.get_next_journal_number("sales", "2026-05")
+        result = uc.get_journal_sequence("sales", 2026)
+        assert result.is_success()
+        seq = result.get_data()
+        assert seq["journal_type"] == "sales"
+
+    def test_invalid_journal_type_use_case(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="XX000001",
+            transaction_date=date(2024, 1, 1),
+            description="Invalid type",
+            journal_type="invalid_type",
+            lines=[{"account_id": "1111", "debit": "100.00", "credit": "0.00"},
+                   {"account_id": "5111", "debit": "0.00", "credit": "100.00"}],
+        )
+        assert result.is_failure()
+
+    def test_approved_by_field(self, session):
+        repo = GLRepository(session)
+        entry = JournalEntry(
+            journal_number="JV000300", journal_type=JournalType.GENERAL,
+            transaction_date=date(2024, 1, 1), description="Approved entry", period="2024-01",
+            approved_by="chief_accountant", is_approved=True,
+            lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=100, credit=0, period="2024-01"),
+                   JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=100, period="2024-01")],
+        )
+        result = repo.create_entry(entry)
+        assert result.is_success()
+        created = result.get_data()
+        assert created.approved_by == "chief_accountant"
+        assert created.is_approved is True
+
+
+class TestSubsidiaryLedger:
+    def test_subsidiary_type_enum(self):
+        assert SubsidiaryType.AR.value == "ar"
+        assert SubsidiaryType.AP.value == "ap"
+        assert SubsidiaryType.INVENTORY.value == "inv"
+
+    def test_create_subsidiary_entry(self, session):
+        repo = GLRepository(session)
+        sl = SubsidiaryLedger(
+            subsidiary_type=SubsidiaryType.AR,
+            account_code="1111",
+            entity_id=1,
+            entity_name="Customer A",
+            transaction_date=date(2024, 1, 15),
+            doc_ref="INV-001",
+            doc_type="invoice",
+            description="Test AR entry",
+            debit=Decimal("1000.00"),
+            credit=Decimal("0.00"),
+            balance=Decimal("1000.00"),
+            period="2024-01",
+        )
+        result = repo.create_subsidiary_entry(sl)
+        assert result.is_success()
+        created = result.get_data()
+        assert created.id is not None
+        assert created.subsidiary_type == SubsidiaryType.AR
+        assert created.entity_name == "Customer A"
+        assert created.balance == Decimal("1000.00")
+
+    def test_get_subsidiary_ledger(self, session):
+        repo = GLRepository(session)
+        sl = SubsidiaryLedger(
+            subsidiary_type=SubsidiaryType.AP,
+            account_code="1111",
+            entity_id=2,
+            entity_name="Vendor X",
+            transaction_date=date(2024, 2, 1),
+            doc_ref="PO-001", doc_type="purchase",
+            description="Test AP entry",
+            debit=Decimal("0.00"), credit=Decimal("500.00"),
+            balance=Decimal("500.00"), period="2024-02",
+        )
+        repo.create_subsidiary_entry(sl)
+        entries = repo.get_subsidiary_ledger("ap")
+        assert len(entries) == 1
+        assert entries[0].entity_name == "Vendor X"
+
+    def test_get_subsidiary_ledger_filtered(self, session):
+        repo = GLRepository(session)
+        for i in range(3):
+            sl = SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AR,
+                account_code="1111",
+                entity_id=i + 1,
+                entity_name=f"Customer {i + 1}",
+                transaction_date=date(2024, 1, 1),
+                doc_ref=f"INV-00{i + 1}", doc_type="invoice",
+                description=f"Entry {i}",
+                debit=Decimal("100"), credit=Decimal("0"),
+                balance=Decimal("100"), period="2024-01",
+            )
+            repo.create_subsidiary_entry(sl)
+        entries = repo.get_subsidiary_ledger("ar", entity_id=2)
+        assert len(entries) == 1
+        assert entries[0].entity_name == "Customer 2"
+
+    def test_get_subsidiary_ledger_by_period(self, session):
+        repo = GLRepository(session)
+        for p in ["2024-01", "2024-02"]:
+            sl = SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AR,
+                account_code="1111", entity_id=1,
+                entity_name="Customer A",
+                transaction_date=date(2024, int(p.split("-")[1]), 1),
+                doc_ref=f"INV-{p}", doc_type="invoice",
+                description=f"Entry {p}",
+                debit=Decimal("100"), credit=Decimal("0"),
+                balance=Decimal("100"), period=p,
+            )
+            repo.create_subsidiary_entry(sl)
+        entries = repo.get_subsidiary_ledger("ar", period="2024-02")
+        assert len(entries) == 1
+
+    def test_post_to_subsidiary_ledger(self, session):
+        repo = GLRepository(session)
+        entry = JournalEntry(
+            journal_number="JV000400",
+            transaction_date=date(2024, 3, 1),
+            description="Subsidiary test",
+            period="2024-03",
+            lines=[
+                JournalLine(journal_entry_id=0, account_id="1111",
+                            debit=Decimal("1000"), credit=Decimal("0"), period="2024-03"),
+                JournalLine(journal_entry_id=0, account_id="5111",
+                            debit=Decimal("0"), credit=Decimal("1000"), period="2024-03"),
+            ],
+        )
+        result = repo.create_entry(entry)
+        created = result.get_data()
+        repo.post_entry(created.id)
+
+        sl_result = repo.post_to_subsidiary_ledger(
+            journal_entry_id=created.id,
+            lines=[
+                JournalLine(journal_entry_id=0, account_id="1111",
+                            debit=Decimal("1000"), credit=Decimal("0"), period="2024-03"),
+            ],
+            subsidiary_type="ar",
+            entity_id=100,
+            entity_name="AR Customer",
+            doc_ref="SJ202400001",
+            doc_type="sales_invoice",
+            period="2024-03",
+            transaction_date=date(2024, 3, 1),
+        )
+        assert sl_result.is_success()
+        entries = repo.get_subsidiary_ledger("ar", entity_id=100)
+        assert len(entries) == 1
+        assert entries[0].balance == Decimal("1000")
+    def test_subsidiary_running_balance(self, session):
+        repo = GLRepository(session)
+        for i, (dr, cr, exp_bal) in enumerate([(500, 0, 500), (0, 200, 300), (300, 0, 600)]):
+            sl = SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AR,
+                account_code="1111", entity_id=1,
+                entity_name="Customer A",
+                transaction_date=date(2024, 1, i + 1),
+                doc_ref=f"TXN-00{i + 1}", doc_type="transaction",
+                description=f"Entry {i + 1}",
+                debit=Decimal(dr), credit=Decimal(cr),
+                balance=Decimal(exp_bal),
+                period="2024-01",
+            )
+            repo.create_subsidiary_entry(sl)
+
+        entries_before = repo.get_subsidiary_ledger("ar", entity_id=1)
+        assert entries_before[-1].balance == Decimal("600")
+
+        entry = JournalEntry(
+            journal_number="JV000401",
+            transaction_date=date(2024, 1, 4),
+            description="Subsidiary balance test",
+            period="2024-01",
+            lines=[
+                JournalLine(journal_entry_id=0, account_id="1111",
+                            debit=Decimal("100"), credit=Decimal("0"), period="2024-01"),
+            ],
+        )
+        result = repo.create_entry(entry)
+        created = result.get_data()
+        repo.post_entry(created.id)
+        sl_result = repo.post_to_subsidiary_ledger(
+            journal_entry_id=created.id,
+            lines=[JournalLine(journal_entry_id=0, account_id="1111",
+                              debit=Decimal("100"), credit=Decimal("0"), period="2024-01")],
+            subsidiary_type="ar",
+            entity_id=1,
+            entity_name="Customer A",
+            doc_ref="INV-004",
+            doc_type="invoice",
+            period="2024-01",
+            transaction_date=date(2024, 1, 4),
+        )
+        assert sl_result.is_success()
+        entries = repo.get_subsidiary_ledger("ar", entity_id=1)
+        last_entry = entries[-1]
+        assert last_entry.balance == Decimal("700")
+
+    def test_subsidiary_summary(self, session):
+        repo = GLRepository(session)
+        for i in range(2):
+            sl = SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AP,
+                account_code="1111", entity_id=5,
+                entity_name="Vendor Y",
+                transaction_date=date(2024, 4, i + 1),
+                doc_ref=f"PO-00{i + 1}", doc_type="purchase",
+                description=f"Purchase {i + 1}",
+                debit=Decimal("0"), credit=Decimal("100"),
+                balance=Decimal("100"), period="2024-04",
+            )
+            repo.create_subsidiary_entry(sl)
+        summary = repo.get_subsidiary_summary("ap", "2024-04")
+        assert len(summary) >= 1
+        row = [r for r in summary if r["entity_id"] == 5][0]
+        assert Decimal(row["total_credit"]) == Decimal("200")
+
+    def test_subsidiary_use_case_lifecycle(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV000500",
+            transaction_date=date(2024, 5, 1),
+            description="Subsidiary use case",
+            lines=[{"account_id": "1111", "debit": "2000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "2000"}],
+            period="2024-05",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        sl_result = uc.post_to_subsidiary(
+            journal_entry_id=entry.id,
+            subsidiary_type="ar",
+            entity_id=10,
+            entity_name="UseCase Customer",
+            doc_ref="UC-INV-001",
+            doc_type="invoice",
+        )
+        assert sl_result.is_success()
+        entries = uc.get_subsidiary_ledger("ar", entity_id=10)
+        assert len(entries) == 2
+
+    def test_invalid_subsidiary_type(self, session):
+        uc = GLUseCases(session)
+        with pytest.raises(ValidationError):
+            uc.get_subsidiary_ledger("invalid_type")
+
+
+class TestJournalTemplates:
+    def test_generate_journal_template(self):
+        entries = [
+            JournalEntry(
+                journal_number="JV2026000001", journal_type=JournalType.GENERAL,
+                transaction_date=date(2026, 1, 15), description="Test entry", period="2026-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=1000, credit=0, period="2026-01"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=1000, period="2026-01")],
+            ),
+        ]
+        result = generate_journal_template("S03c-DN", entries, "2026-01", "Test Co")
+        assert result["template_code"] == "S03c-DN"
+        assert result["company_name"] == "Test Co"
+        assert result["row_count"] == 2
+        assert result["debit_total"] != "0"
+
+    def test_generate_journal_template_empty_entries(self):
+        result = generate_journal_template("S03c-DN", [], "2026-01")
+        assert result["row_count"] == 0
+        assert result["debit_total"] == "0"
+
+    def test_generate_s01_ledger(self):
+        entries = [
+            JournalEntry(
+                journal_number="JV2026000001", journal_type=JournalType.GENERAL,
+                transaction_date=date(2026, 1, 15), description="Test", period="2026-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=500, credit=0, period="2026-01"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=500, period="2026-01")],
+            ),
+        ]
+        result = generate_s01_ledger("1111", "Tiền mặt", entries, "2026-01", Decimal("1000"), "Test Co")
+        assert result["template_code"] == "S01-DN"
+        assert result["account_code"] == "1111"
+        assert result["account_name"] == "Tiền mặt"
+        assert result["opening_balance"] != "0"
+        assert result["row_count"] == 1
+
+    def test_generate_s01_ledger_no_matching_lines(self):
+        entries = [
+            JournalEntry(
+                journal_number="JV2026000001", journal_type=JournalType.GENERAL,
+                transaction_date=date(2026, 1, 15), description="Test", period="2026-01",
+                lines=[JournalLine(journal_entry_id=0, account_id="5111", debit=500, credit=0, period="2026-01"),
+                       JournalLine(journal_entry_id=0, account_id="1111", debit=0, credit=500, period="2026-01")],
+            ),
+        ]
+        result = generate_s01_ledger("2222", "Không có", entries, "2026-01")
+        assert result["row_count"] == 0
+
+    def test_generate_subsidiary_template(self):
+        entries = [
+            SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AR, account_code="131",
+                entity_id=1, entity_name="Customer A",
+                transaction_date=date(2026, 1, 15),
+                doc_ref="INV-001", doc_type="invoice",
+                description="Sale", debit=Decimal("1000"), credit=Decimal("0"),
+                balance=Decimal("1000"), period="2026-01",
+            ),
+        ]
+        result = generate_subsidiary_template("S06-DN", "ar", entries, "2026-01", "Test Co")
+        assert result["template_code"] == "S06-DN"
+        assert result["entity_count"] == 1
+        assert result["entities"][0]["entity_name"] == "Customer A"
+
+    def test_generate_subsidiary_template_multi_entity(self):
+        entries = [
+            SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AP, account_code="331",
+                entity_id=1, entity_name="Vendor X",
+                transaction_date=date(2026, 1, 15),
+                doc_ref="PO-001", doc_type="purchase",
+                description="Buy", debit=Decimal("0"), credit=Decimal("500"),
+                balance=Decimal("500"), period="2026-01",
+            ),
+            SubsidiaryLedger(
+                subsidiary_type=SubsidiaryType.AP, account_code="331",
+                entity_id=2, entity_name="Vendor Y",
+                transaction_date=date(2026, 1, 20),
+                doc_ref="PO-002", doc_type="purchase",
+                description="Buy 2", debit=Decimal("0"), credit=Decimal("300"),
+                balance=Decimal("300"), period="2026-01",
+            ),
+        ]
+        result = generate_subsidiary_template("S05-DN", "ap", entries, "2026-01")
+        assert result["entity_count"] == 2
+
+    def test_journal_type_template_map(self):
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.GENERAL] == "S03c-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.SALES] == "S03a1-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.PURCHASE] == "S03a2-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.CASH_RECEIPT] == "S03b1-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.CASH_PAYMENT] == "S03b2-DN"
+
+    def test_template_names_completeness(self):
+        for code in ["S03c-DN", "S03a1-DN", "S03a2-DN", "S03b1-DN", "S03b2-DN", "S01-DN", "S05-DN", "S06-DN"]:
+            assert code in TEMPLATE_NAMES
+            assert code in TEMPLATE_NAMES_EN

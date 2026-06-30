@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head><meta charset="utf-8">
+<title>{{ template_name }}</title>
+<style>
+    body { font-family: 'Times New Roman', serif; font-size: 11px; }
+    h1 { text-align: center; font-size: 15px; margin-bottom: 2px; }
+    h2 { text-align: center; font-size: 13px; margin-top: 2px; font-weight: normal; }
+    .header { text-align: center; margin-bottom: 15px; }
+    .company { font-weight: bold; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #000; padding: 2px 4px; vertical-align: top; }
+    th { text-align: center; font-weight: bold; background: #f0f0f0; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .total { font-weight: bold; background: #f9f9f9; }
+    .footer { margin-top: 30px; }
+    .signature { float: left; width: 30%; text-align: center; margin-top: 50px; }
+    .signatures { overflow: hidden; }
+    @media print { .no-print { display: none; } }
+</style></head>
+<body>
+<div class="header">
+    <div class="company">{{ company_name }}</div>
+    <div>{{ address }}</div>
+    <hr>
+    <h1>{{ template_name }}</h1>
+    <h2>({{ template_name_en }})</h2>
+    <p><strong>{% trans %}Ky:{% endtrans %}</strong> {{ month_name }} {{ year }}</p>
+</div>
+<p><strong>{% trans %}Don vi:{% endtrans %}</strong> {{ company_name }}</p>
+<p><strong>{% trans %}Dia chi:{% endtrans %}</strong> {{ address }}</p>
+<table>
+<thead><tr>
+    <th>{% trans %}NT ghi so{% endtrans %}</th>
+    <th>{% trans %}So hieu CT{% endtrans %}</th>
+    <th>{% trans %}Dien giai{% endtrans %}</th>
+    <th>{% trans %}TK doi ung{% endtrans %}</th>
+    <th>{% trans %}So tien{% endtrans %}</th>
+</tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+    <td class="center">{{ r.posting_date }}</td>
+    <td class="center">{{ r.journal_number }}</td>
+    <td>{{ r.description }}</td>
+    <td class="center">{{ r.account_code }}</td>
+    <td class="right">{{ r.debit if r.debit != '0' else '' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="center">{% trans %}Khong co du lieu{% endtrans %}</td></tr>
+{% endfor %}
+</tbody>
+<tfoot>
+<tr class="total">
+    <td colspan="4" class="right">{% trans %}Cong{% endtrans %}</td>
+    <td class="right">{{ debit_total }}</td>
+</tr>
+</tfoot>
+</table>
+<p><em>{% trans %}Ngay{% endtrans %} {{ generated_at }}</em></p>
+<div class="signatures">
+    <div class="signature">{% trans %}Nguoi lap{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Ke toan truong{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Giam doc{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+</div>
+</body>
+</html>

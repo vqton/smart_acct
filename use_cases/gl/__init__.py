@@ -2,9 +2,21 @@ from typing import Optional, List
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from domain import JournalEntry, JournalLine, Result, ValidationError, DoubleEntryError
+from domain import (
+    JournalEntry, JournalLine, JournalType, SubsidiaryType, SubsidiaryLedger,
+    Result, ValidationError, DoubleEntryError,
+)
 from domain.i18n import ErrorCodes
 from infrastructure.repositories.gl_repository import GLRepository
+
+
+def _parse_journal_type(raw: Optional[str]) -> JournalType:
+    if not raw:
+        return JournalType.GENERAL
+    try:
+        return JournalType(raw)
+    except ValueError:
+        raise ValidationError(ErrorCodes.JOURNAL_TYPE_INVALID, journal_type=raw)
 
 
 class GLUseCases:
@@ -18,18 +30,30 @@ class GLUseCases:
         description: str,
         lines: List[dict],
         period: Optional[str] = None,
+        journal_type: Optional[str] = None,
         source_module: Optional[str] = None,
         created_by: Optional[str] = None,
+        auto_number: bool = False,
+        approved_by: Optional[str] = None,
+        ref_journal_number: Optional[str] = None,
     ) -> Result:
         try:
             period = period or transaction_date.strftime("%Y-%m")
+            jt = _parse_journal_type(journal_type)
+
+            if auto_number or not journal_number:
+                journal_number = self.repo.get_next_journal_number(jt, period)
+
             entry = JournalEntry(
                 journal_number=journal_number,
+                journal_type=jt,
                 transaction_date=transaction_date,
                 description=description,
                 period=period,
                 source_module=source_module,
                 created_by=created_by,
+                approved_by=approved_by,
+                ref_journal_number=ref_journal_number,
             )
 
             for line_data in lines:
@@ -97,6 +121,81 @@ class GLUseCases:
 
     def get_account_balance(self, account_id: str, period: Optional[str] = None) -> dict:
         return self.repo.get_account_balance(account_id, period)
+
+    # ── Journal Type Sequence ─────────────────────────────────────────
+
+    def get_next_journal_number(self, journal_type: Optional[str] = None, period: Optional[str] = None) -> Result:
+        try:
+            jt = _parse_journal_type(journal_type)
+            period = period or date.today().strftime("%Y-%m")
+            number = self.repo.get_next_journal_number(jt, period)
+            return Result.success({"journal_number": number})
+        except ValidationError as e:
+            return Result.failure(e)
+
+    def get_journal_sequence(self, journal_type: str, fiscal_year: int) -> Result:
+        try:
+            jt = _parse_journal_type(journal_type)
+            seq = self.repo.get_journal_sequence(jt, fiscal_year)
+            if not seq:
+                return Result.failure(ValidationError(ErrorCodes.JOURNAL_SEQUENCE_NOT_FOUND, journal_type=journal_type, fiscal_year=str(fiscal_year)))
+            return Result.success(seq)
+        except ValidationError as e:
+            return Result.failure(e)
+
+    def list_journal_sequences(self, fiscal_year: Optional[int] = None) -> List[dict]:
+        return self.repo.list_journal_sequences(fiscal_year)
+
+    # ── Subsidiary Ledger ───────────────────────────────────────────
+
+    def post_to_subsidiary(
+        self, journal_entry_id: int, subsidiary_type: str,
+        entity_id: int, entity_name: str,
+        doc_ref: str, doc_type: str,
+    ) -> Result:
+        """Post journal entry lines to subsidiary ledger after posting."""
+        entry = self.repo.get_entry(journal_entry_id)
+        if not entry:
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_ENTRY_NOT_FOUND, entry_id=journal_entry_id))
+        if not entry.is_posted:
+            return Result.failure(ValidationError("Entry must be posted before posting to subsidiary ledger"))
+
+        result = self.repo.post_to_subsidiary_ledger(
+            journal_entry_id=entry.id,
+            lines=[JournalLine(
+                journal_entry_id=l.journal_entry_id,
+                account_id=l.account_id, debit=l.debit, credit=l.credit,
+                description=l.description, period=l.period,
+            ) for l in entry.lines],
+            subsidiary_type=subsidiary_type,
+            entity_id=entity_id,
+            entity_name=entity_name,
+            doc_ref=doc_ref,
+            doc_type=doc_type,
+            period=entry.period,
+            transaction_date=entry.transaction_date,
+        )
+        return result
+
+    def get_subsidiary_ledger(
+        self, subsidiary_type: str, entity_id: Optional[int] = None,
+        period: Optional[str] = None, account_code: Optional[str] = None,
+        limit: int = 100, offset: int = 0,
+    ) -> List[SubsidiaryLedger]:
+        try:
+            SubsidiaryType(subsidiary_type)
+        except ValueError:
+            raise ValidationError(ErrorCodes.SUBSIDIARY_TYPE_INVALID, subsidiary_type=subsidiary_type)
+        return self.repo.get_subsidiary_ledger(
+            subsidiary_type, entity_id, period, account_code, limit, offset,
+        )
+
+    def get_subsidiary_summary(self, subsidiary_type: str, period: str) -> List[dict]:
+        try:
+            SubsidiaryType(subsidiary_type)
+        except ValueError:
+            raise ValidationError(ErrorCodes.SUBSIDIARY_TYPE_INVALID, subsidiary_type=subsidiary_type)
+        return self.repo.get_subsidiary_summary(subsidiary_type, period)
 
     # ── Period close ────────────────────────────────────────────────────
 
