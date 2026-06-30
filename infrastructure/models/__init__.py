@@ -12,7 +12,7 @@ from infrastructure.models.cash_models import (
     PettyCashFundModel, PettyCashTransactionModel, CashTransferModel,
     ChequeBookModel, ChequeModel,
     DailyCashCountModel, AdvanceModel,
-    CashVoucherStatusDB, BankAccountStatusDB, ChequeStatusDB,
+    CashVoucherStatusDB, BankAccountStatusDB, BankSubAccountTypeDB, ChequeStatusDB,
     CashTransferStatusDB, PettyCashFundStatusDB,
 )
 from infrastructure.models.ar_models import (
@@ -69,7 +69,7 @@ __all__ = [
     "PettyCashFundModel", "PettyCashTransactionModel", "CashTransferModel",
     "ChequeBookModel", "ChequeModel",
     "DailyCashCountModel", "AdvanceModel",
-    "CashVoucherStatusDB", "BankAccountStatusDB", "ChequeStatusDB",
+    "CashVoucherStatusDB", "BankAccountStatusDB", "BankSubAccountTypeDB", "ChequeStatusDB",
     "CashTransferStatusDB", "PettyCashFundStatusDB",
     "CustomerModel", "ARInvoiceModel", "ARInvoiceLineModel", "ARPaymentModel",
     "CustomerTypeDB", "CustomerGroupDB", "CustomerStatusDB",

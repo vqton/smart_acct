@@ -99,6 +99,11 @@ class CashPaymentModel(Base):
         return f"<CashPaymentModel(id={self.id}, number='{self.payment_number}')>"
 
 
+class BankSubAccountTypeDB(str, enum.Enum):
+    VND = "1121"
+    FC = "1122"
+
+
 class BankAccountModel(Base):
     __tablename__ = "bank_accounts"
 
@@ -109,12 +114,14 @@ class BankAccountModel(Base):
     account_holder = Column(String(300), nullable=False)
     currency = Column(String(10), default="VND", nullable=False)
     coa_code = Column(String(20), nullable=False)
+    sub_account_type = Column(String(3), nullable=True)
     swift_code = Column(String(20), nullable=True)
     iban = Column(String(50), nullable=True)
     opening_balance = Column(Numeric(18, 2), default=Decimal("0"), nullable=False)
     status = Column(SAEnum(BankAccountStatusDB), default=BankAccountStatusDB.ACTIVE, nullable=False)
     signatories = Column(JSON, default=list, nullable=True)
     authorization_limit = Column(Numeric(18, 2), default=Decimal("0"), nullable=False)
+    last_reconciled_period = Column(String(7), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)
 

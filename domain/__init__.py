@@ -29,7 +29,7 @@ from domain.cash import (
     CashForecast, CashForecastLine, DailyCashCount, Advance,
 )
 from domain.cash_bank import (
-    BankAccountStatus, ReconciliationDiscrepancyType,
+    BankAccountStatus, BankSubAccountType, ReconciliationDiscrepancyType,
     BankAccount, BankTransaction, BankStatement,
     ReconciliationDiscrepancy, BankReconciliation,
 )
@@ -75,6 +75,18 @@ from domain.inventory import (
     InventoryAdjustment, InventoryAdjustmentLine, InventoryConfig,
     InventoryDashboard,
 )
+from domain.payroll import (
+    ContractType, EmployeeStatus, Region, PayrollRunStatus,
+    PaymentMethodPR, PaymentStatus,
+    DeclarationStatus as PayrollDeclarationStatus,
+    DeclarationType as PayrollDeclarationType,
+    AdjustmentType, CostCenter,
+    Employee, EmployeeContract, EmployeeDependent, Timesheet,
+    PayrollLine, PayrollRun, PayrollAdjustment,
+    PITDeclaration, SIInsuranceRecord,
+    SalaryPayment, PayrollCostAllocation,
+    PayrollCalculator,
+)
 
 __all__ = [
     'VASValidationError', 'ValidationError', 'VASComplianceError', 'DoubleEntryError',
@@ -93,7 +105,7 @@ __all__ = [
     'TaxDeclaration', 'TaxLine', 'TaxPayment', 'TaxAdjustment', 'TaxIncentive',
     'EInvoice', 'EInvoiceLine', 'TaxSchedule',
     'CashReceiptType', 'CashPaymentType', 'CashVoucherStatus', 'BankAccountStatus',
-    'ChequeStatus', 'CashTransferStatus', 'PettyCashFundStatus',
+    'BankSubAccountType', 'ChequeStatus', 'CashTransferStatus', 'PettyCashFundStatus',
     'ReconciliationDiscrepancyType',
     'CashReceipt', 'CashPayment', 'BankAccount', 'BankTransaction', 'BankStatement',
     'ReconciliationDiscrepancy', 'BankReconciliation', 'PettyCashFund',
@@ -119,10 +131,19 @@ __all__ = [
     'InventoryType', 'MovementType', 'ValuationMethod',
     'CheckMethod', 'InventoryCheckStatus', 'BatchStatus', 'SerialStatus',
     'TransferStatus',
-    'InventoryCategory', 'Warehouse', 'InventoryItem', 'InventoryBatch',
+    'InventoryCategory', 'Warehouse',     'InventoryItem', 'InventoryBatch',
     'SerialNumber', 'InventoryReceipt', 'InventoryReceiptLine',
     'InventoryIssue', 'InventoryIssueLine', 'InventoryTransfer',
     'InventoryTransferLine', 'StockCard', 'InventoryCheck', 'InventoryCheckLine',
     'InventoryAdjustment', 'InventoryAdjustmentLine', 'InventoryConfig',
     'InventoryDashboard',
+    # Payroll
+    'ContractType', 'EmployeeStatus', 'Region', 'PayrollRunStatus',
+    'PaymentMethodPR', 'PaymentStatus', 'PayrollDeclarationStatus',
+    'DeclarationStatus', 'AdjustmentType', 'CostCenter',
+    'Employee', 'EmployeeContract', 'EmployeeDependent', 'Timesheet',
+    'PayrollLine', 'PayrollRun', 'PayrollAdjustment',
+    'PITDeclaration', 'SIInsuranceRecord',
+    'SalaryPayment', 'PayrollCostAllocation',
+    'PayrollCalculator',
 ]

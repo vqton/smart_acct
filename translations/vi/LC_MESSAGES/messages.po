@@ -1019,3 +1019,15 @@ msgstr "Gửi hóa đơn điện tử thất bại: {detail}"
 #: domain/ar.py
 msgid "SNAPSHOT_ALREADY_EXISTS"
 msgstr "Ảnh chụp công nợ đã tồn tại cho kỳ này"
+
+#: use_cases/cash/__init__.py
+msgid "RECONCILIATION_ALREADY_BALANCED"
+msgstr "Bảng đối chiếu đã cân đối, không cần ghi nhận chênh lệch"
+
+#: use_cases/cash/__init__.py
+msgid "BANK_ACCOUNT_OVERDRAFT"
+msgstr "Tài khoản ngân hàng đang âm — phải ghi nhận là vay TK 341 theo TT 99 D13(1)(d)"
+
+#: use_cases/cash/__init__.py
+msgid "RECONCILIATION_OVERDUE"
+msgstr "Đối chiếu ngân hàng quá hạn — TT 99 D13(1)(b) yêu cầu đối chiếu hàng tháng"

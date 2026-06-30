@@ -13,7 +13,7 @@ from domain import (
     BankStatement, BankTransaction, CashTransferStatus,
     Result, ValidationError, AccountError, AccountType,
 )
-from infrastructure.models.coa_models import Base
+from infrastructure.models.coa_models import Base, COAModel
 from infrastructure.models.cash_models import (
     CashReceiptModel, CashPaymentModel, BankAccountModel,
     BankReconciliationModel, PettyCashFundModel,
@@ -1143,3 +1143,235 @@ class TestBankBookReportRoute:
     def test_bank_book_report_missing_params(self, cash_client):
         resp = cash_client.get("/api/v1/cash/reports/bank-book")
         assert resp.status_code == 400
+
+
+# ── TT 99/2025 Gap Tests: sub_account_type, unreconciled diff, overdraft, reconciliation enforcement ──
+
+
+class TestSubAccountType:
+    def test_create_bank_account_with_sub_account_type_1121(self, uc):
+        result = uc.create_bank_account(
+            bank_name="Vietcombank",
+            branch="HN",
+            account_number="VND-001",
+            account_holder="Co ABC",
+            coa_code="1121",
+            sub_account_type="1121",
+        )
+        assert result.is_success()
+        ba = result.get_data()
+        assert ba.sub_account_type is not None
+        assert ba.sub_account_type.value == "1121"
+
+    def test_create_bank_account_with_sub_account_type_1122(self, uc):
+        result = uc.create_bank_account(
+            bank_name="HSBC",
+            branch="HCMC",
+            account_number="USD-001",
+            account_holder="Co ABC",
+            coa_code="1122",
+            currency="USD",
+            sub_account_type="1122",
+        )
+        assert result.is_success()
+        ba = result.get_data()
+        assert ba.sub_account_type is not None
+        assert ba.sub_account_type.value == "1122"
+
+    def test_create_bank_account_without_sub_account_type(self, uc):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        assert result.is_success()
+        ba = result.get_data()
+        assert ba.sub_account_type is None
+
+    def test_sub_account_validation_wrong_coa_code(self, uc):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "331", sub_account_type="1121")
+        assert result.is_failure()
+
+    def test_json_serializer_includes_sub_account_type(self, cash_client):
+        cash_client.post("/api/v1/cash/bank-accounts", json={
+            "bank_name": "VCB", "branch": "HN", "account_number": "123",
+            "account_holder": "Co ABC", "coa_code": "1121", "sub_account_type": "1121",
+        })
+        resp = cash_client.get("/api/v1/cash/bank-accounts/1")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data.get("sub_account_type") == "1121"
+
+    def test_json_serializer_no_sub_account_type(self, cash_client):
+        created = cash_client.post("/api/v1/cash/bank-accounts", json={
+            "bank_name": "TCB", "branch": "HN", "account_number": "456",
+            "account_holder": "Co XYZ", "coa_code": "1121",
+        })
+        ba_id = created.get_json()["id"]
+        resp = cash_client.get(f"/api/v1/cash/bank-accounts/{ba_id}")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data.get("sub_account_type") is None
+
+
+class TestReconciliationEnforcement:
+    def test_balanced_reconciliation_updates_last_reconciled(self, uc, session):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        uc.create_reconciliation(
+            bank_account_id=ba_id,
+            period="2026-06",
+            book_balance=Decimal("100000000"),
+            bank_balance=Decimal("100000000"),
+            reconciled_by="system",
+        )
+        ba = uc.repo.get_bank_account(ba_id)
+        assert ba.last_reconciled_period == "2026-06"
+
+    def test_unbalanced_reconciliation_does_not_update_last_reconciled(self, uc, session):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        uc.create_reconciliation(
+            bank_account_id=ba_id,
+            period="2026-06",
+            book_balance=Decimal("100000000"),
+            bank_balance=Decimal("95000000"),
+            reconciled_by="system",
+        )
+        ba = uc.repo.get_bank_account(ba_id)
+        assert ba.last_reconciled_period is None
+
+    def test_check_reconciliation_status_no_history(self, uc):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        status = uc.check_bank_reconciliation_status(ba_id)
+        assert status.is_success()
+        data = status.get_data()
+        assert data["reconciliation_overdue"] is True
+        assert data["last_reconciled_period"] is None
+
+    def test_check_reconciliation_status_current(self, uc):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        uc.repo.update_bank_account_last_reconciled_period(ba_id, date.today().strftime("%Y-%m"))
+        status = uc.check_bank_reconciliation_status(ba_id)
+        assert status.is_success()
+        data = status.get_data()
+        assert data["reconciliation_overdue"] is False
+
+    def test_check_reconciliation_status_overdue(self, uc):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        uc.repo.update_bank_account_last_reconciled_period(ba_id, "2025-12")
+        status = uc.check_bank_reconciliation_status(ba_id)
+        assert status.is_success()
+        data = status.get_data()
+        assert data["reconciliation_overdue"] is True
+        assert data["months_behind"] > 0
+
+
+class TestUnreconciledDifferencePosting:
+    def _seed_coa(self, session, codes):
+        for c in codes:
+            session.add(COAModel(code=c["code"], name=c["name"], account_type=c["type"],
+                                 drcr_direction=c.get("drcr", "debit")))
+
+    def test_post_unreconciled_difference_book_greater(self, uc, session):
+        self._seed_coa(session, [
+            {"code": "1121", "name": "Tien gui NH", "type": "asset"},
+            {"code": "138", "name": "Tai san thieu cho xu ly", "type": "asset"},
+            {"code": "338", "name": "Tai san thua cho giai quyet", "type": "liability"},
+        ])
+        session.flush()
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        recon = uc.create_reconciliation(
+            bank_account_id=ba_id,
+            period="2026-06",
+            book_balance=Decimal("100000000"),
+            bank_balance=Decimal("95000000"),
+            reconciled_by="system",
+        )
+        assert recon.is_success(), f"recon failed: {recon.error}"
+        recon_id = recon.get_data().id
+        posted = uc.post_unreconciled_difference(recon_id, posted_by="test")
+        assert posted.is_success(), f"post failed: {posted.error}"
+        data = posted.get_data()
+        assert data["debit_account"] == "138"
+        assert data["credit_account"] == "1121"
+        assert Decimal(data["amount"]) > 0
+
+    def test_post_unreconciled_difference_book_less(self, uc, session):
+        self._seed_coa(session, [
+            {"code": "1121", "name": "Tien gui NH", "type": "asset"},
+            {"code": "138", "name": "Tai san thieu cho xu ly", "type": "asset"},
+            {"code": "338", "name": "Tai san thua cho giai quyet", "type": "liability"},
+        ])
+        session.flush()
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        recon = uc.create_reconciliation(
+            bank_account_id=ba_id,
+            period="2026-06",
+            book_balance=Decimal("95000000"),
+            bank_balance=Decimal("100000000"),
+            reconciled_by="system",
+        )
+        assert recon.is_success(), f"recon failed: {recon.error}"
+        recon_id = recon.get_data().id
+        posted = uc.post_unreconciled_difference(recon_id, posted_by="test")
+        assert posted.is_success(), f"post failed: {posted.error}"
+        data = posted.get_data()
+        assert data["debit_account"] == "1121"
+        assert data["credit_account"] == "338"
+        assert Decimal(data["amount"]) > 0
+
+    def test_post_unreconciled_difference_balanced_recon_fails(self, uc):
+        result = uc.create_bank_account("Bank", "Branch", "ACC", "Holder", "1121")
+        ba_id = result.get_data().id
+        recon = uc.create_reconciliation(
+            bank_account_id=ba_id,
+            period="2026-06",
+            book_balance=Decimal("100000000"),
+            bank_balance=Decimal("100000000"),
+            reconciled_by="system",
+        )
+        recon_id = recon.get_data().id
+        posted = uc.post_unreconciled_difference(recon_id, posted_by="test")
+        assert posted.is_failure()
+
+    def test_post_unreconciled_difference_nonexistent_recon(self, uc):
+        posted = uc.post_unreconciled_difference(999, posted_by="test")
+        assert posted.is_failure()
+
+
+class TestOverdraftWarning:
+    def test_overdraft_warning_in_balance(self, uc, session):
+        result = uc.create_bank_account(
+            "Bank", "Branch", "ACC", "Holder", "1121",
+            opening_balance=Decimal("1000000"),
+        )
+        ba_id = result.get_data().id
+        uc.create_payment(
+            payment_date=date(2026, 6, 15),
+            payment_type=CashPaymentType.EXPENSE,
+            receiver_name="A",
+            amount=Decimal("2000000"),
+            amount_in_words="Hai trieu",
+            account_code="1121",
+            counter_account="642",
+            description="Overdraft test",
+            created_by="test",
+        )
+        balance = uc.get_bank_balance(ba_id)
+        assert balance.is_success()
+        data = balance.get_data()
+        assert data["overdraft_warning"] is True
+
+    def test_no_overdraft_warning_when_positive(self, uc):
+        result = uc.create_bank_account(
+            "Bank", "Branch", "ACC", "Holder", "1121",
+            opening_balance=Decimal("5000000"),
+        )
+        ba_id = result.get_data().id
+        balance = uc.get_bank_balance(ba_id)
+        assert balance.is_success()
+        data = balance.get_data()
+        assert data["overdraft_warning"] is False
+        assert data["overdraft_message"] is None

@@ -13,6 +13,11 @@ class BankAccountStatus(str, Enum):
     BLOCKED = "blocked"
 
 
+class BankSubAccountType(str, Enum):
+    VND = "1121"
+    FC = "1122"
+
+
 class ReconciliationDiscrepancyType(str, Enum):
     DEPOSIT_IN_TRANSIT = "deposit_in_transit"
     OUTSTANDING_CHECK = "outstanding_check"
@@ -29,12 +34,14 @@ class BankAccount(BaseModel):
     account_holder: str = Field(..., min_length=1, max_length=300)
     currency: str = "VND"
     coa_code: str
+    sub_account_type: Optional[BankSubAccountType] = None
     swift_code: Optional[str] = None
     iban: Optional[str] = None
     opening_balance: Decimal = Decimal("0")
     status: BankAccountStatus = BankAccountStatus.ACTIVE
     signatories: List[str] = Field(default_factory=list)
     authorization_limit: Decimal = Decimal("0")
+    last_reconciled_period: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 
@@ -42,6 +49,21 @@ class BankAccount(BaseModel):
     @classmethod
     def validate_amt(cls, v):
         return _quantize_vnd(v)
+
+    @field_validator("sub_account_type", mode="before")
+    @classmethod
+    def coerce_sub_account_type(cls, v):
+        if v is None or isinstance(v, BankSubAccountType):
+            return v
+        if isinstance(v, str):
+            return BankSubAccountType(v)
+        raise ValueError(f"Invalid sub_account_type: {v}")
+
+    @model_validator(mode="after")
+    def check_sub_account_consistency(self):
+        if self.sub_account_type and not self.coa_code.startswith("112"):
+            raise ValueError(f"sub_account_type={self.sub_account_type.value} requires coa_code starting with 112, got {self.coa_code}")
+        return self
 
 
 class BankTransaction(BaseModel):

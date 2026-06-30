@@ -9,8 +9,8 @@ from domain import (
     PettyCashTransaction, CashTransfer, ChequeBook, Cheque,
     DailyCashCount, Advance, CashForecast, CashForecastLine,
     CashReceiptType, CashPaymentType, CashVoucherStatus, BankAccountStatus,
-    ChequeStatus, CashTransferStatus, PettyCashFundStatus,
-    ReconciliationDiscrepancyType,
+    BankSubAccountType, ChequeStatus, CashTransferStatus, PettyCashFundStatus,
+    ReconciliationDiscrepancyType, JournalEntry, JournalLine,
     Result, ValidationError, AccountError,
 )
 from domain.i18n import ErrorCodes
@@ -168,6 +168,7 @@ class CashUseCases:
         account_holder: str,
         coa_code: str,
         currency: str = "VND",
+        sub_account_type: Optional[str] = None,
         swift_code: Optional[str] = None,
         iban: Optional[str] = None,
         opening_balance: Decimal = Decimal("0"),
@@ -182,6 +183,7 @@ class CashUseCases:
                 account_holder=account_holder,
                 currency=currency,
                 coa_code=coa_code,
+                sub_account_type=BankSubAccountType(sub_account_type) if sub_account_type else None,
                 swift_code=swift_code,
                 iban=iban,
                 opening_balance=opening_balance,
@@ -206,6 +208,7 @@ class CashUseCases:
         if not ba:
             return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, ba_id=ba_id))
         balance = self.repo.calculate_bank_balance(ba_id, as_of=as_of)
+        overdraft = balance < Decimal("0")
         return Result.success({
             "bank_account_id": ba_id,
             "account_number": ba.account_number,
@@ -214,6 +217,8 @@ class CashUseCases:
             "opening_balance": str(ba.opening_balance),
             "current_balance": str(balance),
             "as_of": (as_of or date.today()).isoformat(),
+            "overdraft_warning": overdraft,
+            "overdraft_message": "Overdraft detected — balance negative. Per TT 99 D13(1)(d), overdraft must be recorded as loan (TK 341)." if overdraft else None,
         })
 
     # ── Cash Balance ──────────────────────────────────────────────────
@@ -529,7 +534,10 @@ class CashUseCases:
             )
         except (ValidationError, ValueError) as e:
             return Result.failure(e)
-        return self.repo.create_reconciliation(recon)
+        result = self.repo.create_reconciliation(recon)
+        if result.is_success() and result.get_data().is_balanced:
+            self.repo.update_bank_account_last_reconciled_period(bank_account_id, period)
+        return result
 
     def get_reconciliation(self, recon_id: int) -> Result:
         recon = self.repo.get_reconciliation(recon_id)
@@ -782,6 +790,114 @@ class CashUseCases:
             ],
         }
         return Result.success({"data": summary})
+
+    # ── Unreconciled Difference Posting (TK 138/338 per TT 99) ────────
+
+    def post_unreconciled_difference(
+        self,
+        recon_id: int,
+        posted_by: str = "system",
+    ) -> Result:
+        recon = self.repo.get_reconciliation(recon_id)
+        if not recon:
+            return Result.failure(AccountError(ErrorCodes.RECONCILIATION_NOT_FOUND, recon_id=recon_id))
+        if recon.is_balanced:
+            return Result.failure(ValidationError(ErrorCodes.RECONCILIATION_ALREADY_BALANCED))
+        diff = recon.adjusted_book_balance - recon.adjusted_bank_balance
+        if abs(diff) <= Decimal("0.001"):
+            return Result.failure(ValidationError(ErrorCodes.RECONCILIATION_ALREADY_BALANCED))
+        ba = self.repo.get_bank_account(recon.bank_account_id)
+        if not ba:
+            return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, ba_id=recon.bank_account_id))
+        period = recon.period
+        if diff > Decimal("0"):
+            debit_account = "138"
+            credit_account = ba.coa_code
+            desc = f"Ghi nhan khoan chenh lech (so sach > so NH) ky {period} — TT 99 D13(1)(b)"
+        else:
+            debit_account = ba.coa_code
+            credit_account = "338"
+            desc = f"Ghi nhan khoan chenh lech (so sach < so NH) ky {period} — TT 99 D13(1)(b)"
+        abs_diff = abs(diff)
+        timestamp = datetime.now(timezone.utc)
+        jv_num = f"JV{timestamp.strftime('%Y%m%d%H%M%S')}"
+        try:
+            entry = JournalEntry(
+                journal_number=jv_num,
+                transaction_date=date.today(),
+                description=desc,
+                period=period,
+                source_module="bank",
+                created_by=posted_by,
+                lines=[
+                    JournalLine(
+                        journal_entry_id=0,
+                        account_id=debit_account,
+                        debit=abs_diff,
+                        credit=Decimal("0"),
+                        description=desc,
+                        line_type="normal",
+                        period=period,
+                    ),
+                    JournalLine(
+                        journal_entry_id=0,
+                        account_id=credit_account,
+                        debit=Decimal("0"),
+                        credit=abs_diff,
+                        description=desc,
+                        line_type="normal",
+                        period=period,
+                    ),
+                ],
+            )
+        except (ValidationError, ValueError) as e:
+            return Result.failure(e)
+        result = self.gl_repo.create_entry(entry)
+        if result.is_failure():
+            return result
+        posted = self.gl_repo.post_entry(result.get_data().id)
+        if posted.is_failure():
+            return posted
+        return Result.success({
+            "journal_entry_id": result.get_data().id,
+            "journal_number": jv_num,
+            "debit_account": debit_account,
+            "credit_account": credit_account,
+            "amount": str(abs_diff),
+            "period": period,
+        })
+
+    # ── Reconciliation Status Check (monthly enforcement) ────────────
+
+    def check_bank_reconciliation_status(self, ba_id: int) -> Result:
+        ba = self.repo.get_bank_account(ba_id)
+        if not ba:
+            return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, ba_id=ba_id))
+        current_period = date.today().strftime("%Y-%m")
+        last_reconciled = ba.last_reconciled_period
+        if last_reconciled is None:
+            return Result.success({
+                "bank_account_id": ba_id,
+                "account_number": ba.account_number,
+                "last_reconciled_period": None,
+                "current_period": current_period,
+                "months_behind": None,
+                "warning": "Chua thuc hien doi chieu lan nao. TT 99 D13(1)(b) yeu cau doi chieu hang thang.",
+                "reconciliation_overdue": True,
+            })
+        last_year, last_month = last_reconciled.split("-")
+        curr_year, curr_month = current_period.split("-")
+        months_behind = (int(curr_year) - int(last_year)) * 12 + int(curr_month) - int(last_month) - 1
+        overdue = months_behind > 0
+        return Result.success({
+            "bank_account_id": ba_id,
+            "account_number": ba.account_number,
+            "last_reconciled_period": last_reconciled,
+            "current_period": current_period,
+            "months_behind": months_behind,
+            "warning": f"TK 112 doi chieu cham {months_behind} thang. TT 99 D13(1)(b) yeu cau doi chieu hang thang." if overdue else None,
+            "reconciliation_overdue": overdue,
+        })
 
     def _render_reconciliation_html(self, summary: dict) -> str:
         disc_rows = ""

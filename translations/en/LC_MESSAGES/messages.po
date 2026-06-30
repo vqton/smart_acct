@@ -1031,3 +1031,15 @@ msgstr "E-invoice submission failed: {detail}"
 #: domain/ar.py
 msgid "SNAPSHOT_ALREADY_EXISTS"
 msgstr "Aging snapshot already exists for this period"
+
+#: use_cases/cash/__init__.py
+msgid "RECONCILIATION_ALREADY_BALANCED"
+msgstr "Reconciliation is already balanced, no difference to post"
+
+#: use_cases/cash/__init__.py
+msgid "BANK_ACCOUNT_OVERDRAFT"
+msgstr "Bank account overdrawn — must record as TK 341 loan per TT 99 D13(1)(d)"
+
+#: use_cases/cash/__init__.py
+msgid "RECONCILIATION_OVERDUE"
+msgstr "Bank reconciliation overdue — TT 99 D13(1)(b) requires monthly reconciliation"

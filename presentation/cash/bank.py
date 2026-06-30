@@ -26,6 +26,7 @@ def create_bank_account():
             account_holder=data["account_holder"],
             coa_code=data["coa_code"],
             currency=data.get("currency", "VND"),
+            sub_account_type=data.get("sub_account_type"),
             swift_code=data.get("swift_code"),
             iban=data.get("iban"),
             opening_balance=Decimal(str(data.get("opening_balance", "0"))),

@@ -10,7 +10,7 @@ from domain import (
     PettyCashTransaction, CashTransfer, ChequeBook, Cheque,
     DailyCashCount, Advance, CashForecast, CashForecastLine,
     CashReceiptType, CashPaymentType, CashVoucherStatus, BankAccountStatus,
-    ChequeStatus, CashTransferStatus, PettyCashFundStatus,
+    BankSubAccountType, ChequeStatus, CashTransferStatus, PettyCashFundStatus,
     ReconciliationDiscrepancyType,
     Result, ValidationError, AccountError,
 )
@@ -210,12 +210,14 @@ class CashRepository:
             account_holder=m.account_holder,
             currency=m.currency,
             coa_code=m.coa_code,
+            sub_account_type=BankSubAccountType(m.sub_account_type) if m.sub_account_type else None,
             swift_code=m.swift_code,
             iban=m.iban,
             opening_balance=m.opening_balance,
             status=BankAccountStatus(m.status.value) if isinstance(m.status, BankAccountStatusDB) else BankAccountStatus(m.status),
             signatories=m.signatories or [],
             authorization_limit=m.authorization_limit,
+            last_reconciled_period=m.last_reconciled_period,
             created_at=m.created_at,
             updated_at=m.updated_at,
         )
@@ -230,12 +232,14 @@ class CashRepository:
             account_holder=d.account_holder,
             currency=d.currency,
             coa_code=d.coa_code,
+            sub_account_type=d.sub_account_type.value if d.sub_account_type else None,
             swift_code=d.swift_code,
             iban=d.iban,
             opening_balance=d.opening_balance,
             status=BankAccountStatusDB(d.status.value) if isinstance(d.status, BankAccountStatus) else BankAccountStatusDB(d.status),
             signatories=d.signatories,
             authorization_limit=d.authorization_limit,
+            last_reconciled_period=d.last_reconciled_period,
         )
 
     def create_bank_account(self, ba: BankAccount) -> Result:
@@ -253,6 +257,15 @@ class CashRepository:
         if status:
             stmt = stmt.where(BankAccountModel.status == status)
         return [self._ba_to_domain(m) for m in self.session.execute(stmt).scalars().all()]
+
+    def update_bank_account_last_reconciled_period(self, ba_id: int, period: str) -> Result:
+        m = self.session.get(BankAccountModel, ba_id)
+        if not m:
+            return Result.failure(AccountError(ErrorCodes.BANK_ACCOUNT_NOT_FOUND, ba_id=ba_id))
+        m.last_reconciled_period = period
+        m.updated_at = datetime.now(timezone.utc)
+        self.session.flush()
+        return Result.success(self._ba_to_domain(m))
 
     # ── Bank Statements / Transactions ─────────────────────────────────
 
