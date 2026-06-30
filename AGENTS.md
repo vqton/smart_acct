@@ -441,6 +441,15 @@ When requirements are unclear, ask about:
 - **Tests**: 166 tests (92 domain + 74 integration) covering all use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), VAS 10, IAS 7, IFRS 9.
 
+### Costing Center Module — NOT PRODUCTION-READY (SCORE: 0/5)
+
+- **BRD**: `docs/costing_center/BRD.md` (full gap analysis, 15 use cases mapped, regulatory compliance matrix)
+- **Use Cases**: `docs/costing_center/use_cases.md` (UC-CC-01 through UC-CC-15: hierarchy, drivers, allocation rules, execution engine, cost objects, accumulation, budget sync, variance, GL integration, reports, import/export, audit trail, dashboard, self-service)
+- **Spec**: `docs/costing_center/spec.md` (12 DB tables, allocation engine algorithm, 30+ API endpoints, GL posting integration, 130+ planned tests)
+- **Gap**: Zero code — no domain entities, models, repository, use cases, routes, or tests. Requires TDD across 3 phases.
+- **Regulatory basis**: TT99/2025/TT-BTC Art.11 (COA autonomy, analytical segments), VAS 01/16, IFRS 8
+- **All legal references verified**: TT99/2025 (ACTIVE from 01/01/2026); TT200/2014 (REPLACED eff 01/01/2026); Decree 20/2025/ND-CP (ACTIVE from 27/03/2025)
+
 ### Test count: 1504 passing (all tests)
 
 
