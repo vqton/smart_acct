@@ -420,6 +420,15 @@ When requirements are unclear, ask about:
 - **Tests**: 139 tests (49 domain + 90 integration) covering all 15 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 133/2016 + TT 200/2014. TK 152/155/156/157 for inventory, TK 632 for COGS, TK 331/111/112 for payables.
 
+### Financial Statement Module — NOT PRODUCTION-READY (SCORE: 1/10)
+- **BRD**: `docs/brd/financial_statements.md` (16 sections, full regulatory analysis per TT99/2025)
+- **Use Cases**: `docs/fs/use_cases.md` (UC-FS-01 through UC-FS-14) with happy/alternative/exception paths
+- **Implementation Plan**: `docs/fs/implementation_plan.md` — 3 phases, 16 weeks total
+- **Current state**: Only stub `FinancialStatement` in `domain/gl.py:280-434` with 3 statement types
+- **Key gaps**: Missing TT99 B01-DN → B09-DN templates, DNKLT (non-going-concern), interim reports, approval workflow, consolidation engine, export, e-submission, IFRS 18 convergence
+- **Regulatory**: TT 99/2025/TT-BTC (eff. 01/01/2026) replaces TT 200/2014; IFRS 18 (eff. 01/01/2027)
+- **Status**: ❌ Zero code — domain redesign, use cases, repository, models, routes, tests all required. Full spec complete in docs.
+
 ### Budget Module — NOT PRODUCTION-READY (SCORE: 0/5)
 - **BRD**: `docs/budget/BUDGET_BRD.md` (1526 lines) — full spec: 15 use cases, regulatory framework, master budget structure, GL posting matrix, budget control matrix, implementation phases
 - **Use Cases**: `docs/budget/use_cases.md` (UC-BUDGET-01 through UC-BUDGET-15): Budget structure, period/calendar, template, plan draft, approval workflow, versioning, adjustment virement, execution monitoring, control (warning/block), consolidation, variance analysis, dashboard/KPI, revenue budget, expense budget, CAPEX & cash flow budget
@@ -440,7 +449,6 @@ When requirements are unclear, ask about:
 - **Routes**: `presentation/treasury/__init__.py` (blueprint `/api/v1/treasury` + 12 JSON serializers) + `presentation/treasury/routes.py` (25+ endpoints)
 - **Tests**: 166 tests (92 domain + 74 integration) covering all use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), VAS 10, IAS 7, IFRS 9.
-
 ### Costing Center Module — Completed (UC-CC-01 through UC-CC-15, 153 tests)
 
 - **Domain**: 7 enums + 15 Pydantic entities in `domain/costing_center.py` (488 lines): CostCenter, CostCenterCreate, CostCenterUpdate, CostDriver, CostDriverCreate, CostAllocationRule, CostAllocationRuleTarget, CostAllocationRuleCreate, CostAllocationRuleUpdate, CostAllocationLine, CostAllocationRun, CostObject, CostObjectCreate, CostAccumulation, CostCenterBudget, CostCenterActual, CostCenterVariance, CostingAuditLog, BulkImportResult, AccumulationResult, AllocationPreview — all with validators, i18n error codes
@@ -526,3 +534,6 @@ When requirements are unclear, ask about:
 - `presentation/treasury/routes.py` — 25+ REST endpoints for Treasury module
 - `tests/test_treasury_domain.py` — 92 domain unit tests
 - `tests/test_treasury_integration.py` — 74 integration tests (DB + use cases)
+- `docs/brd/financial_statements.md` — FS module BRD (16 sections, TT99/2025 regulatory analysis)
+- `docs/fs/use_cases.md` — FS use cases (UC-FS-01 through UC-FS-14) with full happy/alt/exception paths
+- `docs/fs/implementation_plan.md` — FS implementation plan (3 phases, 16 weeks)
