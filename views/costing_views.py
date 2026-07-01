@@ -20,14 +20,27 @@ def costing():
         cost_centers_result = uc.list_cost_centers()
         cost_centers = cost_centers_result.get_data() if hasattr(cost_centers_result, 'get_data') else []
 
-        allocation_runs = uc.list_allocation_runs()
+        allocation_runs_result = uc.list_allocation_runs()
+        allocation_runs = allocation_runs_result.get_data() if hasattr(allocation_runs_result, 'get_data') else []
 
-        accumulated_result = uc.get_cost_accumulation()
-        accumulated = accumulated_result.get_data() if accumulated_result and hasattr(accumulated_result, 'get_data') and not getattr(accumulated_result, 'is_failure', lambda: True)() else []
+        period_raw = session.get('period', '')
+        period_key = period_raw[:7].replace('-', '') if period_raw else ''
+
+        accumulated = []
+        if period_key:
+            acc_result = uc.accumulate_costs(period_key)
+            if hasattr(acc_result, 'is_success') and acc_result.is_success():
+                data = acc_result.get_data()
+                accumulated = [{
+                    'cost_center_name': 'Tổng cộng',
+                    'direct_cost': data.total_direct,
+                    'indirect_cost': data.total_allocated,
+                    'total_cost': data.total_direct + data.total_allocated,
+                }]
 
         variance_data = []
         for cc in cost_centers:
-            var_result = uc.compute_variance(cc.id, session.get('period', '')[:7].replace('-', '') if session.get('period') else '')
+            var_result = uc.compute_variance(cc.id, period_key)
             if var_result.is_success():
                 var_data = var_result.get_data()
                 lines = var_data if isinstance(var_data, list) else var_data.get('lines', []) if isinstance(var_data, dict) else []
