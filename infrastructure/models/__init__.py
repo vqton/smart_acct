@@ -70,10 +70,24 @@ from infrastructure.models.treasury_models import (
     BatchStatusDB, BatchItemStatusDB,
     SyncStatusDB, FXForwardStatusDB,
 )
+from infrastructure.models.approval_models import (
+    ApprovalWorkflowModel, ApprovalStepModel, ApprovalRequestModel,
+    ApprovalActionModel, ApprovalDelegateModel,
+    ApprovalObjectTypeDB, ApprovalStatusDB, ApprovalStrategyDB,
+)
+from infrastructure.models.company_models import (
+    CompanyModel, FiscalYearConfigModel, NumberingRuleModel,
+    SetupChecklistItemModel,
+    CompDocumentTypeDB, SetupSectionDB,
+)
 from infrastructure.models.auth_models import (
     UserModel, RoleModel, UserRoleModel, PermissionModel, RolePermissionModel,
     UserSessionModel, PasswordResetTokenModel, AuthAuditLogModel,
     AuthEventTypeDB,
+)
+from infrastructure.models.document_models import (
+    DocumentCategoryModel, DocumentModel, DocumentVersionModel,
+    DocumentTypeDB, DocumentStatusDB,
 )
 from infrastructure.models.inventory_models import (
     InventoryCategoryModel, WarehouseModel, InventoryItemModel,
@@ -90,6 +104,10 @@ from infrastructure.models.inventory_models import (
 )
 
 __all__ = [
+    "ApprovalWorkflowModel", "ApprovalStepModel", "ApprovalRequestModel",
+    "ApprovalActionModel", "ApprovalDelegateModel",
+    "ApprovalObjectTypeDB", "ApprovalStatusDB", "ApprovalStrategyDB",
+    "Base", "COAModel", "AccountModel",
     "Base", "COAModel", "AccountModel",
     "TaxDeclarationModel", "TaxLineModel", "TaxPaymentModel", "TaxAdjustmentModel",
     "TaxIncentiveModel", "EInvoiceModel", "TaxScheduleModel",
@@ -141,11 +159,16 @@ __all__ = [
     "StockCardModel",
     "InventoryCheckModel", "InventoryCheckLineModel",
     "InventoryAdjustmentModel", "InventoryAdjustmentLineModel",
+    "CompanyModel", "FiscalYearConfigModel", "NumberingRuleModel",
+    "SetupChecklistItemModel",
+    "CompDocumentTypeDB", "SetupSectionDB",
     "InventoryTypeDB", "InventoryStatusDB", "MovementTypeDB", "ValuationMethodDB",
     "CheckMethodDB", "InventoryCheckStatusDB", "BatchStatusDB", "SerialStatusDB",
     "AdjustmentTypeDB", "TransferStatusDB",
     "UserModel", "RoleModel", "UserRoleModel", "PermissionModel", "RolePermissionModel",
     "UserSessionModel", "PasswordResetTokenModel", "AuthAuditLogModel", "AuthEventTypeDB",
+    "DocumentCategoryModel", "DocumentModel", "DocumentVersionModel",
+    "DocumentTypeDB", "DocumentStatusDB",
     "CashInTransitModel", "SecurityInvestmentModel", "InvestmentTransactionModel",
     "LoanModel", "LoanPaymentModel", "FXForwardModel",
     "CashFlowForecastModel", "ForecastLineModel",

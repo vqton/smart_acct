@@ -2,6 +2,29 @@
   --sidebar-width: 260px;
 }
 
+/* Bulletproof light mode — overrides any browser-forced dark */
+[data-theme="light"],
+:root:not([data-theme="dark"]) {
+  --bulma-scheme-h: 221;
+  --bulma-scheme-s: 14%;
+  --bulma-scheme-main-l: 100%;
+  --bulma-scheme-main-bis-l: 97%;
+  --bulma-scheme-main-ter-l: 94%;
+  --bulma-dark-l: 20%;
+  --bulma-light-l: 90%;
+  --bulma-text-l: 29%;
+  --bulma-text-strong-l: 21%;
+  --bulma-text-light-l: 71%;
+  --bulma-link-l: 49%;
+  --bulma-link-light-l: 90%;
+  --bulma-success-l: 48%;
+  --bulma-success-light-l: 90%;
+  --bulma-danger-l: 48%;
+  --bulma-danger-light-l: 90%;
+  --bulma-warning-l: 52%;
+  --bulma-warning-light-l: 92%;
+}
+
 * { box-sizing: border-box; }
 
 body {

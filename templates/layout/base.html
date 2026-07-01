@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="{{ get_locale() or 'vi' }}">
+<html lang="{{ get_locale() or 'vi' }}" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}SmartACCT{% endblock %}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bulma.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fontawesome.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   {% block extra_head %}{% endblock %}
 </head>
@@ -80,7 +80,7 @@
           <div class="sidebar-section">{{ item.label }}</div>
           {% for child in item.children %}
             <a href="{{ child.path }}" class="sidebar-item sidebar-child {% if request.path.startswith(child.path) %}active{% endif %}">
-              <span class="icon"><i class="fas fa-circle" style="font-size:6px; color:#546e7a;"></i></span>
+              <span class="icon"><i class="fas fa-circle" style="font-size:6px; color:var(--bulma-text-light);"></i></span>
               <span>{{ child.label }}</span>
             </a>
           {% endfor %}

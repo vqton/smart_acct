@@ -132,6 +132,15 @@ from domain.fs import (
     FinancialStatement, FSLineTemplate,
     FSConsolidationGroup, FSConsolidationMember,
 )
+from domain.approval import (
+    ApprovalObjectType, ApprovalStatus, ApprovalStrategy,
+    ApprovalWorkflow, ApprovalStep, ApprovalRequest,
+    ApprovalAction, ApprovalDelegate, WorkflowCreate, StepCreate,
+)
+from domain.document import (
+    DocumentType, DocumentStatus,
+    DocumentCategory, Document, DocumentVersion, DocumentAttachment,
+)
 from domain.payroll import (
     ContractType, EmployeeStatus, Region, PayrollRunStatus,
     PaymentMethodPR, PaymentStatus,
@@ -244,6 +253,9 @@ __all__ = [
     'FSLineItem', 'FSAccountMapping', 'FSAuditLog', 'FSApprovalAction',
     'FinancialStatement', 'FSLineTemplate',
     'FSConsolidationGroup', 'FSConsolidationMember',
+    # Document
+    'DocumentType', 'DocumentStatus',
+    'DocumentCategory', 'Document', 'DocumentVersion', 'DocumentAttachment',
     # Payroll
     'ContractType', 'EmployeeStatus', 'Region', 'PayrollRunStatus',
     'PaymentMethodPR', 'PaymentStatus', 'PayrollDeclarationStatus',
@@ -253,4 +265,14 @@ __all__ = [
     'PITDeclaration', 'SIInsuranceRecord',
     'SalaryPayment', 'PayrollCostAllocation',
     'PayrollCalculator',
+    # Company / Initial Setup
+    'DocumentType', 'SetupSection',
+    'Company', 'CompanyCreate', 'CompanyUpdate',
+    'FiscalYearConfig', 'FiscalYearCreate',
+    'NumberingRule', 'NumberingRuleUpdate',
+    'SetupChecklistItem',
+    # Approval
+    'ApprovalObjectType', 'ApprovalStatus', 'ApprovalStrategy',
+    'ApprovalWorkflow', 'ApprovalStep', 'ApprovalRequest',
+    'ApprovalAction', 'ApprovalDelegate', 'WorkflowCreate', 'StepCreate',
 ]

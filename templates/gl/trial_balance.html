@@ -70,7 +70,7 @@
           {% endfor %}
         </tbody>
         <tfoot>
-          <tr style="font-weight:700; background:#f5f7fa;">
+          <tr style="font-weight:700; background:var(--bulma-scheme-main-bis);">
             <td colspan="2">Tổng cộng</td>
             <td class="is-vnd">{{ "{:,.0f}".format(data.total_opening_debit|float) }}</td>
             <td class="is-vnd">{{ "{:,.0f}".format(data.total_opening_credit|float) }}</td>
@@ -85,12 +85,12 @@
   </div>
 </div>
 {% elif period %}
-<div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+<div class="has-text-centered" style="padding:40px; color:var(--bulma-text-light);">
   <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
   <p>Không có dữ liệu cho kỳ {{ period }}</p>
 </div>
 {% else %}
-<div class="has-text-centered" style="padding:60px 20px; color:#90a4ae;">
+<div class="has-text-centered" style="padding:60px 20px; color:var(--bulma-text-light);">
   <i class="fas fa-search" style="font-size:48px; margin-bottom:12px;"></i>
   <p>Chọn kỳ để xem bảng cân đối số phát sinh</p>
 </div>

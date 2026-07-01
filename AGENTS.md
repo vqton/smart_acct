@@ -491,7 +491,7 @@ When requirements are unclear, ask about:
 - **Tests**: 112 integration tests in `tests/test_gl_integration.py` — journal type (7), sequence (7), use case (5), subsidiary CRUD (9), templates (12), auto-subsidiary post (4), reversal/correction (6), specialized templates (4), reporting engine (7: trial balance basic/empty, cash flow empty/cash/indirect, balance sheet, income statement)
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), TT 133/2016. Reporting Engine supports 4 financial statements + 8 TT99 journal templates + PDF export.
 
-### Test count: 1834 passing (all tests)
+### Test count: 1940 passing (all tests)
 
 
 - Treasury: 166 (domain 92 + integration 74)
