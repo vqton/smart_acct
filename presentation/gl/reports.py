@@ -203,6 +203,7 @@ def generate_subsidiary_report(subsidiary_type, period):
 
 
 @gl_bp.route("/reports/balance-sheet/<period>", methods=["GET"])
+@gl_bp.route("/reports/statement-of-financial-position/<period>", methods=["GET"])
 def balance_sheet_report(period):
     format = request.args.get("format", "json")
     session = _get_session()

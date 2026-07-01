@@ -351,6 +351,9 @@ class GLUseCases:
     def generate_balance_sheet(self, period: str) -> dict:
         return self.repo.generate_balance_sheet(period)
 
+    def generate_statement_of_financial_position(self, period: str) -> dict:
+        return self.generate_balance_sheet(period)
+
     def generate_income_statement(self, period: str) -> dict:
         return self.repo.generate_income_statement(period)
 
