@@ -357,6 +357,14 @@ msgid "CANNOT_DELETE_POSTED"
 msgstr "Không thể xóa %(type)s đã ghi sổ"
 
 #: use_cases/
+msgid "CANNOT_REVERSE_UNPOSTED"
+msgstr "Không thể đảo ngược chứng từ %(entry_id)s chưa ghi sổ"
+
+#: use_cases/
+msgid "INVALID_CORRECTION_METHOD"
+msgstr "Phương pháp điều chỉnh không hợp lệ: %(method)s"
+
+#: use_cases/
 msgid "FIELD_CANNOT_BE_UPDATED"
 msgstr "Trường '%(field)s' không thể cập nhật"
 

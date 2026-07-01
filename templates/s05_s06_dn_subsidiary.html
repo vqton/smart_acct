@@ -37,10 +37,10 @@
     <th>{% trans %}Loai{% endtrans %}</th>
     <th>{% trans %}Dien giai{% endtrans %}</th>
     <th>{% trans %}TK{% endtrans %}</th>
-    <th>{% trans %}So tien{% endtrans %}</th>
+    <th colspan="2">{% trans %}So tien{% endtrans %}</th>
     <th>{% trans %}So du{% endtrans %}</th>
 </tr>
-<tr><th colspan="5"></th><th>{% trans %}No{% endtrans %}</th><th>{% trans %}Co{% endtrans %}</th></tr>
+<tr><th colspan="5"></th><th>{% trans %}No{% endtrans %}</th><th>{% trans %}Co{% endtrans %}</th><th></th></tr>
 </thead>
 <tbody>
 {% for r in entity.rows %}
@@ -51,12 +51,14 @@
     <td>{{ r.description }}</td>
     <td class="center">{{ r.account_code }}</td>
     <td class="right">{{ r.debit }}</td>
+    <td class="right">{{ r.credit }}</td>
     <td class="right">{{ r.balance }}</td>
 </tr>
 {% endfor %}
 <tr class="total-row">
     <td colspan="5" class="right">{% trans %}Cong{% endtrans %}</td>
     <td class="right">{{ entity.debit_total }}</td>
+    <td class="right">{{ entity.credit_total }}</td>
     <td></td>
 </tr>
 </tbody>

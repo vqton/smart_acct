@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from domain import (
     JournalEntry, JournalLine, JournalType, JournalTypeSequence,
-    SubsidiaryType, SubsidiaryLedger,
+    SubsidiaryType, SubsidiaryLedger, CorrectionMethod,
     Result, ValidationError, DoubleEntryError,
     JOURNAL_TYPE_PREFIX_MAP, JOURNAL_PREFIX_TYPE_MAP,
 )
@@ -1428,12 +1428,234 @@ class TestJournalTemplates:
 
     def test_journal_type_template_map(self):
         assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.GENERAL] == "S03c-DN"
-        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.SALES] == "S03a1-DN"
-        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.PURCHASE] == "S03a2-DN"
-        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.CASH_RECEIPT] == "S03b1-DN"
-        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.CASH_PAYMENT] == "S03b2-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.SALES] == "S03b2-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.PURCHASE] == "S03b1-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.CASH_RECEIPT] == "S03a1-DN"
+        assert JOURNAL_TYPE_TEMPLATE_MAP[JournalType.CASH_PAYMENT] == "S03a2-DN"
 
     def test_template_names_completeness(self):
         for code in ["S03c-DN", "S03a1-DN", "S03a2-DN", "S03b1-DN", "S03b2-DN", "S01-DN", "S05-DN", "S06-DN"]:
             assert code in TEMPLATE_NAMES
             assert code in TEMPLATE_NAMES_EN
+
+    def test_generate_specialized_template_s03a1(self):
+        entries = [
+            JournalEntry(
+                journal_number="CR2026000001", journal_type=JournalType.CASH_RECEIPT,
+                transaction_date=date(2026, 3, 10), description="Cash receipt", period="2026-03",
+                lines=[JournalLine(journal_entry_id=0, account_id="1111", debit=2000, credit=0, period="2026-03"),
+                       JournalLine(journal_entry_id=0, account_id="5111", debit=0, credit=2000, period="2026-03")],
+            ),
+        ]
+        result = generate_journal_template("S03a1-DN", entries, "2026-03", "Test Co", counterparty="Nguyen Van A")
+        assert result["template_code"] == "S03a1-DN"
+        assert result["counterparty_label"] == "Người nộp"
+        assert result["counterparty_label_en"] == "Payer"
+        assert result["row_count"] == 2
+        assert result["rows"][0]["counterparty"] == "Nguyen Van A"
+
+    def test_generate_specialized_template_s03a2(self):
+        entries = [
+            JournalEntry(
+                journal_number="CP2026000001", journal_type=JournalType.CASH_PAYMENT,
+                transaction_date=date(2026, 3, 10), description="Cash payment", period="2026-03",
+                lines=[JournalLine(journal_entry_id=0, account_id="6411", debit=1500, credit=0, period="2026-03"),
+                       JournalLine(journal_entry_id=0, account_id="1111", debit=0, credit=1500, period="2026-03")],
+            ),
+        ]
+        result = generate_journal_template("S03a2-DN", entries, "2026-03", "Test Co", counterparty="Tran Thi B")
+        assert result["counterparty_label"] == "Người nhận"
+        assert result["rows"][0]["counterparty"] == "Tran Thi B"
+
+    def test_generate_specialized_template_s03b1(self):
+        result = generate_journal_template("S03b1-DN", [], "2026-03")
+        assert result["counterparty_label"] == "Nhà cung cấp"
+
+    def test_generate_specialized_template_s03b2(self):
+        result = generate_journal_template("S03b2-DN", [], "2026-03")
+        assert result["counterparty_label"] == "Khách hàng"
+
+
+class TestAutoSubsidiaryPost:
+    def test_post_with_subsidiary_auto_posts(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV006000", transaction_date=date(2026, 6, 1),
+            description="Auto-subsidiary test",
+            lines=[{"account_id": "1111", "debit": "3000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "3000"}],
+            period="2026-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        post_result = uc.post_entry(
+            entry.id, subsidiary_type="ar", entity_id=50,
+            entity_name="Auto Customer", doc_ref="AUTO-INV-001", doc_type="invoice",
+        )
+        assert post_result.is_success()
+
+        sub_entries = uc.get_subsidiary_ledger("ar", entity_id=50)
+        assert len(sub_entries) == 2
+
+    def test_post_with_subsidiary_combined_accounts(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV006001", transaction_date=date(2026, 6, 1),
+            description="Multi-line subsidiary",
+            lines=[{"account_id": "1111", "debit": "5000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "4000"},
+                   {"account_id": "3331", "debit": "0", "credit": "1000"}],
+            period="2026-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        post_result = uc.post_entry(
+            entry.id, subsidiary_type="ar", entity_id=51,
+            entity_name="Multi Customer", doc_ref="AUTO-INV-002", doc_type="invoice",
+        )
+        assert post_result.is_success()
+
+        sub_entries = uc.get_subsidiary_ledger("ar", entity_id=51)
+        assert len(sub_entries) == 3
+
+    def test_post_without_subsidiary_does_not_post(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV006002", transaction_date=date(2026, 6, 1),
+            description="No subsidiary",
+            lines=[{"account_id": "1111", "debit": "1000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "1000"}],
+            period="2026-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        uc.post_entry(entry.id)
+        sub_entries = uc.get_subsidiary_ledger("ar", entity_id=1)
+        assert len(sub_entries) == 0
+
+    def test_post_with_subsidiary_balance_tracking(self, session):
+        uc = GLUseCases(session)
+        def create_and_post(jn, amount, entity, desc):
+            r = uc.create_entry(
+                journal_number=jn, transaction_date=date(2026, 7, 1),
+                description=desc,
+                lines=[{"account_id": "1111", "debit": str(amount), "credit": "0"},
+                       {"account_id": "5111", "debit": "0", "credit": str(amount)}],
+                period="2026-07",
+            )
+            e = r.get_data()
+            uc.post_entry(e.id, subsidiary_type="ar", entity_id=entity,
+                          entity_name="Bal Test", doc_ref=jn, doc_type="inv")
+            return e
+
+        create_and_post("JV006010", 1000, 60, "Entry 1")
+        create_and_post("JV006011", 500, 60, "Entry 2")
+        sub = uc.get_subsidiary_ledger("ar", entity_id=60)
+        assert len(sub) == 4
+
+
+class TestReversalEntry:
+    def test_red_storno_reversal(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV007000", transaction_date=date(2026, 7, 1),
+            description="Original entry for storno",
+            lines=[{"account_id": "1111", "debit": "1000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "1000"}],
+            period="2026-07",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        post_result = uc.post_entry(entry.id)
+        assert post_result.is_success()
+
+        rev_result = uc.reverse_entry(entry.id, correction_method="red_storno")
+        error_msg = str(rev_result.error) if rev_result.is_failure() else ""
+        assert rev_result.is_success(), f"Reverse failed: {error_msg}"
+        rev = rev_result.get_data()
+        assert rev.ref_journal_number == "JV007000"
+        assert rev.journal_type == JournalType.ADJUSTMENT
+
+    def test_additional_correction(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV007001", transaction_date=date(2026, 7, 1),
+            description="Original entry for additional",
+            lines=[{"account_id": "1111", "debit": "500", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "500"}],
+            period="2026-07",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        rev_result = uc.reverse_entry(entry.id, correction_method="additional",
+                                      description="Additional correction")
+        error_msg = str(rev_result.error) if rev_result.is_failure() else ""
+        assert rev_result.is_success(), f"Reverse failed: {error_msg}"
+        rev = rev_result.get_data()
+        for i, line in enumerate(entry.lines):
+            rl = rev.lines[i]
+            assert rl.debit == line.debit
+            assert rl.credit == line.credit
+
+    def test_reverse_unposted_entry_fails(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV007002", transaction_date=date(2026, 7, 1),
+            description="Unposted entry",
+            lines=[{"account_id": "1111", "debit": "100", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "100"}],
+            period="2026-07",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        rev_result = uc.reverse_entry(entry.id)
+        assert rev_result.is_failure()
+        assert "CANNOT_REVERSE_UNPOSTED" in str(rev_result.error)
+
+    def test_reverse_nonexistent_entry_fails(self, session):
+        uc = GLUseCases(session)
+        rev_result = uc.reverse_entry(99999)
+        assert rev_result.is_failure()
+        assert "JOURNAL_ENTRY_NOT_FOUND" in str(rev_result.error)
+
+    def test_invalid_correction_method_fails(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV007003", transaction_date=date(2026, 7, 1),
+            description="Valid entry",
+            lines=[{"account_id": "1111", "debit": "200", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "200"}],
+            period="2026-07",
+        )
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        rev_result = uc.reverse_entry(entry.id, correction_method="INVALID")
+        assert rev_result.is_failure()
+        assert "INVALID_CORRECTION_METHOD" in str(rev_result.error)
+
+    def test_red_storno_swaps_debit_credit(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV007004", transaction_date=date(2026, 7, 1),
+            description="Entry with mixed accounts",
+            lines=[{"account_id": "1111", "debit": "1000", "credit": "0"},
+                   {"account_id": "6411", "debit": "500", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "1500"}],
+            period="2026-07",
+        )
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        rev_result = uc.reverse_entry(entry.id, correction_method="red_storno")
+        error_msg = str(rev_result.error) if rev_result.is_failure() else ""
+        assert rev_result.is_success(), f"Reverse failed: {error_msg}"
+        rev = rev_result.get_data()
+        assert rev.lines[0].debit == Decimal("0") and rev.lines[0].credit == Decimal("1000")

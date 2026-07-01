@@ -365,6 +365,14 @@ msgid "CANNOT_UPDATE_POSTED"
 msgstr "Cannot update a posted %(type)s"
 
 #: use_cases/
+msgid "CANNOT_REVERSE_UNPOSTED"
+msgstr "Cannot reverse entry %(entry_id)s that has not been posted"
+
+#: use_cases/
+msgid "INVALID_CORRECTION_METHOD"
+msgstr "Invalid correction method: %(method)s"
+
+#: use_cases/
 msgid "CANNOT_DELETE_POSTED"
 msgstr "Cannot delete a posted %(type)s"
 

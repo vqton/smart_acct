@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from domain import (
-    JournalEntry, JournalLine, JournalType, SubsidiaryType, SubsidiaryLedger,
+    JournalEntry, JournalLine, JournalType, SubsidiaryType, SubsidiaryLedger, CorrectionMethod,
     Result, ValidationError, DoubleEntryError,
 )
 from domain.i18n import ErrorCodes
@@ -116,8 +116,85 @@ class GLUseCases:
     def delete_entry(self, entry_id: int) -> Result:
         return self.repo.delete_entry(entry_id)
 
-    def post_entry(self, entry_id: int) -> Result:
-        return self.repo.post_entry(entry_id)
+    def reverse_entry(
+        self, entry_id: int, correction_method: str = "red_storno",
+        description: Optional[str] = None,
+    ) -> Result:
+        """Create a reversal/correction entry per TT99 Art.18."""
+        original_result = self.repo.get_entry(entry_id)
+        if not original_result:
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_ENTRY_NOT_FOUND, entry_id=entry_id))
+
+        if not original_result.is_posted:
+            return Result.failure(ValidationError(ErrorCodes.CANNOT_REVERSE_UNPOSTED, entry_id=entry_id))
+
+        try:
+            cm = CorrectionMethod(correction_method)
+        except ValueError:  
+            return Result.failure(ValidationError(ErrorCodes.INVALID_CORRECTION_METHOD, method=correction_method))
+
+        new_lines = []
+        for line in original_result.lines:
+            if cm == CorrectionMethod.RED_STORNO:
+                new_lines.append({
+                    "account_id": line.account_id,
+                    "debit": float(line.credit),
+                    "credit": float(line.debit),
+                    "description": line.description,
+                })
+            else:
+                new_lines.append({
+                    "account_id": line.account_id,
+                    "debit": float(line.debit),
+                    "credit": float(line.credit),
+                    "description": line.description,
+                })
+
+        correction_desc = description or f"{'Red storno' if cm == CorrectionMethod.RED_STORNO else 'Bổ sung'} correction for {original_result.journal_number}"
+
+        return self.create_entry(
+            journal_number="",
+            transaction_date=date.today(),
+            description=correction_desc,
+            lines=new_lines,
+            period=original_result.period,
+            journal_type="adjustment",
+            auto_number=True,
+            approved_by="system",
+            ref_journal_number=original_result.journal_number,
+        )
+
+    def post_entry(
+        self, entry_id: int,
+        subsidiary_type: Optional[str] = None,
+        entity_id: Optional[int] = None,
+        entity_name: Optional[str] = None,
+        doc_ref: Optional[str] = None,
+        doc_type: Optional[str] = None,
+    ) -> Result:
+        result = self.repo.post_entry(entry_id)
+        if result.is_failure():
+            return result
+        if subsidiary_type is not None and entity_id is not None:
+            entry = result.get_data()
+            sub_result = self.repo.post_to_subsidiary_ledger(
+                journal_entry_id=entry.id or entry_id,
+                lines=[JournalLine(
+                    journal_entry_id=l.journal_entry_id,
+                    account_id=l.account_id, debit=l.debit, credit=l.credit,
+                    description=l.description, period=l.period,
+                ) for l in entry.lines],
+                subsidiary_type=subsidiary_type,
+                entity_id=entity_id,
+                entity_name=entity_name or "",
+                doc_ref=doc_ref or entry.journal_number,
+                doc_type=doc_type or "JV",
+                period=entry.period,
+                transaction_date=entry.transaction_date,
+            )
+            if sub_result.is_failure():
+                return sub_result
+        return result
 
     def get_account_balance(self, account_id: str, period: Optional[str] = None) -> dict:
         return self.repo.get_account_balance(account_id, period)

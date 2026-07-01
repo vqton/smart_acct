@@ -31,31 +31,45 @@
 </div>
 <p><strong>{% trans %}Don vi:{% endtrans %}</strong> {{ company_name }}</p>
 <p><strong>{% trans %}Dia chi:{% endtrans %}</strong> {{ address }}</p>
+{% if template_code and template_code != "S03c-DN" %}
+{% set has_counterparty = true %}
+{% else %}
+{% set has_counterparty = false %}
+{% endif %}
+{% set col_count = 5 if has_counterparty else 4 %}
 <table>
 <thead><tr>
     <th>{% trans %}NT ghi so{% endtrans %}</th>
     <th>{% trans %}So hieu CT{% endtrans %}</th>
+    {% if has_counterparty %}<th>{{ counterparty_label }}</th>{% endif %}
     <th>{% trans %}Dien giai{% endtrans %}</th>
-    <th>{% trans %}TK doi ung{% endtrans %}</th>
-    <th>{% trans %}So tien{% endtrans %}</th>
+    <th colspan="2">{% trans %}So phat sinh{% endtrans %}</th>
+</tr>
+<tr>
+    <th colspan="{{ col_count }}"></th>
+    <th>{% trans %}No{% endtrans %}</th>
+    <th>{% trans %}Co{% endtrans %}</th>
 </tr></thead>
 <tbody>
 {% for r in rows %}
 <tr>
     <td class="center">{{ r.posting_date }}</td>
     <td class="center">{{ r.journal_number }}</td>
+    {% if has_counterparty %}<td>{{ r.counterparty }}</td>{% endif %}
     <td>{{ r.description }}</td>
-    <td class="center">{{ r.account_code }}</td>
-    <td class="right">{{ r.debit if r.debit != '0' else '' }}</td>
+    <td class="center">{{ r.opposite_account }}</td>
+    <td class="right">{{ r.debit }}</td>
+    <td class="right">{{ r.credit }}</td>
 </tr>
 {% else %}
-<tr><td colspan="5" class="center">{% trans %}Khong co du lieu{% endtrans %}</td></tr>
+<tr><td colspan="{{ col_count + 2 }}" class="center">{% trans %}Khong co du lieu{% endtrans %}</td></tr>
 {% endfor %}
 </tbody>
 <tfoot>
 <tr class="total">
-    <td colspan="4" class="right">{% trans %}Cong{% endtrans %}</td>
+    <td colspan="{{ col_count }}" class="right">{% trans %}Cong{% endtrans %}</td>
     <td class="right">{{ debit_total }}</td>
+    <td class="right">{{ credit_total }}</td>
 </tr>
 </tfoot>
 </table>

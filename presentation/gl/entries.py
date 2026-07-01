@@ -116,6 +116,32 @@ def update_entry(entry_id):
         session.close()
 
 
+@gl_bp.route("/entries/<int:entry_id>/reverse", methods=["POST"])
+def reverse_entry(entry_id):
+    session = _get_session()
+    try:
+        data = request.get_json(silent=True) or {}
+        uc = GLUseCases(session)
+        result = uc.reverse_entry(
+            entry_id,
+            correction_method=data.get("correction_method", "RED_STORNO"),
+            description=data.get("description"),
+        )
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        # Auto-post the reversal immediately
+        post_result = uc.post_entry(result.get_data().id or 0)
+        if post_result.is_failure():
+            return jsonify({"error": resolve_error(post_result.error)}), 400
+        session.commit()
+        return jsonify(_json_entry(post_result.get_data())), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
 @gl_bp.route("/entries/<int:entry_id>", methods=["DELETE"])
 def delete_entry(entry_id):
     session = _get_session()
@@ -137,8 +163,16 @@ def delete_entry(entry_id):
 def post_entry(entry_id):
     session = _get_session()
     try:
+        data = request.get_json(silent=True) or {}
         uc = GLUseCases(session)
-        result = uc.post_entry(entry_id)
+        result = uc.post_entry(
+            entry_id,
+            subsidiary_type=data.get("subsidiary_type"),
+            entity_id=data.get("entity_id"),
+            entity_name=data.get("entity_name"),
+            doc_ref=data.get("doc_ref"),
+            doc_type=data.get("doc_type"),
+        )
         if result.is_failure():
             return jsonify({"error": resolve_error(result.error)}), 400
         session.commit()

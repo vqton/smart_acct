@@ -17,18 +17,18 @@ VI_MONTH_NAMES = {
 
 JOURNAL_TYPE_TEMPLATE_MAP = {
     JournalType.GENERAL: "S03c-DN",
-    JournalType.SALES: "S03a1-DN",
-    JournalType.PURCHASE: "S03a2-DN",
-    JournalType.CASH_RECEIPT: "S03b1-DN",
-    JournalType.CASH_PAYMENT: "S03b2-DN",
+    JournalType.SALES: "S03b2-DN",
+    JournalType.PURCHASE: "S03b1-DN",
+    JournalType.CASH_RECEIPT: "S03a1-DN",
+    JournalType.CASH_PAYMENT: "S03a2-DN",
 }
 
 TEMPLATE_NAMES = {
     "S03c-DN": "SỔ NHẬT KÝ CHUNG",
-    "S03a1-DN": "SỔ NHẬT KÝ BÁN HÀNG",
-    "S03a2-DN": "SỔ NHẬT KÝ MUA HÀNG",
-    "S03b1-DN": "SỔ NHẬT KÝ THU TIỀN",
-    "S03b2-DN": "SỔ NHẬT KÝ CHI TIỀN",
+    "S03a1-DN": "SỔ NHẬT KÝ THU TIỀN",
+    "S03a2-DN": "SỔ NHẬT KÝ CHI TIỀN",
+    "S03b1-DN": "SỔ NHẬT KÝ MUA HÀNG",
+    "S03b2-DN": "SỔ NHẬT KÝ BÁN HÀNG",
     "S01-DN": "SỔ CÁI",
     "S05-DN": "SỔ CHI TIẾT THANH TOÁN VỚI NGƯỜI BÁN",
     "S06-DN": "SỔ CHI TIẾT THANH TOÁN VỚI NGƯỜI MUA",
@@ -36,10 +36,10 @@ TEMPLATE_NAMES = {
 
 TEMPLATE_NAMES_EN = {
     "S03c-DN": "GENERAL JOURNAL",
-    "S03a1-DN": "SALES JOURNAL",
-    "S03a2-DN": "PURCHASE JOURNAL",
-    "S03b1-DN": "CASH RECEIPT JOURNAL",
-    "S03b2-DN": "CASH PAYMENT JOURNAL",
+    "S03a1-DN": "CASH RECEIPT JOURNAL",
+    "S03a2-DN": "CASH DISBURSEMENT JOURNAL",
+    "S03b1-DN": "PURCHASE JOURNAL",
+    "S03b2-DN": "SALES JOURNAL",
     "S01-DN": "GENERAL LEDGER",
     "S05-DN": "ACCOUNTS PAYABLE SUBSIDIARY LEDGER",
     "S06-DN": "ACCOUNTS RECEIVABLE SUBSIDIARY LEDGER",
@@ -64,12 +64,28 @@ def _fmt_date(d: date) -> str:
     return f"{d.day} {VI_MONTH_NAMES.get(d.month, f'tháng {d.month}')} năm {d.year}"
 
 
+COUNTERPARTY_LABELS = {
+    "S03a1-DN": "Người nộp",
+    "S03a2-DN": "Người nhận",
+    "S03b1-DN": "Nhà cung cấp",
+    "S03b2-DN": "Khách hàng",
+}
+
+COUNTERPARTY_LABELS_EN = {
+    "S03a1-DN": "Payer",
+    "S03a2-DN": "Receiver",
+    "S03b1-DN": "Supplier",
+    "S03b2-DN": "Customer",
+}
+
+
 def generate_journal_template(
     template_code: str,
     entries: List[JournalEntry],
     period: str,
     company_name: str = "Công ty",
     address: str = "",
+    counterparty: str = "",
 ) -> dict:
     """Generate journal data in standard TT99 format."""
     year = period.split("-")[0] if "-" in period else period
@@ -80,6 +96,7 @@ def generate_journal_template(
     credit_total = Decimal("0")
 
     for entry in entries:
+        entry_counterparty = counterparty
         for line in entry.lines:
             opposite_accounts = _get_opposite_accounts(entry.lines, line.account_id)
             rows.append({
@@ -88,11 +105,15 @@ def generate_journal_template(
                 "description": line.description or entry.description,
                 "account_code": line.account_id,
                 "opposite_account": ", ".join(sorted(opposite_accounts)) if opposite_accounts else "",
-                "debit": _fmt_vnd(line.debit),
-                "credit": _fmt_vnd(line.credit),
+                "debit": _fmt_vnd(line.debit) if line.debit > 0 else "",
+                "credit": _fmt_vnd(line.credit) if line.credit > 0 else "",
+                "counterparty": entry_counterparty,
             })
             debit_total += line.debit
             credit_total += line.credit
+
+    counterparty_label = COUNTERPARTY_LABELS.get(template_code, "")
+    counterparty_label_en = COUNTERPARTY_LABELS_EN.get(template_code, "")
 
     return {
         "template_code": template_code,
@@ -108,6 +129,8 @@ def generate_journal_template(
         "credit_total": _fmt_vnd(credit_total),
         "row_count": len(rows),
         "generated_at": _fmt_date(date.today()),
+        "counterparty_label": counterparty_label,
+        "counterparty_label_en": counterparty_label_en,
     }
 
 
@@ -200,6 +223,7 @@ def generate_subsidiary_template(
             "doc_type": e.doc_type,
             "description": e.description,
             "account_code": e.account_code,
+
             "debit": _fmt_vnd(e.debit) if e.debit > 0 else "",
             "credit": _fmt_vnd(e.credit) if e.credit > 0 else "",
             "balance": _fmt_vnd(e.balance),
