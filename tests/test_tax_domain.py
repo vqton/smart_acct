@@ -11,6 +11,8 @@ from domain import (
     InvoiceType, EInvoiceAdjustmentType, IncentiveStatus,
     TaxDeclaration, TaxLine, TaxPayment, TaxAdjustment, TaxIncentive,
     EInvoice, EInvoiceLine, TaxSchedule,
+    GMTRuleType, GMTSafeHarborStatus, GMTFilingStatus,
+    GMTConstituentEntity, GMTComputation, GMTFiling,
     VASValidationError,
 )
 
@@ -362,3 +364,52 @@ class TestTaxLine:
                 label="Test",
                 amount=Decimal("0"),
             )
+
+
+class TestGMTComputation:
+    def test_compute_etr(self):
+        c = GMTComputation(entity_id=1, fiscal_year=2026, gloebe_income=Decimal("1000000"), covered_taxes=Decimal("120000"))
+        assert c.compute_etr() == Decimal("0.1200")
+
+    def test_safe_harbor_etr_met(self):
+        c = GMTComputation(entity_id=1, fiscal_year=2026, gloebe_income=Decimal("1000000"), covered_taxes=Decimal("180000"))
+        met = c.apply_safe_harbor(2026)
+        assert met is True
+        assert c.safe_harbor_status == GMTSafeHarborStatus.ETR_TEST
+        assert c.topup_tax_amount == Decimal("0")
+
+    def test_safe_harbor_not_met(self):
+        c = GMTComputation(entity_id=1, fiscal_year=2026, gloebe_income=Decimal("1000000"), covered_taxes=Decimal("120000"))
+        met = c.apply_safe_harbor(2026)
+        assert met is False
+        assert c.safe_harbor_status == GMTSafeHarborStatus.NOT_MET
+
+    def test_topup_tax_computation(self):
+        c = GMTComputation(entity_id=1, fiscal_year=2026, gloebe_income=Decimal("1000000"), covered_taxes=Decimal("120000"))
+        c.apply_safe_harbor(2026)
+        topup = c.compute_topup_tax()
+        expected = (Decimal("1000000") * (Decimal("0.15") - Decimal("0.12"))).quantize(Decimal("0.01"))
+        assert topup == expected
+        assert topup == Decimal("30000.00")
+
+    def test_topup_with_carveout(self):
+        c = GMTComputation(entity_id=1, fiscal_year=2026, gloebe_income=Decimal("1000000"),
+                           covered_taxes=Decimal("120000"),
+                           substance_payroll_carveout=Decimal("200000"),
+                           substance_asset_carveout=Decimal("300000"))
+        c.apply_safe_harbor(2026)
+        topup = c.compute_topup_tax()
+        excess = Decimal("1000000") - Decimal("200000") - Decimal("300000")
+        expected = (excess * (Decimal("0.15") - Decimal("0.12"))).quantize(Decimal("0.01"))
+        assert topup == expected
+
+    def test_gmt_filing(self):
+        filing = GMTFiling(entity_id=1, fiscal_year=2026, filing_type=GMTRuleType.QDMTT,
+                           due_date=date(2027, 12, 31))
+        assert filing.filing_type == GMTRuleType.QDMTT
+        assert filing.status == GMTFilingStatus.NOT_DUE
+
+    def test_constituent_entity(self):
+        ce = GMTConstituentEntity(entity_name="Test Corp", tax_code="1234567890")
+        assert ce.country_code == "VN"
+        assert ce.is_filing_entity is False

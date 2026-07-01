@@ -24,6 +24,8 @@ from domain.tax import (
     EInvoiceAdjustmentType, TaxIncentiveType,
     TaxDeclaration, TaxLine, TaxPayment, TaxAdjustment, TaxIncentive,
     EInvoice, EInvoiceLine, TaxSchedule,
+    GMTRuleType, GMTSafeHarborStatus, GMTFilingStatus,
+    GMTConstituentEntity, GMTComputation, GMTFiling,
 )
 from domain.cash import (
     CashReceiptType, CashPaymentType, CashVoucherStatus,

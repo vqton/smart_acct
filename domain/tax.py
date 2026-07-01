@@ -432,3 +432,110 @@ class TaxSchedule(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
+
+
+class GMTRuleType(str, Enum):
+    QDMTT = "qdmt"
+    IIR = "iir"
+
+
+class GMTSafeHarborStatus(str, Enum):
+    MET = "met"
+    NOT_MET = "not_met"
+    DE_MINIMIS = "de_minimis"
+    ETR_TEST = "etr_test"
+    ROUTINE_PROFIT = "routine_profit"
+
+
+class GMTFilingStatus(str, Enum):
+    NOT_DUE = "not_due"
+    PREPARING = "preparing"
+    FILED = "filed"
+    ACCEPTED = "accepted"
+    AMENDED = "amended"
+
+
+class GMTConstituentEntity(BaseModel):
+    id: Optional[int] = None
+    entity_name: str = Field(..., min_length=1, max_length=300)
+    tax_code: str = Field(..., min_length=10, max_length=20)
+    country_code: str = Field(default="VN", max_length=3)
+    is_filing_entity: bool = False
+    ultimate_parent_name: Optional[str] = Field(default=None, max_length=300)
+    ultimate_parent_tax_code: Optional[str] = Field(default=None, max_length=20)
+    fiscal_year_end: date = Field(default_factory=lambda: date(date.today().year, 12, 31))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class GMTComputation(BaseModel):
+    id: Optional[int] = None
+    fiscal_year: int = Field(..., ge=2024, le=2100)
+    entity_id: int = Field(...)
+    rule_type: GMTRuleType = Field(default=GMTRuleType.QDMTT)
+    gloebe_income: Decimal = Field(default=Decimal("0"))
+    covered_taxes: Decimal = Field(default=Decimal("0"))
+    jurisdictional_etr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("1"))
+    substance_payroll_carveout: Decimal = Field(default=Decimal("0"))
+    substance_asset_carveout: Decimal = Field(default=Decimal("0"))
+    excess_profit: Decimal = Field(default=Decimal("0"))
+    topup_tax_pct: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("1"))
+    topup_tax_amount: Decimal = Field(default=Decimal("0"))
+    safe_harbor_status: Optional[GMTSafeHarborStatus] = None
+    safe_harbor_applied: bool = False
+    computation_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: GMTFilingStatus = GMTFilingStatus.NOT_DUE
+
+    @field_validator("gloebe_income", "covered_taxes", "substance_payroll_carveout",
+                     "substance_asset_carveout", "excess_profit", "topup_tax_amount")
+    @classmethod
+    def validate_amt(cls, v):
+        return _quantize_vnd(v)
+
+    def compute_etr(self) -> Decimal:
+        if self.gloebe_income == Decimal("0"):
+            return Decimal("0")
+        return (self.covered_taxes / self.gloebe_income).quantize(Decimal("0.0001"))
+
+    def apply_safe_harbor(self, transition_year: int) -> bool:
+        thresholds = {2024: Decimal("0.15"), 2025: Decimal("0.16"), 2026: Decimal("0.17")}
+        threshold = thresholds.get(transition_year, Decimal("0.15"))
+        etr = self.compute_etr()
+        if etr >= threshold:
+            self.safe_harbor_status = GMTSafeHarborStatus.ETR_TEST
+            self.safe_harbor_applied = True
+            self.topup_tax_amount = Decimal("0")
+            return True
+        de_minimis_revenue = Decimal("10000000")
+        de_minimis_profit = Decimal("1000000")
+        if self.gloebe_income < de_minimis_profit and abs(self.gloebe_income) < de_minimis_revenue:
+            self.safe_harbor_status = GMTSafeHarborStatus.DE_MINIMIS
+            self.safe_harbor_applied = True
+            self.topup_tax_amount = Decimal("0")
+            return True
+        self.safe_harbor_status = GMTSafeHarborStatus.NOT_MET
+        self.safe_harbor_applied = False
+        return False
+
+    def compute_topup_tax(self) -> Decimal:
+        excess = self.gloebe_income - self.substance_payroll_carveout - self.substance_asset_carveout
+        self.excess_profit = max(excess, Decimal("0"))
+        topup_pct = max(Decimal("0.15") - self.compute_etr(), Decimal("0"))
+        self.topup_tax_pct = topup_pct
+        self.topup_tax_amount = (self.excess_profit * topup_pct).quantize(Decimal("0.01"))
+        return self.topup_tax_amount
+
+
+class GMTFiling(BaseModel):
+    id: Optional[int] = None
+    fiscal_year: int = Field(..., ge=2024, le=2100)
+    entity_id: int = Field(...)
+    filing_type: GMTRuleType = Field(default=GMTRuleType.QDMTT)
+    status: GMTFilingStatus = GMTFilingStatus.NOT_DUE
+    due_date: date = Field(...)
+    filed_date: Optional[date] = None
+    qdmt_return_data: Optional[dict] = Field(default=None)
+    iir_return_data: Optional[dict] = Field(default=None)
+    notification_data: Optional[dict] = Field(default=None)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = Field(default=None)

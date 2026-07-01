@@ -8,6 +8,8 @@ from domain import (
     TaxPaymentStatus, InvoiceStatus, TaxAdjustmentType, TaxIncentiveType,
     TaxDeclaration, TaxLine, TaxPayment, TaxAdjustment, TaxIncentive,
     EInvoice, EInvoiceLine, TaxSchedule,
+    GMTRuleType, GMTSafeHarborStatus, GMTFilingStatus,
+    GMTConstituentEntity, GMTComputation, GMTFiling,
     Result, ValidationError, VASValidationError,
 )
 from domain.i18n import ErrorCodes
@@ -402,3 +404,51 @@ class TaxUseCases:
             "total_payments": len(payments),
             "total_invoices": len(invoices),
         })
+
+    # ── GMT (Global Minimum Tax) ──────────────────────────────────────────
+
+    def compute_gmt(self, entity_id: int, fiscal_year: int, gloebe_income: Decimal,
+                    covered_taxes: Decimal, substance_payroll: Decimal = Decimal("0"),
+                    substance_asset: Decimal = Decimal("0")) -> Result:
+        try:
+            computation = GMTComputation(
+                entity_id=entity_id,
+                fiscal_year=fiscal_year,
+                gloebe_income=gloebe_income,
+                covered_taxes=covered_taxes,
+                substance_payroll_carveout=substance_payroll,
+                substance_asset_carveout=substance_asset,
+            )
+            transition_year = min(fiscal_year, 2026)
+            safe_harbor_met = computation.apply_safe_harbor(transition_year)
+            if not safe_harbor_met:
+                computation.compute_topup_tax()
+            computation.jurisdictional_etr = computation.compute_etr()
+            return Result.success({
+                "fiscal_year": fiscal_year,
+                "entity_id": entity_id,
+                "gloebe_income": str(computation.gloebe_income),
+                "covered_taxes": str(computation.covered_taxes),
+                "jurisdictional_etr": str(computation.jurisdictional_etr),
+                "safe_harbor_applied": computation.safe_harbor_applied,
+                "safe_harbor_status": computation.safe_harbor_status.value if computation.safe_harbor_status else None,
+                "substance_payroll_carveout": str(computation.substance_payroll_carveout),
+                "substance_asset_carveout": str(computation.substance_asset_carveout),
+                "excess_profit": str(computation.excess_profit),
+                "topup_tax_pct": str(computation.topup_tax_pct),
+                "topup_tax_amount": str(computation.topup_tax_amount),
+            })
+        except ValidationError as e:
+            return Result.failure(e)
+
+    def estimate_gmt_filing_dates(self, fiscal_year: int) -> dict:
+        fy_end = date(fiscal_year, 12, 31)
+        return {
+            "fiscal_year": fiscal_year,
+            "qdmt_due_date": (fy_end + timedelta(days=365)).isoformat(),
+            "iir_due_date_first_year": (fy_end + timedelta(days=547)).isoformat(),
+            "iir_due_date_subsequent": (fy_end + timedelta(days=456)).isoformat(),
+            "notification_due_date": (fy_end + timedelta(days=30)).isoformat(),
+            "qdmt_return_form": "04/QDMTT",
+            "iir_return_form": "05/IIR",
+        }
