@@ -20,6 +20,8 @@ PyJWT==2.10.0
 python-jose==3.3.0
 cryptography==3.4.8
 Casbin==1.37.0
+casbin-sqlalchemy-adapter==1.1.0
+bcrypt==4.1.2
 python-dotenv==1.0.0
 
 # --- REPORTS & DOCUMENTS ---

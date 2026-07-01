@@ -70,6 +70,11 @@ from infrastructure.models.treasury_models import (
     BatchStatusDB, BatchItemStatusDB,
     SyncStatusDB, FXForwardStatusDB,
 )
+from infrastructure.models.auth_models import (
+    UserModel, RoleModel, UserRoleModel, PermissionModel, RolePermissionModel,
+    UserSessionModel, PasswordResetTokenModel, AuthAuditLogModel,
+    AuthEventTypeDB,
+)
 from infrastructure.models.inventory_models import (
     InventoryCategoryModel, WarehouseModel, InventoryItemModel,
     InventoryBatchModel, SerialNumberModel,
@@ -139,6 +144,8 @@ __all__ = [
     "InventoryTypeDB", "InventoryStatusDB", "MovementTypeDB", "ValuationMethodDB",
     "CheckMethodDB", "InventoryCheckStatusDB", "BatchStatusDB", "SerialStatusDB",
     "AdjustmentTypeDB", "TransferStatusDB",
+    "UserModel", "RoleModel", "UserRoleModel", "PermissionModel", "RolePermissionModel",
+    "UserSessionModel", "PasswordResetTokenModel", "AuthAuditLogModel", "AuthEventTypeDB",
     "CashInTransitModel", "SecurityInvestmentModel", "InvestmentTransactionModel",
     "LoanModel", "LoanPaymentModel", "FXForwardModel",
     "CashFlowForecastModel", "ForecastLineModel",

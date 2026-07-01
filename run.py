@@ -19,6 +19,7 @@ from presentation.payroll import payroll_bp
 from presentation.budget import budget_bp
 from presentation.costing_center import ccost_bp
 from presentation.fs import fs_bp
+from presentation.auth import auth_bp
 
 _start_time = time()
 
@@ -67,6 +68,19 @@ def create_app() -> Flask:
     db_manager.initialize()
     app.db_manager = db_manager
 
+    # ── Initialize Auth Services ──────────────────────────────────────────
+    from infrastructure.auth import JWTService, CasbinEnforcerService, AuditService
+    jwt_secret = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "dev-secret"))
+    app.auth_jwt_service = JWTService(secret_key=jwt_secret)
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg2://smartacct:smartacct123@localhost:5432/smartacct")
+    casbin_model = os.path.join(os.path.dirname(__file__), "config", "casbin_model.conf")
+    app.auth_casbin_service = CasbinEnforcerService(model_path=casbin_model, db_url=db_url)
+    try:
+        app.auth_casbin_service.initialize()
+    except Exception as e:
+        print(f"Warning: Casbin init failed (DB may not have auth tables yet): {e}")
+    app.auth_audit_service = AuditService(session_factory=db_manager.get_session)
+
     # ── Flask-CORS ────────────────────────────────────────────────────────
     from flask_cors import CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -112,6 +126,7 @@ def create_app() -> Flask:
     app.register_blueprint(trs_bp)
     app.register_blueprint(ccost_bp)
     app.register_blueprint(fs_bp)
+    app.register_blueprint(auth_bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
