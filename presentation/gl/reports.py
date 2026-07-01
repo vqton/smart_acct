@@ -13,6 +13,93 @@ from use_cases.gl.templates import (
 from domain import ValidationError, JournalType
 
 
+def _generate_excel(data: dict, report_type: str) -> BytesIO:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = report_type
+
+    header_font = Font(bold=True, size=11)
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font_white = Font(bold=True, size=11, color="FFFFFF")
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    headers = []
+    rows = []
+
+    if report_type in ("trial-balance", "trial_balance"):
+        headers = ["Account Code", "Account Name", "Opening Debit", "Opening Credit",
+                    "Period Debit", "Period Credit", "Closing Debit", "Closing Credit"]
+        for acc in data.get("accounts", []):
+            rows.append([
+                acc.get("code", ""), acc.get("name", ""),
+                str(acc.get("opening_debit", 0)), str(acc.get("opening_credit", 0)),
+                str(acc.get("period_debit", 0)), str(acc.get("period_credit", 0)),
+                str(acc.get("closing_debit", 0)), str(acc.get("closing_credit", 0)),
+            ])
+    elif report_type in ("cash-flow", "cash_flow"):
+        headers = ["Item", "Code", "Amount"]
+        sections = data.get("sections", []) if "sections" in data else data.get("data", {}).get("sections", [])
+        for section in sections:
+            rows.append([section.get("name", ""), "", ""])
+            for item in section.get("items", []):
+                rows.append(["  " + item.get("name", ""), item.get("code", ""), str(item.get("amount", 0))])
+    elif report_type in ("balance-sheet", "balance_sheet"):
+        headers = ["Item", "Code", "Ending Balance", "Opening Balance"]
+        sections = data.get("sections", data.get("data", {}).get("sections", []))
+        for section in sections:
+            rows.append([section.get("name", ""), "", "", ""])
+            for item in section.get("items", []):
+                rows.append(["  " + item.get("name", ""), item.get("code", ""),
+                             str(item.get("ending_balance", 0)), str(item.get("opening_balance", 0))])
+    elif report_type in ("income-statement", "income_statement"):
+        headers = ["Item", "Code", "This Period", "Cumulative"]
+        items = data.get("items", data.get("data", {}).get("items", []))
+        for item in items:
+            rows.append([item.get("name", ""), item.get("code", ""),
+                         str(item.get("this_period", 0)), str(item.get("cumulative", 0))])
+    elif report_type in ("journal", "general-ledger", "subsidiary"):
+        entries = data.get("entries", [])
+        if entries:
+            headers = list(entries[0].keys()) if isinstance(entries[0], dict) else ["Field", "Value"]
+            for entry in entries:
+                if isinstance(entry, dict):
+                    rows.append([str(v) for v in entry.values()])
+
+    # Write headers
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font_white
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    # Write data
+    for r, row in enumerate(rows, 2):
+        for c, val in enumerate(row, 1):
+            cell = ws.cell(row=r, column=c, value=val)
+            cell.border = thin_border
+
+    # Auto-width
+    for col in range(1, len(headers) + 1):
+        max_len = len(str(headers[col - 1]))
+        for r in range(2, len(rows) + 2):
+            cell_val = ws.cell(row=r, column=col).value
+            if cell_val:
+                max_len = max(max_len, len(str(cell_val)))
+        ws.column_dimensions[chr(64 + col)].width = min(max_len + 3, 40)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
 @gl_bp.route("/reports/journal/<period>", methods=["GET"])
 def generate_journal_report(period):
     journal_type = request.args.get("journal_type", "general")
@@ -189,6 +276,14 @@ def export_report(report_type, period):
         else:
             return jsonify({"error": f"Unknown report type: {report_type}"}), 400
 
+        if export_format == "xlsx":
+            buf = _generate_excel(data, report_type)
+            return send_file(
+                buf,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                as_attachment=True,
+                download_name=f"{report_type}_{period}.xlsx",
+            )
         if export_format == "pdf":
             from weasyprint import HTML
             pdf_bytes = HTML(string=html).write_pdf()

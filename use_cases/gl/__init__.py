@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from domain import (
     JournalEntry, JournalLine, JournalType, SubsidiaryType, SubsidiaryLedger, CorrectionMethod,
-    Result, ValidationError, DoubleEntryError,
+    Result, ValidationError, DoubleEntryError, detect_subsidiary_from_lines,
 )
 from domain.i18n import ErrorCodes
 from infrastructure.repositories.gl_repository import GLRepository
@@ -67,6 +67,8 @@ class GLUseCases:
                     line_type=line_data.get("line_type", "regular"),
                     is_taxable=line_data.get("is_taxable", False),
                     tax_code=line_data.get("tax_code"),
+                    entity_id=line_data.get("entity_id"),
+                    entity_name=line_data.get("entity_name"),
                     period=period,
                 )
                 entry.lines.append(line)
@@ -141,6 +143,8 @@ class GLUseCases:
                     "debit": float(line.credit),
                     "credit": float(line.debit),
                     "description": line.description,
+                    "entity_id": line.entity_id,
+                    "entity_name": line.entity_name,
                 })
             else:
                 new_lines.append({
@@ -148,6 +152,8 @@ class GLUseCases:
                     "debit": float(line.debit),
                     "credit": float(line.credit),
                     "description": line.description,
+                    "entity_id": line.entity_id,
+                    "entity_name": line.entity_name,
                 })
 
         correction_desc = description or f"{'Red storno' if cm == CorrectionMethod.RED_STORNO else 'Bổ sung'} correction for {original_result.journal_number}"
@@ -175,8 +181,9 @@ class GLUseCases:
         result = self.repo.post_entry(entry_id)
         if result.is_failure():
             return result
+        entry = result.get_data()
+        # Manual override takes precedence — post ALL lines to one subsidiary
         if subsidiary_type is not None and entity_id is not None:
-            entry = result.get_data()
             sub_result = self.repo.post_to_subsidiary_ledger(
                 journal_entry_id=entry.id or entry_id,
                 lines=[JournalLine(
@@ -189,6 +196,24 @@ class GLUseCases:
                 entity_name=entity_name or "",
                 doc_ref=doc_ref or entry.journal_number,
                 doc_type=doc_type or "JV",
+                period=entry.period,
+                transaction_date=entry.transaction_date,
+            )
+            if sub_result.is_failure():
+                return sub_result
+            return result
+        # Auto-detect subsidiary posting from lines with entity_id set
+        sub_groups = detect_subsidiary_from_lines(entry.lines)
+        for st_str, lines in sub_groups.items():
+            first = lines[0]
+            sub_result = self.repo.post_to_subsidiary_ledger(
+                journal_entry_id=entry.id or entry_id,
+                lines=lines,
+                subsidiary_type=st_str,
+                entity_id=first.entity_id or 0,
+                entity_name=first.entity_name or "",
+                doc_ref=entry.journal_number,
+                doc_type="JV",
                 period=entry.period,
                 transaction_date=entry.transaction_date,
             )
@@ -222,6 +247,14 @@ class GLUseCases:
 
     def list_journal_sequences(self, fiscal_year: Optional[int] = None) -> List[dict]:
         return self.repo.list_journal_sequences(fiscal_year)
+
+    def update_journal_prefix(self, journal_type: str, new_prefix: str, fiscal_year: Optional[int] = None) -> Result:
+        try:
+            jt = _parse_journal_type(journal_type)
+            year = fiscal_year or date.today().year
+            return self.repo.update_journal_prefix(jt, new_prefix, year)
+        except ValidationError as e:
+            return Result.failure(e)
 
     # ── Subsidiary Ledger ───────────────────────────────────────────
 

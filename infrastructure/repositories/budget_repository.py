@@ -235,6 +235,38 @@ class BudgetRepository:
         self.session.flush()
         return self._structure_to_domain(m)
 
+    # ── Categories ────────────────────────────────────────────────────
+
+    def create_category(self, entity: BudgetCategory) -> Result:
+        existing = self.session.execute(
+            select(BudgetCategoryModel).where(
+                BudgetCategoryModel.structure_id == entity.structure_id,
+                BudgetCategoryModel.name == entity.name,
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return Result.failure(VASValidationError(ErrorCodes.BUDGET_CATEGORY_ALREADY_EXISTS))
+        model = BudgetCategoryModel(
+            structure_id=entity.structure_id,
+            budget_type=entity.budget_type.value if hasattr(entity.budget_type, 'value') else entity.budget_type,
+            name=entity.name,
+            category_type=entity.category_type.value if hasattr(entity.category_type, 'value') else entity.category_type,
+            gl_account_codes=entity.gl_account_codes or [],
+            is_active=entity.is_active,
+        )
+        self.session.add(model)
+        self.session.flush()
+        self.session.refresh(model)
+        entity.id = model.id
+        return Result.success(self._category_to_domain(model))
+
+    def list_categories(self, structure_id: int) -> List[BudgetCategory]:
+        models = self.session.execute(
+            select(BudgetCategoryModel).where(BudgetCategoryModel.structure_id == structure_id)
+            .order_by(BudgetCategoryModel.name)
+        ).scalars().all()
+        return [self._category_to_domain(m) for m in models]
+
     # ── Dimensions ────────────────────────────────────────────────────
 
     def create_dimension(self, entity: BudgetDimension) -> Result:
@@ -519,6 +551,20 @@ class BudgetRepository:
         self.session.flush()
         self.session.expire(m, attribute_names=["lines"])
         return self._plan_to_domain(m)
+
+    def get_plan_line_amounts(self, plan_line_id: int) -> Optional[Dict[str, Decimal]]:
+        line = self.session.get(BudgetPlanLineModel, plan_line_id)
+        if not line:
+            return None
+        return {k: Decimal(v) for k, v in (line.amounts or {}).items()}
+
+    def update_plan_line_amounts(self, plan_line_id: int, amounts: Dict[str, Decimal]) -> bool:
+        line = self.session.get(BudgetPlanLineModel, plan_line_id)
+        if not line:
+            return False
+        line.amounts = {k: str(v) for k, v in amounts.items()}
+        self.session.flush()
+        return True
 
     # ── Approval Workflow ─────────────────────────────────────────────
 

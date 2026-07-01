@@ -4,6 +4,7 @@ from decimal import Decimal
 import random
 import string
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func as sqlfunc
 from domain import (
     BudgetType, BudgetVersionStatus, BudgetPeriodType,
     BudgetControlLevel, BudgetDimensionType, BudgetCategoryType,
@@ -70,6 +71,21 @@ class BudgetUseCases:
             self.repo.log_audit("budget_structure", structure_id, "update", "system",
                                 {"updates": list(updates.keys())})
         return result
+
+    def create_budget_category(self, structure_id: int, budget_type: BudgetType,
+                                name: str, category_type: BudgetCategoryType = BudgetCategoryType.VARIABLE,
+                                gl_account_codes: Optional[List[str]] = None) -> Result:
+        entity = BudgetCategory(
+            structure_id=structure_id, budget_type=budget_type, name=name,
+            category_type=category_type, gl_account_codes=gl_account_codes or [],
+        )
+        result = self.repo.create_category(entity)
+        if result.is_success():
+            self.repo.log_audit("budget_category", entity.id, "create", "system")
+        return result
+
+    def list_budget_categories(self, structure_id: int) -> List[BudgetCategory]:
+        return self.repo.list_categories(structure_id)
 
     def create_budget_dimension(self, structure_id: int, dim_type: BudgetDimensionType,
                                 code: str, name: str) -> Result:
@@ -385,14 +401,47 @@ class BudgetUseCases:
         if not adj:
             return Result.failure(VASValidationError(ErrorCodes.BUDGET_ADJUSTMENT_NOT_FOUND))
         adj.status = ApprovalStatus.APPROVED
-        # Apply adjustment to plan lines
         for line in adj.lines:
-            if line.source_plan_line_id:
-                pass
-            if line.target_plan_line_id:
-                pass
+            pk = line.period_key or "annual"
+            amt = abs(line.amount)
+            if line.source_plan_line_id and line.target_plan_line_id:
+                # virement: source decreases, target increases
+                src = self.repo.get_plan_line_amounts(line.source_plan_line_id)
+                if src is not None:
+                    new_amts = dict(src)
+                    new_amts[pk] = max(new_amts.get(pk, sum(src.values())) - amt, Decimal("0"))
+                    self.repo.update_plan_line_amounts(line.source_plan_line_id, new_amts)
+                tgt = self.repo.get_plan_line_amounts(line.target_plan_line_id)
+                if tgt is not None:
+                    new_amts = dict(tgt)
+                    new_amts[pk] = new_amts.get(pk, sum(tgt.values())) + amt
+                    self.repo.update_plan_line_amounts(line.target_plan_line_id, new_amts)
+            elif line.source_plan_line_id:
+                # supplementary/increase: add amount to source line
+                src = self.repo.get_plan_line_amounts(line.source_plan_line_id)
+                if src is not None:
+                    new_amts = dict(src)
+                    new_amts[pk] = new_amts.get(pk, sum(src.values())) + amt
+                    self.repo.update_plan_line_amounts(line.source_plan_line_id, new_amts)
+            elif line.target_plan_line_id:
+                # decrease: remove amount from target line
+                tgt = self.repo.get_plan_line_amounts(line.target_plan_line_id)
+                if tgt is not None:
+                    new_amts = dict(tgt)
+                    new_amts[pk] = max(new_amts.get(pk, sum(tgt.values())) - amt, Decimal("0"))
+                    self.repo.update_plan_line_amounts(line.target_plan_line_id, new_amts)
         self.repo.log_audit("budget_adjustment", adjustment_id, "approve", approved_by)
         return Result.success(adj)
+
+    @staticmethod
+    def _adjust_amounts(amounts: Dict[str, Decimal], delta: Decimal, add: bool, period_key: str) -> Dict[str, Decimal]:
+        result = dict(amounts)
+        if period_key in result:
+            result[period_key] = result[period_key] + delta if add else max(result[period_key] - delta, Decimal("0"))
+        elif period_key and result:
+            if add:
+                result[period_key] = delta
+        return result
 
     def list_adjustments(self, version_id: int) -> List[BudgetAdjustment]:
         return self.repo.list_adjustments(version_id)
@@ -400,6 +449,22 @@ class BudgetUseCases:
     # ═══════════════════════════════════════════════════════════════
     # UC-BUDGET-08: Budget Execution Monitoring
     # ═══════════════════════════════════════════════════════════════
+
+    def _get_gl_actual(self, gl_account_code: str, period_key: Optional[str] = None) -> Decimal:
+        from infrastructure.models.gl_models import JournalEntryModel, JournalLineModel
+        stmt = select(
+            sqlfunc.coalesce(sqlfunc.sum(JournalLineModel.debit), 0),
+            sqlfunc.coalesce(sqlfunc.sum(JournalLineModel.credit), 0),
+        ).where(
+            JournalLineModel.account_id == gl_account_code,
+            JournalLineModel.journal_entry_id.in_(
+                select(JournalEntryModel.id).where(JournalEntryModel.is_posted == True)
+            )
+        )
+        if period_key:
+            stmt = stmt.where(JournalLineModel.period == period_key)
+        result = self.session.execute(stmt).one()
+        return Decimal(str(result[1])) - Decimal(str(result[0]))
 
     def get_budget_execution(self, version_id: int,
                              dim_type: Optional[BudgetDimensionType] = None,
@@ -412,10 +477,11 @@ class BudgetUseCases:
                     continue
             for line in plan.lines:
                 commitments = self.repo.get_total_commitment(line.id)
+                actual = self._get_gl_actual(line.gl_account_code)
                 item = BudgetExecutionItem(
                     plan_line_id=line.id,
                     budget_amount=sum(Decimal(str(v)) for v in line.amounts.values()),
-                    actual_amount=Decimal("0"),
+                    actual_amount=actual,
                     commitment_amount=commitments,
                 )
                 item.calculate()
@@ -451,8 +517,38 @@ class BudgetUseCases:
                                            dimension_type, dimension_code)
         if not rule or rule.control_level == BudgetControlLevel.NONE:
             return {"status": "allow", "message": "No control rule"}
-        # Find active approved version
-        return {"status": "allow", "message": "Budget check passed"}
+        structure = self.repo.get_structure(structure_id)
+        if not structure:
+            return {"status": "allow", "message": "Structure not found"}
+        version = self.repo.get_active_version(structure.fiscal_year)
+        if not version:
+            return {"status": "allow", "message": "No approved budget version"}
+        dim_type = BudgetDimensionType(dimension_type) if dimension_type else None
+        plan = self.repo.get_plan_by_dimension(version.id, dim_type, dimension_code) if dim_type and dimension_code else None
+        if not plan:
+            return {"status": "allow", "message": "No plan for this dimension"}
+        budget_amount = Decimal("0")
+        for line in plan.lines:
+            if line.gl_account_code == gl_account_code:
+                budget_amount = sum(Decimal(str(v)) for v in line.amounts.values())
+                break
+        if budget_amount == Decimal("0"):
+            return {"status": "allow", "message": "No budget for this account"}
+        actual = self._get_gl_actual(gl_account_code, period_key)
+        commitments = Decimal("0")
+        for line in plan.lines:
+            if line.gl_account_code == gl_account_code:
+                commitments = self.repo.get_total_commitment(line.id)
+                break
+        consumed = actual + commitments + amount
+        utilization = consumed / budget_amount * Decimal("100")
+        if rule.control_level == BudgetControlLevel.HARD_BLOCK and utilization >= rule.hard_block_threshold_pct:
+            return {"status": "block", "utilization_pct": float(utilization), "message": "Hard block exceeded"}
+        if rule.control_level in (BudgetControlLevel.SOFT_BLOCK, BudgetControlLevel.HARD_BLOCK) and utilization >= rule.soft_block_threshold_pct:
+            return {"status": "soft_block", "utilization_pct": float(utilization), "message": "Soft block exceeded"}
+        if utilization >= rule.warning_threshold_pct:
+            return {"status": "warning", "utilization_pct": float(utilization), "message": "Warning threshold exceeded"}
+        return {"status": "allow", "utilization_pct": float(utilization), "message": "Budget available"}
 
     def generate_override_code(self, control_rule_id: int, requested_by: str,
                                reason: str, expires_in_hours: int = 24) -> Result:
@@ -503,7 +599,7 @@ class BudgetUseCases:
         for plan in plans:
             for pl in plan.lines:
                 bgt = sum(Decimal(str(v)) for v in pl.amounts.values())
-                actual = Decimal("0")
+                actual = self._get_gl_actual(pl.gl_account_code, period_key)
                 var_amt = actual - bgt
                 var_pct = (var_amt / bgt * Decimal("100")) if bgt > Decimal("0") else Decimal("0")
                 flag = VarianceFlag.NEUTRAL
@@ -535,13 +631,29 @@ class BudgetUseCases:
         plans = self.repo.list_plans(version.id)
         total_budget = Decimal("0")
         total_actual = Decimal("0")
+        revenue_actual = Decimal("0")
+        opex_actual = Decimal("0")
+        capex_actual = Decimal("0")
         for plan in plans:
             for line in plan.lines:
                 total_budget += sum(Decimal(str(v)) for v in line.amounts.values())
+                actual = self._get_gl_actual(line.gl_account_code)
+                total_actual += actual
+                if plan.dimension_type == BudgetDimensionType.COST_CENTER:
+                    opex_actual += actual
+        rev_plans = [p for p in plans if p.dimension_type == BudgetDimensionType.PRODUCT_LINE]
+        for p in rev_plans:
+            for line in p.lines:
+                revenue_actual += self._get_gl_actual(line.gl_account_code)
+        total_rev_bgt = sum(
+            sum(Decimal(str(v)) for v in line.amounts.values())
+            for p in rev_plans for line in p.lines
+        ) or Decimal("1")
+        total_opex_bgt = total_budget or Decimal("1")
         return BudgetDashboard(
             fiscal_year=fiscal_year,
-            revenue_achievement=Decimal("0"),
-            opex_utilization=Decimal("0"),
+            revenue_achievement=revenue_actual / total_rev_bgt * Decimal("100"),
+            opex_utilization=opex_actual / total_opex_bgt * Decimal("100"),
             capex_utilization=Decimal("0"),
             ytd_variance=total_actual - total_budget,
         )

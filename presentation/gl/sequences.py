@@ -43,3 +43,23 @@ def get_journal_sequence(journal_type, fiscal_year):
         return jsonify(result.get_data())
     finally:
         session.close()
+
+
+@gl_bp.route("/journal-sequences/<journal_type>/<int:fiscal_year>/prefix", methods=["PUT"])
+def update_journal_prefix(journal_type, fiscal_year):
+    session = _get_session()
+    try:
+        data = request.get_json()
+        if not data or "prefix" not in data:
+            return jsonify({"error": "prefix required"}), 400
+        uc = GLUseCases(session)
+        result = uc.update_journal_prefix(journal_type, data["prefix"], fiscal_year)
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(result.get_data())
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 400
+    finally:
+        session.close()

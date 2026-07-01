@@ -691,3 +691,277 @@ class TestB01DNE2E:
         uc = FSUseCases(b01_session)
         result = uc.generate_b01_dn(period="2026-13", entity_id=1)
         assert result.is_failure()
+
+    def test_generate_b01dn_period_closed(self, b01_session):
+        sess = b01_session
+        ap = AccountingPeriodModel(
+            period="2026-01", type=PeriodType.MONTHLY,
+            start_date=date(2026, 1, 1), end_date=date(2026, 1, 31),
+            is_closed=True, is_current=False,
+        )
+        sess.add(ap)
+        sess.commit()
+        uc = FSUseCases(sess)
+        result = uc.generate_b01_dn(period="2026-01", entity_id=1)
+        assert result.is_failure(), "Should reject closed period"
+        assert "PERIOD_CLOSED" in str(result.error) or "FS_GEN_PERIOD_CLOSED" in str(result.error)
+
+
+_B02_ACCOUNTS = [
+    "1111", "5111", "632", "641", "642", "635", "515", "711", "811", "821",
+]
+
+
+def _seed_b02_accounts(sess):
+    from infrastructure.models.coa_models import COAModel, AccountStatus, AccountingRegime
+    accounts = [
+        COAModel(code="1111", name="Tiền mặt", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=2, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="5111", name="Doanh thu bán hàng", account_type="revenue",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=2, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="632", name="Giá vốn hàng bán", account_type="expense",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="641", name="Chi phí bán hàng", account_type="expense",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="642", name="Chi phí QLDN", account_type="expense",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="635", name="Chi phí tài chính", account_type="expense",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="515", name="Doanh thu tài chính", account_type="revenue",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="711", name="Thu nhập khác", account_type="revenue",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="811", name="Chi phí khác", account_type="expense",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="821", name="Chi phí thuế TNDN", account_type="expense",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+    ]
+    for acc in accounts:
+        sess.add(acc)
+    sess.flush()
+
+
+@pytest.fixture(scope="function")
+def b02_session():
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
+    sess = Session(engine)
+    _seed_b02_accounts(sess)
+    sess.commit()
+    yield sess
+    sess.close()
+
+
+class TestB02DNE2E:
+    def _post(self, sess, jn, lines, period="2026-11"):
+        repo = GLRepository(sess)
+        entry = JournalEntry(
+            journal_number=jn, transaction_date=date(2026, 11, 30),
+            description=f"Entry {jn}", period=period,
+            lines=[JournalLine(journal_entry_id=0, account_id=ld["a"],
+                               debit=Decimal(str(ld["d"])), credit=Decimal(str(ld["c"])),
+                               period=period) for ld in lines],
+        )
+        r = repo.create_entry(entry)
+        eid = r.get_data().id
+        repo.post_entry(eid)
+        return eid
+
+    def test_generate_b02dn_revenue_and_cogs(self, b02_session):
+        sess = b02_session
+        ap = AccountingPeriodModel(
+            period="2026-11", type=PeriodType.MONTHLY,
+            start_date=date(2026, 11, 1), end_date=date(2026, 11, 30),
+            is_closed=False, is_current=True,
+        )
+        sess.add(ap)
+        sess.commit()
+
+        self._post(sess, "JV000100", [{"a": "1111", "d": "30000000", "c": "0"},
+                                       {"a": "5111", "d": "0", "c": "30000000"}])
+        self._post(sess, "JV000101", [{"a": "632", "d": "18000000", "c": "0"},
+                                       {"a": "1111", "d": "0", "c": "18000000"}])
+        self._post(sess, "JV000102", [{"a": "641", "d": "2000000", "c": "0"},
+                                       {"a": "1111", "d": "0", "c": "2000000"}])
+        self._post(sess, "JV000103", [{"a": "642", "d": "3000000", "c": "0"},
+                                       {"a": "1111", "d": "0", "c": "3000000"}])
+        sess.commit()
+
+        uc = FSUseCases(sess)
+        result = uc.generate_b02_dn(period="2026-11", entity_id=1, generated_by="test")
+        assert result.is_success(), f"B02-DN failed: {result.error}"
+        fs = result.get_data()
+        lm = {l.ma_so: l for l in fs.lines}
+
+        assert lm["01"].current_year == Decimal("30000000.00")    # Revenue
+        assert lm["11"].current_year == Decimal("18000000.00")    # COGS
+        assert lm["23"].current_year == Decimal("2000000.00")     # Selling
+        assert lm["24"].current_year == Decimal("3000000.00")     # Admin
+        assert lm["10"].current_year == Decimal("30000000.00")    # Net revenue = 01-02 = 30M-0
+        assert lm["20"].current_year == Decimal("12000000.00")    # Gross profit = 10-11 = 30M-18M
+        assert lm["30"].current_year == Decimal("7000000.00")     # Profit from ops = 20+21-22-23-24 = 12M+0-0-2M-3M
+        assert lm["50"].current_year == Decimal("7000000.00")     # Profit before tax = 30+40-41
+        assert lm["60"].current_year == Decimal("7000000.00")     # Net profit = 50-51-52
+
+
+class TestB03DNE2E:
+    def test_generate_b03dn_indirect(self, b02_session):
+        sess = b02_session
+        ap = AccountingPeriodModel(
+            period="2026-11", type=PeriodType.MONTHLY,
+            start_date=date(2026, 11, 1), end_date=date(2026, 11, 30),
+            is_closed=False, is_current=True,
+        )
+        sess.add(ap)
+        sess.commit()
+
+        repo = GLRepository(sess)
+        r = repo.create_entry(JournalEntry(
+            journal_number="JV000200", transaction_date=date(2026, 11, 30),
+            description="Sales", period="2026-11",
+            lines=[JournalLine(journal_entry_id=0, account_id="1111",
+                               debit=Decimal("50000000"), credit=Decimal("0"),
+                               period="2026-11"),
+                   JournalLine(journal_entry_id=0, account_id="5111",
+                               debit=Decimal("0"), credit=Decimal("50000000"),
+                               period="2026-11")],
+        ))
+        repo.post_entry(r.get_data().id)
+        sess.commit()
+
+        uc = FSUseCases(sess)
+        result = uc.generate_b03_dn(period="2026-11",
+                                     method=FSCashFlowMethod.INDIRECT,
+                                     entity_id=1, generated_by="test")
+        assert result.is_success(), f"B03-DN indirect failed: {result.error}"
+        assert result.get_data().cash_flow_method == FSCashFlowMethod.INDIRECT
+
+
+class TestB09DNE2E:
+    def test_generate_b09dn(self, b02_session):
+        sess = b02_session
+        ap = AccountingPeriodModel(
+            period="2026-11", type=PeriodType.MONTHLY,
+            start_date=date(2026, 11, 1), end_date=date(2026, 11, 30),
+            is_closed=False, is_current=True,
+        )
+        sess.add(ap)
+        sess.commit()
+
+        repo = GLRepository(sess)
+        entry = JournalEntry(
+            journal_number="JV000300", transaction_date=date(2026, 11, 30),
+            description="Sales entry", period="2026-11",
+            lines=[JournalLine(journal_entry_id=0, account_id="1111",
+                               debit=Decimal("50000000"), credit=Decimal("0"), period="2026-11"),
+                   JournalLine(journal_entry_id=0, account_id="5111",
+                               debit=Decimal("0"), credit=Decimal("50000000"), period="2026-11")],
+        )
+        r = repo.create_entry(entry)
+        repo.post_entry(r.get_data().id)
+        sess.commit()
+
+        uc = FSUseCases(sess)
+        result = uc.generate_b09_dn(period="2026-11", entity_id=1, generated_by="test")
+        assert result.is_success(), f"B09-DN failed: {result.error}"
+        fs = result.get_data()
+        assert len(fs.lines) == 16
+        lm = {l.ma_so: l for l in fs.lines}
+        assert "I" in lm
+        assert "V.01" in lm
+        assert "VII" in lm
+
+
+class TestMapping:
+    def _seed(self, sess):
+        from infrastructure.models.fs_models import FSAccountMappingModel, FSStatementTypeDB
+        sess.add(FSAccountMappingModel(fs_ma_so="111", account_code="1111",
+                                        weight=1, direction="both",
+                                        statement_type=FSStatementTypeDB.B01_DN))
+        sess.commit()
+
+    def test_update_mapping_partial(self, b01_session):
+        sess = b01_session
+        self._seed(sess)
+        uc = FSUseCases(sess)
+        result = uc.update_mapping(1, weight=Decimal("2.00"))
+        assert result.is_success()
+        assert result.get_data().weight == Decimal("2.00")
+
+    def test_update_mapping_all_fields(self, b01_session):
+        sess = b01_session
+        self._seed(sess)
+        uc = FSUseCases(sess)
+        result = uc.update_mapping(1, fs_ma_so="112", account_code="1121",
+                                    weight=Decimal("1.50"), direction="debit")
+        assert result.is_success()
+        m = result.get_data()
+        assert m.fs_ma_so == "112"
+        assert m.account_code == "1121"
+        assert m.weight == Decimal("1.50")
+        assert m.direction == "debit"
+
+    def test_update_mapping_not_found(self, b01_session):
+        uc = FSUseCases(b01_session)
+        result = uc.update_mapping(999, weight=Decimal("1.00"))
+        assert result.is_failure()
+        assert "MAPPING_NOT_FOUND" in str(result.error)
+
+
+class TestExport:
+    def _make_fs(self, sess):
+        uc = FSUseCases(sess)
+        result = uc.generate_b01_dn(period="2026-12", entity_id=1, generated_by="test")
+        return result.get_data() if result.is_success() else None
+
+    def test_export_html(self, b01_session):
+        sess = b01_session
+        ap = AccountingPeriodModel(
+            period="2026-12", type=PeriodType.YEARLY,
+            start_date=date(2026, 1, 1), end_date=date(2026, 12, 31),
+            is_closed=False, is_current=True,
+        )
+        sess.add(ap)
+        sess.commit()
+        fs = self._make_fs(sess)
+        if not fs:
+            return
+        uc = FSUseCases(sess)
+        result = uc.export_fs(fs.id, fmt="html")
+        assert result.is_success()
+
+    def test_export_xlsx(self, b01_session):
+        sess = b01_session
+        ap = AccountingPeriodModel(
+            period="2026-12", type=PeriodType.YEARLY,
+            start_date=date(2026, 1, 1), end_date=date(2026, 12, 31),
+            is_closed=False, is_current=True,
+        )
+        sess.add(ap)
+        sess.commit()
+        fs = self._make_fs(sess)
+        if not fs:
+            return
+        uc = FSUseCases(sess)
+        result = uc.export_fs(fs.id, fmt="xlsx")
+        assert result.is_success()

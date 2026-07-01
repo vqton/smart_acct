@@ -265,6 +265,28 @@ class FSRepository:
             for m in models
         ]
 
+    def update_mapping(self, mapping_id: int, **updates) -> Result:
+        model = self.session.get(FSAccountMappingModel, mapping_id)
+        if not model:
+            return Result.failure(ValidationError(ErrorCodes.FS_MAPPING_NOT_FOUND))
+        if "fs_ma_so" in updates:
+            model.fs_ma_so = updates["fs_ma_so"]
+        if "account_code" in updates:
+            model.account_code = updates["account_code"]
+        if "weight" in updates:
+            model.weight = Decimal(str(updates["weight"]))
+        if "direction" in updates:
+            model.direction = updates["direction"]
+        if "statement_type" in updates:
+            model.statement_type = _domain_type_to_db(updates["statement_type"])
+        self.session.flush()
+        self.session.refresh(model)
+        return Result.success(FSAccountMapping(
+            id=model.id, fs_ma_so=model.fs_ma_so, account_code=model.account_code,
+            weight=model.weight, direction=model.direction,
+            statement_type=_db_to_domain_type(model.statement_type),
+        ))
+
     def delete_mapping(self, mapping_id: int) -> Result:
         model = self.session.get(FSAccountMappingModel, mapping_id)
         if not model:

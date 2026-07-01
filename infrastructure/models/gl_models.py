@@ -134,6 +134,8 @@ class JournalLineModel(Base):
     line_type = Column(String(20), default="regular", nullable=False)
     is_taxable = Column(Boolean, default=False, nullable=False)
     tax_code = Column(String(20), nullable=True)
+    entity_id = Column(Integer, nullable=True, index=True, comment="Subsidiary entity ID (customer/vendor/employee etc)")
+    entity_name = Column(String(200), nullable=True, comment="Subsidiary entity name")
     period = Column(String(7), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime, default=None, onupdate=lambda: datetime.now(timezone.utc), nullable=True)

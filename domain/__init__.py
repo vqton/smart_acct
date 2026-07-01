@@ -12,7 +12,8 @@ from domain.coa import (
 from domain.gl import (
     JournalType, CorrectionMethod, JournalTypeSequence,
     JournalEntry, JournalLine, FinancialStatement,
-    SubsidiaryType, SubsidiaryLedger,
+    SubsidiaryType, SubsidiaryLedger, SUBSIDIARY_ACCOUNT_MAP,
+    detect_subsidiary_from_lines,
     JOURNAL_TYPE_PREFIX_MAP, JOURNAL_PREFIX_TYPE_MAP, VALID_JOURNAL_PREFIXES,
 )
 from domain.tax import (

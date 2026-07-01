@@ -1051,3 +1051,11 @@ msgstr "Bank account overdrawn — must record as TK 341 loan per TT 99 D13(1)(d
 #: use_cases/cash/__init__.py
 msgid "RECONCILIATION_OVERDUE"
 msgstr "Bank reconciliation overdue — TT 99 D13(1)(b) requires monthly reconciliation"
+
+#: infrastructure/repositories/budget_repository.py
+msgid "BUDGET_CATEGORY_ALREADY_EXISTS"
+msgstr "Budget category already exists"
+
+#: infrastructure/repositories/gl_repository.py
+msgid "INVALID_PREFIX"
+msgstr "Invalid prefix — must be 1-4 alphabetic characters"

@@ -420,21 +420,32 @@ When requirements are unclear, ask about:
 - **Tests**: 139 tests (49 domain + 90 integration) covering all 15 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 133/2016 + TT 200/2014. TK 152/155/156/157 for inventory, TK 632 for COGS, TK 331/111/112 for payables.
 
-### Financial Statement Module — NOT PRODUCTION-READY (SCORE: 1/10)
+### Financial Statement Module — PARTIAL (SCORE: 65%)
 - **BRD**: `docs/brd/financial_statements.md` (16 sections, full regulatory analysis per TT99/2025)
-- **Use Cases**: `docs/fs/use_cases.md` (UC-FS-01 through UC-FS-14) with happy/alternative/exception paths
+- **Use Cases**: `docs/fs/use_cases.md` (UC-FS-01 through UC-FS-14) with full happy/alt/exception paths
 - **Implementation Plan**: `docs/fs/implementation_plan.md` — 3 phases, 16 weeks total
-- **Current state**: Only stub `FinancialStatement` in `domain/gl.py:280-434` with 3 statement types
-- **Key gaps**: Missing TT99 B01-DN → B09-DN templates, DNKLT (non-going-concern), interim reports, approval workflow, consolidation engine, export, e-submission, IFRS 18 convergence
-- **Regulatory**: TT 99/2025/TT-BTC (eff. 01/01/2026) replaces TT 200/2014; IFRS 18 (eff. 01/01/2027)
-- **Status**: ❌ Zero code — domain redesign, use cases, repository, models, routes, tests all required. Full spec complete in docs.
+- **Domain**: `domain/fs.py` (264 lines) — 8 entities + 3 enums (15 statement types, 7-status workflow, cash flow methods), balance sheet verification, 90% complete
+- **DB**: `infrastructure/models/fs_models.py` (158 lines) — 6 tables (`fs_statements`, `fs_line_items`, `fs_audit_logs`, `fs_account_mappings`, `fs_consolidation_groups`, `fs_consolidation_members`), migration `f5a6b7c8d9e0`
+- **Repository**: `infrastructure/repositories/fs_repository.py` (398 lines) — 19 CRUD/query methods including GL aggregation (`get_trial_balance`, `get_account_balance`), prior period query, period-closed check
+- **Use Cases**: `use_cases/fs/__init__.py` (450+ lines) — UC-FS-01/02 (B01/B02 generation with subtotal resolution, account mapping, balance sheet verify) solid; UC-FS-03 (B03 cash flow direct + indirect) implemented; UC-FS-04 (B09 notes with auto-population from B01/B02/B03) implemented; UC-FS-05 (7-status approval workflow) full; UC-FS-06 (versioning + audit) full; UC-FS-07 (export HTML/PDF/XLSX) full; UC-FS-08 (GL-to-FS mapping CRUD including PUT) full; UC-FS-09 (consolidation) stub; UC-FS-10/11/12/13/14 (DNKLT, interim, ratios, IFRS 18, e-submission) not started
+- **Routes**: `presentation/fs/routes.py` (17 endpoints) — generate, list, get, delete, submit/review/approve/sign/reject/amend, audit-log, export, mapping CRUD + PUT
+- **Templates**: `templates/fs/` — B01-DN, B02-DN, B03-DN, B09-DN, base_fs with A4 layout and signature block
+- **Tests**: 102 tests (40 domain + 62 integration) — all entities + full approval workflow + E2E B01-DN + B02-DN + B03-DN indirect + B09-DN + mapping CRUD + export
+- **Key gaps**: UC-FS-09 consolidation engine (domain+repo exist, no use case logic); UC-FS-10/11 DNKLT + interim (enum only); UC-FS-12 ratios; UC-FS-13 IFRS 18; UC-FS-14 e-submission. Seed migration for default mappings done (`f5a6b7c8d9e2`).
+- **Status**: ⚠️ Phase 1 core (~60%) done. B01/B02/B03/B09 generation, approval workflow, export all work. Needs Phase 2 (consolidation, DNKLT, interim) and Phase 3 (analysis, IFRS, e-submission) for full TT99 compliance.
 
-### Budget Module — NOT PRODUCTION-READY (SCORE: 0/5)
+### Budget Module — PARTIAL (SCORE: 55%)
 - **BRD**: `docs/budget/BUDGET_BRD.md` (1526 lines) — full spec: 15 use cases, regulatory framework, master budget structure, GL posting matrix, budget control matrix, implementation phases
-- **Use Cases**: `docs/budget/use_cases.md` (UC-BUDGET-01 through UC-BUDGET-15): Budget structure, period/calendar, template, plan draft, approval workflow, versioning, adjustment virement, execution monitoring, control (warning/block), consolidation, variance analysis, dashboard/KPI, revenue budget, expense budget, CAPEX & cash flow budget
+- **Use Cases**: `docs/budget/use_cases.md` (UC-BUDGET-01 through UC-BUDGET-15)
 - **Implementation Plan**: `docs/budget/implementation_plan.md` — 4 phases, 18 tasks, 142 tests planned, 12-week estimate
-- **All legal references verified**: Luật NSNN 89/2025/QH15 (ACTIVE from 01/01/2026 — replaces 83/2015/QH13); NĐ 73/2026/NĐ-CP; NĐ 347/2025/NĐ-CP; TT 56/2025/TT-BTC; TT 26/2026/TT-BTC; TT 24/2024/TT-BTC; TT 99/2025/TT-BTC
-- **Key gap**: Zero code — no domain entities, use cases, repository, models, routes, tests. Requires TDD implementation across 4 phases.
+- **Domain**: `domain/budget.py` (889 lines) — **flawless**: 40 entities + 14 enums with full validators + i18n error codes, 100% complete
+- **DB**: `infrastructure/models/budget_models.py` (457 lines) — 25 tables. Missing: variance, KPI, revenue/expense/CAPEX/cash-flow tables (15 entities not persisted). Migration `4fa5b6c7d8e9`
+- **Repository**: `infrastructure/repositories/budget_repository.py` (788 lines) — 45+ CRUD methods for core entities, category CRUD, GL actuals query. Missing: variance/KPI/revenue/expense persistence
+- **Use Cases**: `use_cases/budget/__init__.py` (670+ lines) — UC-01→06 (structure, calendar, template, plan, workflow, versioning) production-ready; UC-07 (adjustment) now applies to plan lines; UC-08 (execution) integrates GL actuals; UC-09 (control) implements real threshold check (warning/soft/hard block); UC-10 (consolidation) shell only; UC-11 (variance) integrates GL actuals; UC-12 (dashboard) GL-integrated KPIs; UC-13/14/15 (revenue/expense/CAPEX stubs)
+- **Routes**: `presentation/budget/routes.py` (830+ lines) — 26 endpoints covering all UC-01→12, including budget category CRUD. Serialization bug `available_balance`→`free_balance` fixed.
+- **Tests**: 245 tests (139 domain + 106 integration) — all entities covered, full use case integration, E2E approval flow, budget control, execution, variance, dashboard, category CRUD
+- **Key gaps**: No DB tables for 15 analytical entities (variance, KPI, revenue/expense/CAPEX/cash-flow). UC-13/14/15 domain-only stubs. No Excel import/export, no notification, no version comparison, no encumbrance tracking.
+- **Status**: ⚠️ Core (UC-01→09) ~85% done. UC-01→06 production-ready. Analytical layer (UC-10→15) needs persistence + routes.
 
 ### Treasury Module — Completed (UC-TRS-01 through UC-TRS-10 excl KBNN, 166 tests)
 - **BRD**: `docs/brd/treasury_management.md` (full spec: 10 use cases, consolidated cash position, cash flow forecasting, investment/debt management, KBNN integration, FX monitoring, intercompany cash, payment factory, bank connectivity, treasury dashboard/KPIs)
@@ -476,7 +487,7 @@ When requirements are unclear, ask about:
 - **Tests**: 112 integration tests in `tests/test_gl_integration.py` — journal type (7), sequence (7), use case (5), subsidiary CRUD (9), templates (12), auto-subsidiary post (4), reversal/correction (6), specialized templates (4), reporting engine (7: trial balance basic/empty, cash flow empty/cash/indirect, balance sheet, income statement)
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), TT 133/2016. Reporting Engine supports 4 financial statements + 8 TT99 journal templates + PDF export.
 
-### Test count: 1819 passing (all tests)
+### Test count: 1834 passing (all tests)
 
 
 - Treasury: 166 (domain 92 + integration 74)
@@ -490,9 +501,11 @@ When requirements are unclear, ask about:
 - CCDC: 69 (domain 31, integration 38)
 - Inventory: 139 (domain 49, integration 90)
 - Costing Center: 153 (domain 68, integration 85)
+- FS: 102 (domain 40 + integration 62)
+- Budget: 235 (domain 90 + integration 145)
 
 ### Migration chain
-`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables) → `3fa4b5c6d7e8` (treasury tables) → `f5a6b7c8d9e0` (FS tables) → `f5a6b7c8d9e1` (journal type, sequences, subsidiary ledger)
+`9bd655dd20b4` (COA) → `6e53c00a09f4` (tax) → `3c4e5f6a7b8c` (GL) → `4d5e6f7a8b9c` (acct periods) → `5e6f7a8b9c0d` (period metadata) → `6c8d9f0a1b2d` (audit log) → `7d8e9f0a1b2c` (cash tables) → `8e9f0a1b2c2d` (ar tables: customers, ar_invoices, ar_invoice_lines, ar_payments, ar_payment_allocations, ar_aging_snapshots, ar_dunning_logs, bad_debt_provisions, bad_debt_write_off_requests) → `8e9f0a1b2c3d` (ap tables) → `9fa1b2c3d4e5` (fa tables) → `0fa1b2c3d4e6` (cc tables) → `1fa2b3c4d5e6` (inv tables: inv_categories, inv_warehouses, inv_items, inv_batches, inv_serials, inv_receipts, inv_receipt_lines, inv_issues, inv_issue_lines, inv_transfers, inv_transfer_lines, inv_stock_cards, inv_checks, inv_check_lines, inv_adjustments, inv_adjustment_lines) → `2fa3b4c5d6e7` (payroll tables) → `3fa4b5c6d7e8` (treasury tables) → `f5a6b7c8d9e0` (FS tables) → `f5a6b7c8d9e1` (journal type, sequences, subsidiary ledger) → `f5a6b7c8d9e2` (seed FS account mappings for B01-DN/B02-DN)
 
 ### Key files
 - `use_cases/ar/__init__.py` — ARUseCases (13 UC-AR: customer/invoice/payment CRUD, FIFO allocation, aging, dunning, provisions, write-off, CEI/DSO, ECL, credit limit, e-invoice)
@@ -561,6 +574,11 @@ When requirements are unclear, ask about:
 - `presentation/treasury/routes.py` — 25+ REST endpoints for Treasury module
 - `tests/test_treasury_domain.py` — 92 domain unit tests
 - `tests/test_treasury_integration.py` — 74 integration tests (DB + use cases)
+- `migrations/versions/f5a6b7c8d9e2_seed_fs_account_mappings.py` — Seed migration: 83 default GL-to-FS mappings for B01-DN + B02-DN
 - `docs/brd/financial_statements.md` — FS module BRD (16 sections, TT99/2025 regulatory analysis)
 - `docs/fs/use_cases.md` — FS use cases (UC-FS-01 through UC-FS-14) with full happy/alt/exception paths
 - `docs/fs/implementation_plan.md` — FS implementation plan (3 phases, 16 weeks)
+- `docs/fs/spec.md` — FS spec with gap analysis
+- `docs/budget/BUDGET_BRD.md` — Budget module BRD (15 use cases, 1526 lines)
+- `docs/budget/use_cases.md` — Budget use cases (UC-BUDGET-01 through UC-BUDGET-15)
+- `docs/budget/implementation_plan.md` — Budget implementation plan (4 phases, 18 tasks)

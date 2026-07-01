@@ -926,3 +926,141 @@ class TestUseCaseIntegration:
         uc.create_budget_structure(2026, "NS 2026")
         lst = uc.list_budget_structures()
         assert len(lst) >= 1
+
+
+class TestBudgetE2E:
+    """End-to-end tests for budget execution, control, variance, dashboard, and category CRUD."""
+
+    def test_check_budget_available_no_rule(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        result = uc.check_budget_available(s.id, "511", Decimal("100000"))
+        assert result["status"] == "allow"
+        assert "No control rule" in result["message"]
+
+    def test_check_budget_available_none_level(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        from domain import BudgetControlLevel
+        uc.configure_budget_control(s.id, "511", BudgetControlLevel.NONE)
+        result = uc.check_budget_available(s.id, "511", Decimal("100000"))
+        assert result["status"] == "allow"
+
+    def test_check_budget_available_warning(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        v = uc.create_budget_version(2026, "V1", created_by="admin").get_data()
+        from domain import BudgetControlLevel
+        lines = [{"gl_account_code": "511", "name": "Sales",
+                  "amounts": {"2026-01": "100000"}}]
+        p = uc.create_budget_plan(v.id, s.id, BudgetDimensionType.DEPARTMENT,
+                                  "IT", lines, "admin").get_data()
+        wf = uc.submit_budget_for_approval(p.id,
+            [{"role": "CFO", "name": "CFO", "min_approvers": 1}], "admin").get_data()
+        uc.approve_budget(wf.steps[0].id, "CFO", "Approved")
+        uc.finalize_approval(wf.id, p.id, "CFO")
+        rule = uc.configure_budget_control(s.id, "511",
+            BudgetControlLevel.HARD_BLOCK).get_data()
+        result = uc.check_budget_available(s.id, "511", Decimal("5000"),
+                                           "DEPARTMENT", "IT", "2026-01")
+        assert result["status"] in ("allow", "warning")
+
+    def test_execution_monitoring_uc_edge(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        v = uc.create_budget_version(2026, "V1", created_by="admin").get_data()
+        lines = [{"gl_account_code": "511", "name": "Sales",
+                  "amounts": {"2026-01": "1000000"}}]
+        p = uc.create_budget_plan(v.id, s.id, BudgetDimensionType.DEPARTMENT,
+                                  "IT", lines, "admin").get_data()
+        results = uc.get_budget_execution(v.id, BudgetDimensionType.DEPARTMENT, "IT")
+        assert len(results) >= 1
+        assert results[0].budget_amount == Decimal("1000000")
+        results_all = uc.get_budget_execution(v.id)
+        assert len(results_all) >= 1
+
+    def test_variance_analysis_uc_edge(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        v = uc.create_budget_version(2026, "V1", created_by="admin").get_data()
+        lines = [{"gl_account_code": "511", "name": "Sales",
+                  "amounts": {"2026-01": "500000", "2026-02": "600000"}}]
+        uc.create_budget_plan(v.id, s.id, BudgetDimensionType.DEPARTMENT,
+                              "IT", lines, "admin").get_data()
+        report = uc.run_variance_analysis(v.id, "2026-01")
+        assert report is not None
+        assert len(report.lines) >= 1
+        assert report.lines[0].budget_amount >= Decimal("1000000")
+
+    def test_dashboard_uc_edge(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        v = uc.create_budget_version(2026, "V1", created_by="admin").get_data()
+        lines = [{"gl_account_code": "511", "name": "Sales",
+                  "amounts": {"2026-01": "100000"}}]
+        uc.create_budget_plan(v.id, s.id, BudgetDimensionType.PRODUCT_LINE,
+                              "PROD-A", lines, "admin").get_data()
+        lines2 = [{"gl_account_code": "622", "name": "Salary",
+                   "amounts": {"2026-01": "50000"}}]
+        uc.create_budget_plan(v.id, s.id, BudgetDimensionType.COST_CENTER,
+                              "CC-IT", lines2, "admin").get_data()
+        uc.lock_budget_version(v.id)
+        dash = uc.get_budget_dashboard(2026)
+        assert dash is not None
+        assert dash.fiscal_year == 2026
+
+    def test_create_and_list_category_uc(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        result = uc.create_budget_category(
+            s.id, BudgetType.EXPENSE, "Raw Materials",
+            BudgetCategoryType.VARIABLE, ["621", "622"]
+        )
+        assert result.is_success()
+        cat = result.get_data()
+        assert cat.name == "Raw Materials"
+        assert cat.gl_account_codes == ["621", "622"]
+        lst = uc.list_budget_categories(s.id)
+        assert len(lst) >= 1
+        assert any(c.name == "Raw Materials" for c in lst)
+
+    def test_duplicate_category_uc(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        uc.create_budget_category(s.id, BudgetType.EXPENSE, "Duplicate")
+        result = uc.create_budget_category(s.id, BudgetType.EXPENSE, "Duplicate")
+        assert result.is_failure()
+
+    def test_adjustment_supplementary_with_target(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        v = uc.create_budget_version(2026, "V1", created_by="admin").get_data()
+        lines = [{"gl_account_code": "511", "name": "Sales",
+                  "amounts": {"2026-01": "100000"}},
+                 {"gl_account_code": "512", "name": "Services",
+                  "amounts": {"2026-01": "200000"}}]
+        p = uc.create_budget_plan(v.id, s.id, BudgetDimensionType.DEPARTMENT,
+                                  "IT", lines, "admin").get_data()
+        adj_lines = [
+            {"source_plan_line_id": p.lines[0].id, "target_plan_line_id": p.lines[1].id,
+             "amount": "30000", "period_key": "2026-01"},
+        ]
+        adj = uc.request_budget_adjustment(v.id, BudgetAdjustmentType.SUPPLEMENTARY,
+                                           "ADJ-SUP-001", "Increase Services", adj_lines, "admin")
+        assert adj.is_success()
+        wf = adj.get_data()
+        approve = uc.approve_adjustment(wf.id, "CFO")
+        assert approve.is_success()
+        updated = uc.get_budget_plan(p.id)
+        tgt_line = [l for l in updated.lines if l.gl_account_code == "512"][0]
+        assert Decimal(tgt_line.amounts.get("2026-01", "0")) == Decimal("230000")
+
+    def test_adjustment_supplementary_no_target(self, uc):
+        s = uc.create_budget_structure(2026, "NS 2026").get_data()
+        v = uc.create_budget_version(2026, "V1", created_by="admin").get_data()
+        lines = [{"gl_account_code": "511", "name": "Sales",
+                  "amounts": {"2026-01": "100000"}}]
+        p = uc.create_budget_plan(v.id, s.id, BudgetDimensionType.DEPARTMENT,
+                                  "IT", lines, "admin").get_data()
+        src_line = p.lines[0]
+        adj_lines = [
+            {"source_plan_line_id": src_line.id,
+             "amount": "20000", "period_key": "2026-01"},
+        ]
+        adj = uc.request_budget_adjustment(v.id, BudgetAdjustmentType.SUPPLEMENTARY,
+                                           "ADJ-SUP-001", "Increase budget", adj_lines, "admin")
+        assert adj.is_success()
+        wf = adj.get_data()
+        approve = uc.approve_adjustment(wf.id, "CFO")
+        assert approve.is_success()

@@ -17,7 +17,7 @@ Lint: .venv/bin/python -m flake8
 4. Period-closed checks block re-generation on locked periods
 5. All 3 export formats (HTML/PDF/XLSX) work end-to-end
 6. Approval workflow (DRAFT→IN_REVIEW→REVIEWED→APPROVED→SIGNED) works with audit trail
-7. Seed migration populates default account mappings
+7. ~~Seed migration populates default account mappings~~ ✅ `f5a6b7c8d9e2`
 
 ## Gaps to Close
 
@@ -27,7 +27,7 @@ Lint: .venv/bin/python -m flake8
 | 2 | No period check in B01/B02/B03 path | Add check in `_generate_fs` | 3 lines |
 | 3 | B09-DN stub (4 sections only) | Add sections V-XIX, cross-ref B01/B02 data | Medium |
 | 4 | B03-DN hardcoded accounts | Keep hardcoded for Phase 1 (Cash module integration deferred) | 0 — WONTFIX |
-| 5 | No seed mappings in DB | Add Alembic seed migration with _B01_ACCOUNT_MAP etc. | Small |
+| 5 | ~~No seed mappings in DB~~ | ✅ `f5a6b7c8d9e2`: 83 B01-DN + B02-DN mappings | Small |
 | 6 | Template VND formatting basic | Add Jinja2 `vnd_format` filter | Small |
 | 7 | No end-to-end GL→FS test | Write integration test with real JE→post→generate→verify | Medium |
 | 8 | get_prior_period_fs string compare | Keep for Phase 1 (works for YYYY-MM) | 0 — WONTFIX |

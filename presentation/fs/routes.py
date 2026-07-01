@@ -265,6 +265,31 @@ def create_mapping():
     return jsonify({"success": True, "data": _json_mapping(result.get_data())}), 201
 
 
+@fs_bp.route("/api/v1/fs/mappings/<int:mapping_id>", methods=["PUT"])
+def update_mapping(mapping_id: int):
+    data = request.get_json(silent=True) or {}
+    uc = _get_uc()
+    updates = {}
+    if "fs_ma_so" in data:
+        updates["fs_ma_so"] = data["fs_ma_so"]
+    if "account_code" in data:
+        updates["account_code"] = data["account_code"]
+    if "weight" in data:
+        updates["weight"] = data["weight"]
+    if "direction" in data:
+        updates["direction"] = data["direction"]
+    if "statement_type" in data:
+        try:
+            updates["statement_type"] = FinancialStatementType(data["statement_type"])
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid statement_type"}), 400
+    result = uc.update_mapping(mapping_id, **updates)
+    if result.is_failure():
+        err = result.get_error()
+        return jsonify({"success": False, "error": resolve_error(err.msgid, **err.params)}), 400
+    return jsonify({"success": True, "data": _json_mapping(result.get_data())})
+
+
 @fs_bp.route("/api/v1/fs/mappings/<int:mapping_id>", methods=["DELETE"])
 def delete_mapping(mapping_id: int):
     uc = _get_uc()

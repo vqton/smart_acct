@@ -20,6 +20,8 @@ def _json_line(line) -> dict:
         "line_type": line.line_type,
         "is_taxable": line.is_taxable,
         "tax_code": line.tax_code,
+        "entity_id": line.entity_id,
+        "entity_name": line.entity_name,
     }
 
 

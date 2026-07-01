@@ -105,6 +105,39 @@ def update_structure(structure_id):
         session.close()
 
 
+@budget_bp.route("/structures/<int:structure_id>/categories", methods=["POST"])
+def create_category(structure_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body required"}), 400
+    session = _get_session()
+    try:
+        uc = BudgetUseCases(session)
+        bt = BudgetType(data["budget_type"])
+        ct = BudgetCategoryType(data.get("category_type", "variable"))
+        result = uc.create_budget_category(structure_id, bt, data["name"], ct, data.get("gl_account_codes"))
+        if result.is_failure():
+            return jsonify({"error": resolve_error(result.error)}), 400
+        session.commit()
+        return jsonify(_json_category(result.get_data())), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": resolve_error(e)}), 400
+    finally:
+        session.close()
+
+
+@budget_bp.route("/structures/<int:structure_id>/categories", methods=["GET"])
+def list_categories(structure_id):
+    session = _get_session()
+    try:
+        uc = BudgetUseCases(session)
+        categories = uc.list_budget_categories(structure_id)
+        return jsonify({"categories": [_json_category(c) for c in categories]})
+    finally:
+        session.close()
+
+
 @budget_bp.route("/structures/<int:structure_id>/dimensions", methods=["POST"])
 def create_dimension(structure_id):
     data = request.get_json()
@@ -632,7 +665,7 @@ def get_execution(version_id):
             "budget_amount": str(i.budget_amount),
             "actual_amount": str(i.actual_amount),
             "commitment_amount": str(i.commitment_amount),
-            "available_balance": str(i.available_balance),
+            "free_balance": str(i.free_balance),
             "utilization_pct": str(i.utilization_pct),
         } for i in items], "total": len(items)})
     finally:

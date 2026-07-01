@@ -30,11 +30,11 @@ _BS_SUBTOTALS = {
 }
 
 _IS_SUBTOTALS = {
-    "10": {"children": ["01", "02"], "formula": "01-02"},
-    "20": {"children": ["10", "11"], "formula": "10-11"},
-    "30": {"children": ["20", "21", "22", "23", "24"], "formula": "20+21-22-23-24"},
-    "50": {"children": ["30", "40", "41"], "formula": "30+40-41"},
-    "60": {"children": ["50", "51", "52"], "formula": "50-51-52"},
+    "10": {"children": ["01", "02"], "formula": "01+-02"},
+    "20": {"children": ["10", "11"], "formula": "10+-11"},
+    "30": {"children": ["20", "21", "22", "23", "24"], "formula": "20+21+-22+-23+-24"},
+    "50": {"children": ["30", "40", "41"], "formula": "30+40+-41"},
+    "60": {"children": ["50", "51", "52"], "formula": "50+-51+-52"},
 }
 
 
@@ -183,26 +183,104 @@ class FSUseCases:
     def generate_b09_dn(self, period: str, entity_id: int = 1,
                          generated_by: Optional[str] = None) -> Result:
         try:
-            fs = FinancialStatement(
-                entity_id=entity_id, period=period,
-                statement_type=FinancialStatementType.NOTES_GC,
-                generated_by=generated_by,
-            )
+            if not re.match(r"^\d{4}(-\d{2})?$", period):
+                return Result.failure(ValidationError(ErrorCodes.PERIOD_FS_FORMAT, period=period))
+            if self.repo.is_period_closed(period):
+                return Result.failure(ValidationError(ErrorCodes.FS_GEN_PERIOD_CLOSED, period=period))
 
-            if fs.status != FSStatus.DRAFT:
-                pass
+            trial_balance = self.repo.get_trial_balance(period)
+            if not trial_balance:
+                return Result.failure(ValidationError(ErrorCodes.FS_GEN_NO_DATA, period=period))
+
+            b01 = self.repo.get_prior_period_fs(period, FinancialStatementType.BALANCE_SHEET_GC, entity_id)
+            b02 = self.repo.get_prior_period_fs(period, FinancialStatementType.INCOME_STATEMENT_GC, entity_id)
+            b03 = self.repo.get_prior_period_fs(period, FinancialStatementType.CASH_FLOW_GC, entity_id)
+
+            def _fs_val(fs, ma_so):
+                if not fs:
+                    return None
+                for l in fs.lines:
+                    if l.ma_so == ma_so:
+                        return l.current_year
+                return None
+
+            cash = trial_balance.get("1111", Decimal("0")) + trial_balance.get("1121", Decimal("0"))
+            receivables = trial_balance.get("131", Decimal("0"))
+            inventory = trial_balance.get("152", Decimal("0")) + trial_balance.get("155", Decimal("0"))
+            fa_cost = trial_balance.get("211", Decimal("0"))
+            fa_depr = trial_balance.get("2141", Decimal("0"))
+            payables = trial_balance.get("331", Decimal("0"))
+            revenue = trial_balance.get("5111", Decimal("0"))
+            cogs = trial_balance.get("632", Decimal("0"))
+            selling_exp = trial_balance.get("641", Decimal("0"))
+            admin_exp = trial_balance.get("642", Decimal("0"))
 
             notes_lines = [
                 FSLineItem(ma_so="I", ten_chi_tieu="Đặc điểm hoạt động của doanh nghiệp",
-                           so_thu_tu=1, is_subtotal=False),
+                           so_thu_tu=1, is_subtotal=False,
+                           thuyet_minh="Doanh nghiệp hạch toán độc lập, hoạt động theo Luật Doanh nghiệp."),
                 FSLineItem(ma_so="II", ten_chi_tieu="Kỳ kế toán, đơn vị tiền tệ sử dụng",
-                           so_thu_tu=2, is_subtotal=False),
+                           so_thu_tu=2, is_subtotal=False,
+                           thuyet_minh=f"Kỳ kế toán {period}. Đơn vị tiền tệ sử dụng: VND."),
+
+                # ── III. Accounting standards ──
                 FSLineItem(ma_so="III", ten_chi_tieu="Chuẩn mực và chế độ kế toán áp dụng",
-                           so_thu_tu=3, is_subtotal=False),
+                           so_thu_tu=3, is_subtotal=False,
+                           thuyet_minh="Chế độ kế toán Doanh nghiệp theo TT 99/2025/TT-BTC."),
+
+                # ── IV. Accounting policies ──
                 FSLineItem(ma_so="IV", ten_chi_tieu="Các chính sách kế toán áp dụng",
-                           so_thu_tu=4, is_subtotal=False),
+                           so_thu_tu=4, is_subtotal=False,
+                           thuyet_minh="Nguyên tắc ghi nhận doanh thu, khấu hao TSCĐ, tỷ giá, thuế."),
+
+                # ── V. Supplementary info ──
+                FSLineItem(ma_so="V.01", ten_chi_tieu="Tiền và tương đương tiền",
+                           so_thu_tu=5, current_year=_vnd(cash),
+                           previous_year=_fs_val(b01, "110") if b01 else None),
+                FSLineItem(ma_so="V.02", ten_chi_tieu="Các khoản phải thu ngắn hạn",
+                           so_thu_tu=6, current_year=_vnd(receivables),
+                           previous_year=_fs_val(b01, "130") if b01 else None),
+                FSLineItem(ma_so="V.03", ten_chi_tieu="Hàng tồn kho",
+                           so_thu_tu=7, current_year=_vnd(inventory),
+                           previous_year=_fs_val(b01, "140") if b01 else None),
+                FSLineItem(ma_so="V.04", ten_chi_tieu="TSCĐ hữu hình - Nguyên giá",
+                           so_thu_tu=8, current_year=_vnd(fa_cost),
+                           previous_year=_fs_val(b01, "210") if b01 else None),
+                FSLineItem(ma_so="V.05", ten_chi_tieu="TSCĐ hữu hình - Hao mòn lũy kế",
+                           so_thu_tu=9, current_year=_vnd(fa_depr)),
+                FSLineItem(ma_so="V.06", ten_chi_tieu="Phải trả người bán ngắn hạn",
+                           so_thu_tu=10, current_year=_vnd(payables),
+                           previous_year=_fs_val(b01, "310") if b01 else None),
+                FSLineItem(ma_so="V.07", ten_chi_tieu="Doanh thu bán hàng và cung cấp dịch vụ",
+                           so_thu_tu=11, current_year=_vnd(revenue),
+                           previous_year=_fs_val(b02, "01") if b02 else None),
+                FSLineItem(ma_so="V.08", ten_chi_tieu="Giá vốn hàng bán",
+                           so_thu_tu=12, current_year=_vnd(cogs),
+                           previous_year=_fs_val(b02, "11") if b02 else None),
+                FSLineItem(ma_so="V.09", ten_chi_tieu="Chi phí bán hàng",
+                           so_thu_tu=13, current_year=_vnd(selling_exp),
+                           previous_year=_fs_val(b02, "23") if b02 else None),
+                FSLineItem(ma_so="V.10", ten_chi_tieu="Chi phí quản lý doanh nghiệp",
+                           so_thu_tu=14, current_year=_vnd(admin_exp),
+                           previous_year=_fs_val(b02, "24") if b02 else None),
+
+                # ── VI. Related parties ──
+                FSLineItem(ma_so="VI", ten_chi_tieu="Thông tin về các bên liên quan",
+                           so_thu_tu=15, is_subtotal=False,
+                           thuyet_minh="Không có giao dịch trọng yếu với các bên liên quan."),
+
+                # ── VII. Events after reporting date ──
+                FSLineItem(ma_so="VII", ten_chi_tieu="Các sự kiện phát sinh sau ngày kết thúc kỳ kế toán",
+                           so_thu_tu=16, is_subtotal=False,
+                           thuyet_minh="Không có sự kiện trọng yếu nào phát sinh sau ngày kết thúc kỳ kế toán."),
             ]
-            fs.lines = notes_lines
+
+            fs = FinancialStatement(
+                entity_id=entity_id, period=period,
+                statement_type=FinancialStatementType.NOTES_GC,
+                generated_by=generated_by, lines=notes_lines,
+            )
+
             result = self.repo.create_statement(fs)
             if result.is_success():
                 data = result.get_data()
@@ -227,6 +305,9 @@ class FSUseCases:
                 month = int(period.split("-")[1])
                 if not (1 <= month <= 12):
                     return Result.failure(ValidationError(ErrorCodes.PERIOD_FS_MONTH, month=month))
+
+            if self.repo.is_period_closed(period):
+                return Result.failure(ValidationError(ErrorCodes.FS_GEN_PERIOD_CLOSED, period=period))
 
             trial_balance = self.repo.get_trial_balance(period)
             if not trial_balance:
@@ -325,10 +406,33 @@ class FSUseCases:
                     is_calculated=True,
                 ))
         else:
+            net_income = trial_balance.get("5111", Decimal("0")) - trial_balance.get("632", Decimal("0"))
+            for acct in ["641", "642", "635", "811"]:
+                net_income -= trial_balance.get(acct, Decimal("0"))
+            for acct in ["515", "711"]:
+                net_income += trial_balance.get(acct, Decimal("0"))
+            net_income -= trial_balance.get("821", Decimal("0"))
+
+            depreciation = (trial_balance.get("2141", Decimal("0"))
+                           + trial_balance.get("2147", Decimal("0")))
+            change_ar = trial_balance.get("131", Decimal("0"))
+            change_inv = trial_balance.get("152", Decimal("0")) + trial_balance.get("155", Decimal("0"))
+            change_ap = trial_balance.get("331", Decimal("0"))
+
+            cf_from_ops = net_income + depreciation - change_ar - change_inv + change_ap
+            cf_from_inv = -(trial_balance.get("211", Decimal("0"))
+                          + trial_balance.get("221", Decimal("0")))
+            cf_from_fin = (trial_balance.get("4111", Decimal("0"))
+                          - trial_balance.get("421", Decimal("0")))
+            net = cf_from_ops + cf_from_inv + cf_from_fin
+            opening_cash = trial_balance.get("111", Decimal("0")) + trial_balance.get("112", Decimal("0"))
+            closing_cash = opening_cash + net
+
+            cf_vals = {"01": cf_from_ops, "20": cf_from_inv, "30": cf_from_fin,
+                       "50": net, "60": opening_cash, "70": closing_cash}
+
             for idx, tmpl in enumerate(cf_template):
-                cy = Decimal("0")
-                if ma_so := tmpl["ma_so"]:
-                    cy = trial_balance.get(ma_so, Decimal("0"))
+                cy = cf_vals.get(tmpl["ma_so"], Decimal("0"))
                 lines.append(FSLineItem(
                     ma_so=tmpl["ma_so"], ten_chi_tieu=tmpl["ten"],
                     so_thu_tu=idx + 1, current_year=_vnd(cy),
@@ -395,6 +499,13 @@ class FSUseCases:
     def get_mappings(self, statement_type: Optional[FinancialStatementType] = None,
                      fs_ma_so: Optional[str] = None) -> List[FSAccountMapping]:
         return self.repo.get_mappings(statement_type, fs_ma_so)
+
+    def update_mapping(self, mapping_id: int, **updates) -> Result:
+        try:
+            return self.repo.update_mapping(mapping_id, **updates)
+        except Exception as e:
+            return Result.failure(VASValidationError(
+                ErrorCodes.FS_MAPPING_NOT_FOUND, detail=str(e)))
 
     def delete_mapping(self, mapping_id: int) -> Result:
         return self.repo.delete_mapping(mapping_id)

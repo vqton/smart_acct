@@ -280,6 +280,44 @@ class SubsidiaryLedger(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+SUBSIDIARY_ACCOUNT_MAP: Dict[str, SubsidiaryType] = {
+    "131": SubsidiaryType.AR,
+    "331": SubsidiaryType.AP,
+    "152": SubsidiaryType.INVENTORY,
+    "153": SubsidiaryType.INVENTORY,
+    "155": SubsidiaryType.INVENTORY,
+    "156": SubsidiaryType.INVENTORY,
+    "211": SubsidiaryType.FA,
+    "212": SubsidiaryType.FA,
+    "213": SubsidiaryType.FA,
+    "215": SubsidiaryType.FA,
+    "242": SubsidiaryType.PREPAID,
+    "341": SubsidiaryType.LOAN,
+    "343": SubsidiaryType.LOAN,
+}
+
+
+def detect_subsidiary_from_lines(lines: List["JournalLine"]) -> Dict[str, List["JournalLine"]]:
+    """Group journal lines by subsidiary type for auto-posting.
+    
+    Only lines with entity_id set and matching account codes qualify.
+    Uses prefix matching: e.g. "1311" matches map key "131".
+    Returns dict of subsidiary_type → qualifying lines.
+    """
+    result: Dict[str, List["JournalLine"]] = {}
+    for line in lines:
+        if line.entity_id is None:
+            continue
+        for acct_prefix, st in SUBSIDIARY_ACCOUNT_MAP.items():
+            if line.account_id == acct_prefix or line.account_id.startswith(acct_prefix):
+                st_val = st.value
+                if st_val not in result:
+                    result[st_val] = []
+                result[st_val].append(line)
+                break
+    return result
+
+
 class JournalLine(BaseModel):
     id: Optional[int] = Field(default=None)
     journal_entry_id: int = Field(..., description="Reference to parent journal entry")
@@ -292,6 +330,8 @@ class JournalLine(BaseModel):
     line_type: str = Field(default="regular", description="Type of journal line")
     is_taxable: bool = Field(default=False, description="Whether this line is subject to VAT")
     tax_code: Optional[str] = Field(default=None, description="Vietnamese tax code")
+    entity_id: Optional[int] = Field(default=None, description="Subsidiary entity ID (customer/vendor/etc)")
+    entity_name: Optional[str] = Field(default=None, max_length=200, description="Subsidiary entity name")
     period: str = Field(default_factory=lambda: date.today().strftime("%Y-%m"), description="Accounting period")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)

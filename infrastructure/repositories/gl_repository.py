@@ -68,6 +68,8 @@ class GLRepository:
             line_type=model.line_type,
             is_taxable=model.is_taxable,
             tax_code=model.tax_code,
+            entity_id=model.entity_id,
+            entity_name=model.entity_name,
             period=model.period,
             created_at=model.created_at,
             updated_at=model.updated_at,
@@ -85,6 +87,8 @@ class GLRepository:
             line_type=line.line_type,
             is_taxable=line.is_taxable,
             tax_code=line.tax_code,
+            entity_id=line.entity_id,
+            entity_name=line.entity_name,
             period=line.period,
         )
 
@@ -229,8 +233,28 @@ class GLRepository:
         seq = self.get_or_create_sequence(journal_type, year)
         seq.last_sequence += 1
         self.session.flush()
-        prefix = JOURNAL_TYPE_PREFIX_MAP.get(journal_type, "JV")
-        return f"{prefix}{year}{str(seq.last_sequence).zfill(6)}"
+        return f"{seq.prefix}{year}{str(seq.last_sequence).zfill(6)}"
+
+    def update_journal_prefix(self, journal_type: JournalType, new_prefix: str, fiscal_year: int) -> Result:
+        seq = self.session.execute(
+            select(JournalTypeSequenceModel).where(
+                JournalTypeSequenceModel.journal_type == journal_type.value,
+                JournalTypeSequenceModel.fiscal_year == fiscal_year,
+            )
+        ).scalar_one_or_none()
+        if not seq:
+            return Result.failure(ValidationError(ErrorCodes.JOURNAL_SEQUENCE_NOT_FOUND, journal_type=journal_type.value, fiscal_year=str(fiscal_year)))
+        if not new_prefix or not new_prefix.isalpha() or len(new_prefix) > 4:
+            return Result.failure(ValidationError(ErrorCodes.INVALID_PREFIX, prefix=new_prefix))
+        seq.prefix = new_prefix.upper()
+        seq.updated_at = datetime.now(timezone.utc)
+        self.session.flush()
+        return Result.success({
+            "journal_type": seq.journal_type,
+            "fiscal_year": seq.fiscal_year,
+            "prefix": seq.prefix,
+            "last_sequence": seq.last_sequence,
+        })
 
     def get_journal_sequence(self, journal_type: JournalType, fiscal_year: int) -> Optional[dict]:
         seq = self.session.execute(
@@ -1080,6 +1104,13 @@ class GLRepository:
             total_closing_debit += closing_dr
             total_closing_credit += closing_cr
 
+            # Collect source entry IDs for drill-down
+            entry_ids = list(self.session.execute(
+                select(JournalEntryModel.id).join(JournalLineModel)
+                .where(JournalLineModel.account_id == acc.code, JournalEntryModel.period == period)
+                .distinct()
+            ).scalars().all())
+
             rows.append({
                 "account_code": acc.code,
                 "account_name": acc.name,
@@ -1090,6 +1121,7 @@ class GLRepository:
                 "period_credit": str(credit_total),
                 "closing_debit": str(closing_dr),
                 "closing_credit": str(closing_cr),
+                "entry_ids": entry_ids,
             })
 
         return {

@@ -1039,3 +1039,11 @@ msgstr "Tài khoản ngân hàng đang âm — phải ghi nhận là vay TK 341 
 #: use_cases/cash/__init__.py
 msgid "RECONCILIATION_OVERDUE"
 msgstr "Đối chiếu ngân hàng quá hạn — TT 99 D13(1)(b) yêu cầu đối chiếu hàng tháng"
+
+#: infrastructure/repositories/budget_repository.py
+msgid "BUDGET_CATEGORY_ALREADY_EXISTS"
+msgstr "Nhóm ngân sách đã tồn tại"
+
+#: infrastructure/repositories/gl_repository.py
+msgid "INVALID_PREFIX"
+msgstr "Tiền tố không hợp lệ — phải 1-4 ký tự chữ cái"

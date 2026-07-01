@@ -66,6 +66,18 @@ def _seed_accounts(sess):
                  regime=AccountingRegime.TT133_2016, vas_compliant=True,
                  drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
                  currency="VND", unit="VND", description="Retained earnings"),
+        COAModel(code="1311", name="Phải thu khách hàng", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND", description="AR - Customers"),
+        COAModel(code="3311", name="Phải trả người bán", account_type="liability",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND", description="AP - Suppliers"),
+        COAModel(code="1521", name="Nguyên vật liệu chính", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND", description="Raw materials"),
     ]
     for acc in accounts:
         sess.add(acc)
@@ -1555,6 +1567,86 @@ class TestAutoSubsidiaryPost:
         create_and_post("JV006011", 500, 60, "Entry 2")
         sub = uc.get_subsidiary_ledger("ar", entity_id=60)
         assert len(sub) == 4
+
+    def test_auto_detect_from_line_entity_id(self, session):
+        """Lines with entity_id set auto-post to subsidiary ledger."""
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV009010", transaction_date=date(2026, 6, 1),
+            description="Auto-detect AR",
+            lines=[
+                {"account_id": "1311", "debit": "2000", "credit": "0",
+                 "entity_id": 100, "entity_name": "Khách hàng A"},
+                {"account_id": "5111", "debit": "0", "credit": "2000"},
+            ],
+            period="2026-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        # Post without manual override — should auto-detect
+        post_result = uc.post_entry(entry.id)
+        assert post_result.is_success()
+
+        sub = uc.get_subsidiary_ledger("ar", entity_id=100)
+        assert len(sub) == 1
+        assert sub[0].debit == Decimal("2000")
+        assert sub[0].entity_name == "Khách hàng A"
+
+    def test_auto_detect_multiple_subsidiary_types(self, session):
+        """Lines with different subsidiary entity_ids post to correct sub-ledgers."""
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV009011", transaction_date=date(2026, 6, 1),
+            description="Multi subsidiary types",
+            lines=[
+                {"account_id": "1311", "debit": "1500", "credit": "0",
+                 "entity_id": 200, "entity_name": "KH B"},
+                {"account_id": "3311", "debit": "0", "credit": "1500",
+                 "entity_id": 300, "entity_name": "NCC C"},
+            ],
+            period="2026-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        post_result = uc.post_entry(entry.id)
+        assert post_result.is_success()
+
+        ar_subs = uc.get_subsidiary_ledger("ar", entity_id=200)
+        assert len(ar_subs) == 1
+        assert ar_subs[0].debit == Decimal("1500")
+
+        ap_subs = uc.get_subsidiary_ledger("ap", entity_id=300)
+        assert len(ap_subs) == 1
+        assert ap_subs[0].credit == Decimal("1500")
+
+    def test_auto_detect_skipped_when_manual_override(self, session):
+        """Manual override takes precedence over line-level auto-detect."""
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV009012", transaction_date=date(2026, 6, 1),
+            description="Override test",
+            lines=[
+                {"account_id": "1311", "debit": "3000", "credit": "0",
+                 "entity_id": 400, "entity_name": "KH D"},
+                {"account_id": "5111", "debit": "0", "credit": "3000"},
+            ],
+            period="2026-06",
+        )
+        assert result.is_success()
+        entry = result.get_data()
+
+        # Manual override with different entity — should post ALL lines to entity 999
+        uc.post_entry(entry.id, subsidiary_type="ar", entity_id=999,
+                      entity_name="Override Entity", doc_ref="OVR", doc_type="inv")
+
+        # Check override entity got the entry, NOT entity 400 from line
+        override_subs = uc.get_subsidiary_ledger("ar", entity_id=999)
+        assert len(override_subs) == 2  # Both lines posted
+
+        original_subs = uc.get_subsidiary_ledger("ar", entity_id=400)
+        assert len(original_subs) == 0  # Auto-detect skipped
 
 
 class TestReversalEntry:

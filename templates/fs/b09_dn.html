@@ -1,0 +1,53 @@
+{% extends "fs/base_fs.html" %}
+{% block title %}B09-DN - Thuyết minh Báo cáo tài chính{% endblock %}
+{% block content %}
+<div class="report-title">
+    <h1>THUYẾT MINH BÁO CÁO TÀI CHÍNH</h1>
+    <p class="form-number">Mẫu số B09-DN</p>
+    <p>(Ban hành theo TT 99/2025/TT-BTC ngày 31/12/2025)</p>
+</div>
+
+<table class="fs-table">
+    <thead>
+        <tr>
+            <th style="width:12%">Mã số</th>
+            <th style="width:55%">Chỉ tiêu</th>
+            <th style="width:15%">Cuối năm</th>
+            <th style="width:15%">Đầu năm</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in fs.lines %}
+        {% set row_cls = 'subtotal' if line.is_subtotal else 'detail' %}
+        {% set is_section = line.ma_so in ['I','II','III','IV','VI','VII'] %}
+        {% set is_sub = line.ma_so.startswith('V.') %}
+        <tr class="{{ row_cls }}" style="{{ 'background:#f5f5f5;font-weight:bold;' if is_section else '' }}">
+            <td class="text-center">{{ line.ma_so }}</td>
+            <td class="{{ 'fw-bold' if is_section else '' }}"
+                style="{{ 'padding-left:20px!important;' if is_sub else '' }}">
+                {{ line.ten_chi_tieu }}
+            </td>
+            <td class="amount">
+                {% if line.current_year is not none %}
+                    {{ "{:,.0f}".format(line.current_year) }}
+                {% endif %}
+            </td>
+            <td class="amount">
+                {% if line.previous_year is not none %}
+                    {{ "{:,.0f}".format(line.previous_year) }}
+                {% elif is_section %}
+                    x
+                {% endif %}
+            </td>
+        </tr>
+        {% if line.thuyet_minh %}
+        <tr>
+            <td colspan="4" style="padding-left:20px;font-style:italic;font-size:9pt;border-top:none;">
+                {{ line.thuyet_minh }}
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

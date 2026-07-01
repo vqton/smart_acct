@@ -27,6 +27,17 @@ def _json_dimension(d):
     }
 
 
+def _json_category(c):
+    return {
+        "id": c.id, "structure_id": c.structure_id,
+        "budget_type": c.budget_type.value if hasattr(c.budget_type, 'value') else c.budget_type,
+        "name": c.name,
+        "category_type": c.category_type.value if hasattr(c.category_type, 'value') else c.category_type,
+        "gl_account_codes": c.gl_account_codes or [],
+        "is_active": c.is_active, "created_at": c.created_at.isoformat() if c.created_at else None,
+    }
+
+
 def _json_calendar(c):
     return {
         "id": c.id, "fiscal_year": c.fiscal_year, "name": c.name,

@@ -21,6 +21,12 @@ JOURNAL_TYPE_TEMPLATE_MAP = {
     JournalType.PURCHASE: "S03b1-DN",
     JournalType.CASH_RECEIPT: "S03a1-DN",
     JournalType.CASH_PAYMENT: "S03a2-DN",
+    JournalType.PAYROLL: "S03c-DN",
+    JournalType.INVENTORY: "S11-DN",
+    JournalType.FIXED_ASSET: "S12-DN",
+    JournalType.ADJUSTMENT: "S03c-DN",
+    JournalType.OPENING: "S03c-DN",
+    JournalType.CLOSING: "S03c-DN",
 }
 
 TEMPLATE_NAMES = {
@@ -29,6 +35,12 @@ TEMPLATE_NAMES = {
     "S03a2-DN": "SỔ NHẬT KÝ CHI TIỀN",
     "S03b1-DN": "SỔ NHẬT KÝ MUA HÀNG",
     "S03b2-DN": "SỔ NHẬT KÝ BÁN HÀNG",
+    "S07-DN": "SỔ NHẬT KÝ THU TIỀN",
+    "S08-DN": "SỔ NHẬT KÝ CHI TIỀN",
+    "S09-DN": "SỔ NHẬT KÝ MUA HÀNG",
+    "S10-DN": "SỔ NHẬT KÝ BÁN HÀNG",
+    "S11-DN": "SỔ NHẬT KÝ KIÊM CHỨNG TỪ GHI SỔ",
+    "S12-DN": "SỔ NHẬT KÝ TSCĐ",
     "S01-DN": "SỔ CÁI",
     "S05-DN": "SỔ CHI TIẾT THANH TOÁN VỚI NGƯỜI BÁN",
     "S06-DN": "SỔ CHI TIẾT THANH TOÁN VỚI NGƯỜI MUA",
@@ -40,6 +52,12 @@ TEMPLATE_NAMES_EN = {
     "S03a2-DN": "CASH DISBURSEMENT JOURNAL",
     "S03b1-DN": "PURCHASE JOURNAL",
     "S03b2-DN": "SALES JOURNAL",
+    "S07-DN": "CASH RECEIPT JOURNAL",
+    "S08-DN": "CASH DISBURSEMENT JOURNAL",
+    "S09-DN": "PURCHASE JOURNAL",
+    "S10-DN": "SALES JOURNAL",
+    "S11-DN": "COMBINED JOURNAL / VOUCHER",
+    "S12-DN": "FIXED ASSET JOURNAL",
     "S01-DN": "GENERAL LEDGER",
     "S05-DN": "ACCOUNTS PAYABLE SUBSIDIARY LEDGER",
     "S06-DN": "ACCOUNTS RECEIVABLE SUBSIDIARY LEDGER",
@@ -69,6 +87,12 @@ COUNTERPARTY_LABELS = {
     "S03a2-DN": "Người nhận",
     "S03b1-DN": "Nhà cung cấp",
     "S03b2-DN": "Khách hàng",
+    "S07-DN": "Người nộp",
+    "S08-DN": "Người nhận",
+    "S09-DN": "Nhà cung cấp",
+    "S10-DN": "Khách hàng",
+    "S11-DN": "Đối tượng",
+    "S12-DN": "TSCĐ",
 }
 
 COUNTERPARTY_LABELS_EN = {
@@ -76,6 +100,12 @@ COUNTERPARTY_LABELS_EN = {
     "S03a2-DN": "Receiver",
     "S03b1-DN": "Supplier",
     "S03b2-DN": "Customer",
+    "S07-DN": "Payer",
+    "S08-DN": "Receiver",
+    "S09-DN": "Supplier",
+    "S10-DN": "Customer",
+    "S11-DN": "Entity",
+    "S12-DN": "Fixed Asset",
 }
 
 
