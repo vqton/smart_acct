@@ -16,7 +16,7 @@ from infrastructure.models.tax_models import (
     TaxIncentiveModel, EInvoiceModel, TaxScheduleModel,
 )
 from infrastructure.repositories.tax_repository import TaxRepository
-from use_cases.tax_use_cases import TaxUseCases
+from use_cases.tax import TaxUseCases
 
 
 @pytest.fixture(scope="function")

@@ -5,7 +5,7 @@ from io import BytesIO
 
 from presentation import resolve_error
 from presentation.gl import gl_bp, _get_session
-from use_cases.gl_use_cases import GLUseCases
+from use_cases.gl import GLUseCases
 from use_cases.gl.templates import (
     generate_journal_template, generate_s01_ledger, generate_subsidiary_template,
     JOURNAL_TYPE_TEMPLATE_MAP, TEMPLATE_NAMES,

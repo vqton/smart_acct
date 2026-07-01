@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from infrastructure.models.coa_models import Base, COAModel, AccountingRegime as DBRegime, AccountStatus as DBStatus
-from use_cases.coa_use_cases import COAUseCases
+from use_cases.coa import COAUseCases
 from presentation.coa_routes import coa_bp
 
 

@@ -18,7 +18,7 @@ from domain.i18n import ErrorCodes
 from infrastructure.models.coa_models import Base, COAModel, AccountingRegime, AccountStatus
 from infrastructure.models.gl_models import JournalEntryModel, JournalLineModel, AccountingPeriodModel, JournalTypeSequenceModel
 from infrastructure.repositories.gl_repository import GLRepository
-from use_cases.gl_use_cases import GLUseCases
+from use_cases.gl import GLUseCases
 
 
 @pytest.fixture(scope="function")

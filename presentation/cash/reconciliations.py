@@ -3,7 +3,7 @@ from flask import request, jsonify
 
 from presentation import resolve_error
 from presentation.cash import cash_bp, _get_session, _json_reconciliation
-from use_cases.cash_use_cases import CashUseCases
+from use_cases.cash import CashUseCases
 
 
 # ── UC-CASH-06: Bank Reconciliations ──────────────────────────────────

@@ -4,7 +4,7 @@ from flask import request, jsonify
 
 from presentation import resolve_error
 from presentation.gl import gl_bp, _get_session, _json_entry
-from use_cases.gl_use_cases import GLUseCases
+from use_cases.gl import GLUseCases
 from domain import ValidationError, DoubleEntryError
 
 

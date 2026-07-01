@@ -20,7 +20,7 @@ from infrastructure.models.cash_models import (
     CashTransferModel, ChequeModel, DailyCashCountModel, AdvanceModel,
 )
 from infrastructure.repositories.cash_repository import CashRepository
-from use_cases.cash_use_cases import CashUseCases
+from use_cases.cash import CashUseCases
 from presentation.cash_routes import cash_bp
 
 

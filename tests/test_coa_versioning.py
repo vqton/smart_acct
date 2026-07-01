@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from domain import AccountType, DCRDirection
 from infrastructure.models.coa_models import Base, COAModel
 from use_cases.coa_versioning_use_case import COAVersioningUseCase
-from use_cases.coa_use_cases import COAUseCases
+from use_cases.coa import COAUseCases
 
 
 @pytest.fixture(scope="function")

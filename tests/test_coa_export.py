@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from domain import AccountType, DCRDirection, AccountingRegime
 from infrastructure.models.coa_models import Base, COAModel, AccountingRegime as DBRegime, AccountStatus as DBStatus
-from use_cases.coa_use_cases import COAUseCases
+from use_cases.coa import COAUseCases
 from use_cases.coa_export_use_case import COAExportUseCase
 
 

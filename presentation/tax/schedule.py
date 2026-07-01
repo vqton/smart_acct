@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from presentation import resolve_error
 from presentation.tax import tax_bp, _get_session, _json_schedule
-from use_cases.tax_use_cases import TaxUseCases
+from use_cases.tax import TaxUseCases
 from domain import TaxType
 from datetime import date
 

@@ -4,7 +4,7 @@ from domain import AccountType, DCRDirection, AccountingRegime, AccountStatus
 from infrastructure.database import DatabaseError
 from presentation import resolve_error
 from presentation.coa import coa_bp, _get_session, _json_account
-from use_cases.coa_use_cases import COAUseCases
+from use_cases.coa import COAUseCases
 
 
 @coa_bp.route("/accounts", methods=["POST"])

@@ -4,7 +4,7 @@ from flask import request, jsonify, render_template
 
 from presentation import resolve_error
 from presentation.cash import cash_bp, _get_session, _json_bank_account, _json_statement
-from use_cases.cash_use_cases import CashUseCases
+from use_cases.cash import CashUseCases
 from domain import BankAccountStatus
 
 
