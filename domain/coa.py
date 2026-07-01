@@ -109,6 +109,10 @@ class AccountType(str, Enum):
     UNREALIZED_FINANCIAL_INCOME = "unrealized_financial_income"
     DEPRECIATION_EXPENSE = "depreciation_expense"
     AMORTIZATION_EXPENSE = "amortization_expense"
+    BIOLOGICAL_ASSET = "biological_asset"
+    PROVISION_FOR_BIOLOGICAL_ASSET = "provision_for_biological_asset"
+    SCT_IMPORTED_GOODS = "sct_imported_goods"
+    GMT_CIT_EXPENSE = "gmt_cit_expense"
     VAT_INPUT = "vat_input"
     CIT_PAYMENT = "cit_payment"
     PIT_PAYMENT = "pit_payment"
@@ -130,11 +134,13 @@ class DCRDirection(str, Enum):
             AccountType.ADVANCE, AccountType.ASSET_SHORTAGE, AccountType.CASH_EQUIVALENT,
             AccountType.SHORT_TERM_LOANS_TO_ENTERPRISES, AccountType.COST_OF_SALES,
             AccountType.OPERATIONAL_EXPENSES, AccountType.DEPRECIATION_EXPENSE, AccountType.VAT_INPUT,
+            AccountType.BIOLOGICAL_ASSET, AccountType.SCT_IMPORTED_GOODS, AccountType.GMT_CIT_EXPENSE,
         }
         credit_normal_accounts = {
             AccountType.LIABILITY, AccountType.EQUITY, AccountType.REVENUE,
             AccountType.FINANCIAL_REVENUE, AccountType.COST_OF_GOODS_SOLD, AccountType.GROSS_PROFIT,
             AccountType.NET_PROFIT, AccountType.EQUITY_DISTRIBUTION, AccountType.ASSET_SURPLUS,
+            AccountType.PROVISION_FOR_BIOLOGICAL_ASSET,
         }
         if account_type in debit_normal_accounts:
             return cls.DEBIT
