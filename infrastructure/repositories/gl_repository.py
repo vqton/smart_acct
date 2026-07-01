@@ -1036,3 +1036,168 @@ class GLRepository:
             "total_expenses": str(total_expenses),
             "net_income": str(net_income),
         }
+
+    def generate_trial_balance(self, period: str) -> dict:
+        """Bảng cân đối số phát sinh — Trial Balance per TT99."""
+        accounts = self.session.execute(
+            select(COAModel).order_by(COAModel.code)
+        ).scalars().all()
+
+        rows = []
+        total_opening_debit = Decimal("0")
+        total_opening_credit = Decimal("0")
+        total_period_debit = Decimal("0")
+        total_period_credit = Decimal("0")
+        total_closing_debit = Decimal("0")
+        total_closing_credit = Decimal("0")
+
+        for acc in accounts:
+            bal = self.get_account_balance(acc.code, period)
+            account_is_debit_normal = acc.drcr_direction == DCRDirection.DEBIT.value
+            debit_total = bal["total_debit"]
+            credit_total = bal["total_credit"]
+            closing_balance = bal["balance"]
+            opening_balance = closing_balance - debit_total + credit_total
+
+            opening_dr = opening_balance if account_is_debit_normal and opening_balance > 0 else Decimal("0")
+            opening_cr = -opening_balance if account_is_debit_normal and opening_balance < 0 else (opening_balance if not account_is_debit_normal and opening_balance > 0 else Decimal("0"))
+            if not account_is_debit_normal and opening_balance > 0:
+                opening_cr = opening_balance
+            elif not account_is_debit_normal and opening_balance < 0:
+                opening_dr = -opening_balance
+
+            closing_dr = closing_balance if account_is_debit_normal and closing_balance > 0 else Decimal("0")
+            closing_cr = -closing_balance if account_is_debit_normal and closing_balance < 0 else (closing_balance if not account_is_debit_normal and closing_balance > 0 else Decimal("0"))
+            if not account_is_debit_normal and closing_balance > 0:
+                closing_cr = closing_balance
+            elif not account_is_debit_normal and closing_balance < 0:
+                closing_dr = -closing_balance
+
+            total_opening_debit += opening_dr
+            total_opening_credit += opening_cr
+            total_period_debit += debit_total
+            total_period_credit += credit_total
+            total_closing_debit += closing_dr
+            total_closing_credit += closing_cr
+
+            rows.append({
+                "account_code": acc.code,
+                "account_name": acc.name,
+                "account_type": acc.account_type,
+                "opening_debit": str(opening_dr),
+                "opening_credit": str(opening_cr),
+                "period_debit": str(debit_total),
+                "period_credit": str(credit_total),
+                "closing_debit": str(closing_dr),
+                "closing_credit": str(closing_cr),
+            })
+
+        return {
+            "period": period,
+            "statement_type": "trial_balance",
+            "rows": rows,
+            "account_count": len(rows),
+            "total_opening_debit": str(total_opening_debit),
+            "total_opening_credit": str(total_opening_credit),
+            "total_period_debit": str(total_period_debit),
+            "total_period_credit": str(total_period_credit),
+            "total_closing_debit": str(total_closing_debit),
+            "total_closing_credit": str(total_closing_credit),
+        }
+
+    def generate_cash_flow(self, period: str, method: str = "direct") -> dict:
+        """B03-DN Cash Flow Statement using direct or indirect method."""
+        from sqlalchemy import func, text
+
+        if method == "direct":
+            cash_type = DCRDirection.DEBIT.value
+
+            cash_inflow_sql = text("""
+                SELECT
+                    jl.account_id,
+                    COALESCE(SUM(jl.debit), 0) AS total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.journal_entry_id
+                WHERE je.is_posted = TRUE
+                  AND je.period = :period
+                  AND jl.account_id IN ('1111', '1112', '1121', '1122')
+                  AND jl.debit > 0
+                GROUP BY jl.account_id
+            """)
+            cash_outflow_sql = text("""
+                SELECT
+                    jl.account_id,
+                    COALESCE(SUM(jl.credit), 0) AS total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.journal_entry_id
+                WHERE je.is_posted = TRUE
+                  AND je.period = :period
+                  AND jl.account_id IN ('1111', '1112', '1121', '1122')
+                  AND jl.credit > 0
+                GROUP BY jl.account_id
+            """)
+
+            inflow_rows = self.session.execute(cash_inflow_sql, {"period": period}).fetchall()
+            outflow_rows = self.session.execute(cash_outflow_sql, {"period": period}).fetchall()
+
+            total_inflow = sum(Decimal(str(r.total)) for r in inflow_rows)
+            total_outflow = sum(Decimal(str(r.total)) for r in outflow_rows)
+
+            op_inflow = self.session.execute(text("""
+                SELECT COALESCE(SUM(jl.debit), 0)
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.journal_entry_id
+                WHERE je.is_posted = TRUE AND je.period = :period
+                  AND jl.account_id IN ('1111', '1112', '1121', '1122')
+                  AND jl.debit > 0
+                  AND je.journal_type IN ('sales', 'cash_receipt')
+            """), {"period": period}).scalar() or 0
+
+            op_outflow = self.session.execute(text("""
+                SELECT COALESCE(SUM(jl.credit), 0)
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.journal_entry_id
+                WHERE je.is_posted = TRUE AND je.period = :period
+                  AND jl.account_id IN ('1111', '1112', '1121', '1122')
+                  AND jl.credit > 0
+                  AND je.journal_type IN ('purchase', 'cash_payment')
+            """), {"period": period}).scalar() or 0
+
+            inv_inflow = total_inflow - Decimal(str(op_inflow))
+            inv_outflow = Decimal("0")
+            fin_inflow = Decimal("0")
+            fin_outflow = total_outflow - Decimal(str(op_outflow))
+
+            net_operating = Decimal(str(op_inflow)) - Decimal(str(op_outflow))
+            net_investing = inv_inflow - inv_outflow
+            net_financing = fin_inflow - fin_outflow
+            net_change = net_operating + net_investing + net_financing
+
+            return {
+                "period": period,
+                "method": "direct",
+                "statement_type": "cash_flow",
+                "operating": {
+                    "inflow": str(op_inflow),
+                    "outflow": str(op_outflow),
+                    "net": str(net_operating),
+                },
+                "investing": {
+                    "inflow": str(inv_inflow),
+                    "outflow": str(inv_outflow),
+                    "net": str(net_investing),
+                },
+                "financing": {
+                    "inflow": str(fin_inflow),
+                    "outflow": str(fin_outflow),
+                    "net": str(net_financing),
+                },
+                "net_change": str(net_change),
+            }
+
+        return {
+            "period": period,
+            "method": method,
+            "statement_type": "cash_flow",
+            "error": "Indirect method not yet implemented",
+        }

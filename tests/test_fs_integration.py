@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import pytest
 
 from domain.fs import (
@@ -8,8 +8,12 @@ from domain.fs import (
     FSConsolidationGroup, FSConsolidationMember,
 )
 from domain.common import ValidationError
+from domain import JournalEntry, JournalLine
 from infrastructure.repositories.fs_repository import FSRepository
-from infrastructure.models.fs_models import Base
+from infrastructure.repositories.gl_repository import GLRepository
+from infrastructure.models.coa_models import Base, COAModel, AccountingRegime, AccountStatus
+from infrastructure.models.gl_models import AccountingPeriodModel, PeriodType
+from use_cases.fs import FSUseCases
 
 try:
     from sqlalchemy import create_engine
@@ -448,3 +452,242 @@ class TestB03Generation:
         r = repo.create_statement(fs)
         assert r.is_success()
         assert r.get_data().cash_flow_method == FSCashFlowMethod.INDIRECT
+
+
+# ── End-to-end B01-DN test with real GL journal entries ──────────────
+
+
+def _seed_b01_accounts(sess):
+    accounts = [
+        COAModel(code="1111", name="Tiền mặt", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=2, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="1121", name="Tiền gửi ngân hàng", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=2, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="131", name="Phải thu khách hàng", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="152", name="Nguyên vật liệu", account_type="asset",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="debit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="331", name="Phải trả người bán", account_type="liability",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="341", name="Vay dài hạn", account_type="liability",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="4111", name="Vốn đầu tư của chủ sở hữu", account_type="equity",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=2, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="421", name="Lợi nhuận chưa phân phối", account_type="equity",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=1, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+        COAModel(code="5111", name="Doanh thu bán hàng", account_type="revenue",
+                 regime=AccountingRegime.TT133_2016, vas_compliant=True,
+                 drcr_direction="credit", level=2, status=AccountStatus.ACTIVE,
+                 currency="VND", unit="VND"),
+    ]
+    for acc in accounts:
+        sess.add(acc)
+    sess.flush()
+
+
+@pytest.fixture(scope="function")
+def b01_session():
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
+    sess = Session(engine)
+    _seed_b01_accounts(sess)
+    sess.commit()
+    yield sess
+    sess.close()
+
+
+class TestB01DNE2E:
+    """End-to-end B01-DN generation with real GL journal entries."""
+
+    def _post_entry(self, sess, journal_number: str, lines_data: list,
+                     period: str = "2026-12") -> int:
+        repo = GLRepository(sess)
+        entry = JournalEntry(
+            journal_number=journal_number,
+            transaction_date=date(2026, 12, 31),
+            description=f"Entry {journal_number}",
+            period=period,
+            lines=[
+                JournalLine(
+                    journal_entry_id=0,
+                    account_id=ld["account_id"],
+                    debit=Decimal(str(ld["debit"])),
+                    credit=Decimal(str(ld["credit"])),
+                    period=period,
+                )
+                for ld in lines_data
+            ],
+        )
+        r = repo.create_entry(entry)
+        assert r.is_success(), f"create_entry failed: {r.error}"
+        entry_id = r.get_data().id
+        pr = repo.post_entry(entry_id)
+        assert pr.is_success(), f"post_entry failed: {pr.error}"
+        return entry_id
+
+    def test_generate_b01dn_with_gl_entries(self, b01_session):
+        sess = b01_session
+
+        # Create accounting period
+        ap = AccountingPeriodModel(
+            period="2026-12", type=PeriodType.YEARLY,
+            start_date=date(2026, 1, 1), end_date=date(2026, 12, 31),
+            is_closed=False, is_current=True,
+        )
+        sess.add(ap)
+        sess.commit()
+
+        # Post journal entries (each entry balances individually)
+        # Entry 1: Owner capital contribution
+        self._post_entry(sess, "JV000101", [
+            {"account_id": "1111", "debit": "800000000", "credit": "0"},
+            {"account_id": "4111", "debit": "0", "credit": "800000000"},
+        ])
+
+        # Entry 2: Long-term bank loan
+        self._post_entry(sess, "JV000102", [
+            {"account_id": "1121", "debit": "500000000", "credit": "0"},
+            {"account_id": "341", "debit": "0", "credit": "500000000"},
+        ])
+
+        # Entry 3: Inventory purchase on credit
+        self._post_entry(sess, "JV000103", [
+            {"account_id": "152", "debit": "300000000", "credit": "0"},
+            {"account_id": "331", "debit": "0", "credit": "300000000"},
+        ])
+
+        # Entry 4: Sales on credit
+        self._post_entry(sess, "JV000104", [
+            {"account_id": "131", "debit": "200000000", "credit": "0"},
+            {"account_id": "5111", "debit": "0", "credit": "200000000"},
+        ])
+
+        # Entry 5: Close revenue to retained earnings
+        self._post_entry(sess, "JV000105", [
+            {"account_id": "5111", "debit": "200000000", "credit": "0"},
+            {"account_id": "421", "debit": "0", "credit": "200000000"},
+        ])
+
+        sess.commit()
+
+        # Generate B01-DN
+        uc = FSUseCases(sess)
+        result = uc.generate_b01_dn(period="2026-12", entity_id=1, generated_by="test")
+        assert result.is_success(), f"B01-DN generation failed: {result.error}"
+        fs = result.get_data()
+        assert fs is not None
+        assert fs.period == "2026-12"
+        assert fs.statement_type == FinancialStatementType.BALANCE_SHEET_GC
+        assert fs.status == FSStatus.DRAFT
+        assert len(fs.lines) == 24  # 24 line items in B01_DN_LINE_ITEMS
+
+        # Build lookup dict
+        line_map = {l.ma_so: l for l in fs.lines}
+
+        # ── Verify asset lines ──
+        # Line 111 (Tiền): 1111 = 800,000,000
+        assert line_map["111"].current_year == Decimal("800000000.00"), \
+            f"Line 111 expected 800M got {line_map['111'].current_year}"
+
+        # Line 112 (Tương đương tiền): 1121 = 500,000,000
+        assert line_map["112"].current_year == Decimal("500000000.00"), \
+            f"Line 112 expected 500M got {line_map['112'].current_year}"
+
+        # Line 110 (Tiền & tương đương): 111 + 112 = 1,300,000,000
+        assert line_map["110"].current_year == Decimal("1300000000.00"), \
+            f"Line 110 expected 1.3B got {line_map['110'].current_year}"
+        assert line_map["110"].is_calculated
+
+        # Line 120 (Đầu tư TC ngắn hạn) = 0
+        assert line_map["120"].current_year == Decimal("0.00")
+
+        # Line 130 (Phải thu ngắn hạn): 131 = 200,000,000
+        assert line_map["130"].current_year == Decimal("200000000.00"), \
+            f"Line 130 expected 200M got {line_map['130'].current_year}"
+
+        # Line 140 (Hàng tồn kho): 152 = 300,000,000
+        assert line_map["140"].current_year == Decimal("300000000.00"), \
+            f"Line 140 expected 300M got {line_map['140'].current_year}"
+
+        # Line 150 (TSNH khác) = 0
+        assert line_map["150"].current_year == Decimal("0.00")
+
+        # Line 100 (TSNH subtotal): 110+120+130+140+150 = 1,300M+0+200M+300M+0 = 1,800M
+        assert line_map["100"].current_year == Decimal("1800000000.00"), \
+            f"Line 100 expected 1.8B got {line_map['100'].current_year}"
+        assert line_map["100"].is_calculated
+
+        # Line 200 (TSDH subtotal) = 0
+        assert line_map["200"].current_year == Decimal("0.00")
+        assert line_map["200"].is_calculated
+
+        # Line 270 (Tổng TS): 100+200 = 1,800,000,000
+        assert line_map["270"].current_year == Decimal("1800000000.00"), \
+            f"Line 270 expected 1.8B got {line_map['270'].current_year}"
+        assert line_map["270"].is_calculated
+
+        # ── Verify liability lines ──
+        # Line 310 (Nợ ngắn hạn): 331 = 300,000,000
+        assert line_map["310"].current_year == Decimal("300000000.00"), \
+            f"Line 310 expected 300M got {line_map['310'].current_year}"
+
+        # Line 330 (Nợ dài hạn): 341 = 500,000,000
+        assert line_map["330"].current_year == Decimal("500000000.00"), \
+            f"Line 330 expected 500M got {line_map['330'].current_year}"
+
+        # Line 300 (Nợ phải trả): 310+330 = 300M+500M = 800M
+        assert line_map["300"].current_year == Decimal("800000000.00"), \
+            f"Line 300 expected 800M got {line_map['300'].current_year}"
+        assert line_map["300"].is_calculated
+
+        # ── Verify equity lines ──
+        # Line 410 (Vốn góp): 4111 = 800,000,000
+        assert line_map["410"].current_year == Decimal("800000000.00"), \
+            f"Line 410 expected 800M got {line_map['410'].current_year}"
+
+        # Line 420 (Thặng dư) = 0
+        assert line_map["420"].current_year == Decimal("0.00")
+
+        # Line 430 (Lợi nhuận): 421 = 200,000,000
+        assert line_map["430"].current_year == Decimal("200000000.00"), \
+            f"Line 430 expected 200M got {line_map['430'].current_year}"
+
+        # Line 400 (VCSH): 410+420+430 = 800M+0+200M = 1,000M
+        assert line_map["400"].current_year == Decimal("1000000000.00"), \
+            f"Line 400 expected 1B got {line_map['400'].current_year}"
+        assert line_map["400"].is_calculated
+
+        # Line 440 (Tổng NV): 300+400 = 800M+1,000M = 1,800M
+        assert line_map["440"].current_year == Decimal("1800000000.00"), \
+            f"Line 440 expected 1.8B got {line_map['440'].current_year}"
+        assert line_map["440"].is_calculated
+
+        # ── Balance sheet verification: Total assets = Total sources ──
+        assert line_map["270"].current_year == line_map["440"].current_year, \
+            f"Balance sheet imbalanced: assets={line_map['270'].current_year} sources={line_map['440'].current_year}"
+
+    def test_generate_b01dn_invalid_period_format(self, b01_session):
+        uc = FSUseCases(b01_session)
+        result = uc.generate_b01_dn(period="invalid", entity_id=1)
+        assert result.is_failure()
+
+    def test_generate_b01dn_wrong_month(self, b01_session):
+        uc = FSUseCases(b01_session)
+        result = uc.generate_b01_dn(period="2026-13", entity_id=1)
+        assert result.is_failure()

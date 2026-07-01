@@ -1659,3 +1659,95 @@ class TestReversalEntry:
         assert rev_result.is_success(), f"Reverse failed: {error_msg}"
         rev = rev_result.get_data()
         assert rev.lines[0].debit == Decimal("0") and rev.lines[0].credit == Decimal("1000")
+
+
+class TestReportingEngine:
+    def test_trial_balance_basic(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV008000", transaction_date=date(2026, 8, 1),
+            description="TB test",
+            lines=[{"account_id": "1111", "debit": "5000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "5000"}],
+            period="2026-08",
+        )
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        tb = uc.generate_trial_balance("2026-08")
+        assert tb["statement_type"] == "trial_balance"
+        assert tb["account_count"] >= 2
+        assert Decimal(tb["total_period_debit"]) == Decimal(tb["total_period_credit"])
+        assert Decimal(tb["total_period_debit"]) >= Decimal("5000")
+
+    def test_trial_balance_empty_period(self, session):
+        uc = GLUseCases(session)
+        tb = uc.generate_trial_balance("2026-09")
+        assert tb["statement_type"] == "trial_balance"
+        assert tb["account_count"] >= 8
+
+    def test_cash_flow_direct_empty(self, session):
+        uc = GLUseCases(session)
+        cf = uc.generate_cash_flow("2026-08", method="direct")
+        assert cf["statement_type"] == "cash_flow"
+        assert cf["method"] == "direct"
+        assert "operating" in cf
+        assert "investing" in cf
+        assert "financing" in cf
+
+    def test_cash_flow_with_cash_entry(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="CR2026080001", transaction_date=date(2026, 8, 15),
+            description="Cash receipt",
+            lines=[{"account_id": "1111", "debit": "10000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "10000"}],
+            period="2026-08",
+            journal_type="cash_receipt",
+        )
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        cf = uc.generate_cash_flow("2026-08", method="direct")
+        assert Decimal(cf["operating"]["inflow"]) >= Decimal("10000")
+
+    def test_balance_sheet_basic(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV008001", transaction_date=date(2026, 8, 1),
+            description="BS test",
+            lines=[{"account_id": "1111", "debit": "20000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "20000"}],
+            period="2026-08",
+        )
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        bs = uc.generate_balance_sheet("2026-08")
+        assert bs["statement_type"] == "balance_sheet"
+        assert "assets" in bs
+        assert "liabilities" in bs
+        assert "equity" in bs
+
+    def test_income_statement_basic(self, session):
+        uc = GLUseCases(session)
+        result = uc.create_entry(
+            journal_number="JV008002", transaction_date=date(2026, 8, 1),
+            description="IS test",
+            lines=[{"account_id": "1111", "debit": "30000", "credit": "0"},
+                   {"account_id": "5111", "debit": "0", "credit": "30000"}],
+            period="2026-08",
+        )
+        entry = result.get_data()
+        uc.post_entry(entry.id)
+
+        is_ = uc.generate_income_statement("2026-08")
+        assert is_["statement_type"] == "income_statement"
+        assert "revenue" in is_
+        assert "expenses" in is_
+        assert "net_income" in is_
+
+    def test_cash_flow_indirect_not_impl(self, session):
+        uc = GLUseCases(session)
+        cf = uc.generate_cash_flow("2026-08", method="indirect")
+        assert "error" in cf

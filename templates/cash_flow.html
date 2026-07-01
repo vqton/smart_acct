@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head><meta charset="utf-8">
+<title>BÁO CÁO LƯU CHUYỂN TIỀN TỆ</title>
+<style>
+    body { font-family: 'Times New Roman', serif; font-size: 11px; }
+    h1 { text-align: center; font-size: 14px; margin-bottom: 2px; }
+    h2 { text-align: center; font-size: 12px; margin-top: 2px; font-weight: normal; }
+    .header { text-align: center; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin: 5px 0; }
+    th, td { border: 1px solid #000; padding: 3px 5px; }
+    th { text-align: center; font-weight: bold; background: #f0f0f0; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .section { background: #f5f5f5; font-weight: bold; }
+    .total-row { font-weight: bold; background: #f9f9f9; }
+    .signature { float: left; width: 30%; text-align: center; margin-top: 40px; }
+    .signatures { overflow: hidden; }
+</style></head>
+<body>
+<div class="header">
+    <h1>BÁO CÁO LƯU CHUYỂN TIỀN TỆ</h1>
+    <h2>(Cash Flow Statement - B03-DN)</h2>
+    <p><strong>{% trans %}Ky:{% endtrans %}</strong> {{ period }}</p>
+    <p><strong>{% trans %}Phuong phap:{% endtrans %}</strong> {{ method }}</p>
+</div>
+<table>
+<thead><tr>
+    <th>{% trans %}Chi tieu{% endtrans %}</th>
+    <th>{% trans %}Ma so{% endtrans %}</th>
+    <th>{% trans %}So tien{% endtrans %}</th>
+</tr></thead>
+<tbody>
+<tr class="section"><td colspan="3">{% trans %}I. Luu chuyen tien tu hoat dong kinh doanh{% endtrans %}</td></tr>
+<tr><td>{% trans %}Thu tien ban hang, cung cap dich vu{% endtrans %}</td><td class="center">01</td><td class="right">{{ operating.inflow }}</td></tr>
+<tr><td>{% trans %}Chi tien mua hang{% endtrans %}</td><td class="center">02</td><td class="right">{{ operating.outflow }}</td></tr>
+<tr class="total-row"><td>{% trans %}Luu chuyen tien thuan tu HDSXKD{% endtrans %}</td><td class="center">20</td><td class="right">{{ operating.net }}</td></tr>
+<tr class="section"><td colspan="3">{% trans %}II. Luu chuyen tien tu hoat dong dau tu{% endtrans %}</td></tr>
+<tr><td>{% trans %}Thu tien ban TSCD{% endtrans %}</td><td class="center">21</td><td class="right">{{ investing.inflow }}</td></tr>
+<tr><td>{% trans %}Chi tien mua TSCD{% endtrans %}</td><td class="center">22</td><td class="right">{{ investing.outflow }}</td></tr>
+<tr class="total-row"><td>{% trans %}Luu chuyen tien thuan tu HD dau tu{% endtrans %}</td><td class="center">30</td><td class="right">{{ investing.net }}</td></tr>
+<tr class="section"><td colspan="3">{% trans %}III. Luu chuyen tien tu hoat dong tai chinh{% endtrans %}</td></tr>
+<tr><td>{% trans %}Thu tien tu di vay{% endtrans %}</td><td class="center">31</td><td class="right">{{ financing.inflow }}</td></tr>
+<tr><td>{% trans %}Chi tra no goc vay{% endtrans %}</td><td class="center">32</td><td class="right">{{ financing.outflow }}</td></tr>
+<tr class="total-row"><td>{% trans %}Luu chuyen tien thuan tu HD tai chinh{% endtrans %}</td><td class="center">40</td><td class="right">{{ financing.net }}</td></tr>
+<tr class="total-row"><td>{% trans %}Tong luu chuyen tien thuan trong ky{% endtrans %}</td><td class="center">50</td><td class="right">{{ net_change }}</td></tr>
+</tbody>
+</table>
+<p><em>{% trans %}Ngay{% endtrans %} {{ period }}</em></p>
+<div class="signatures">
+    <div class="signature">{% trans %}Nguoi lap{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Ke toan truong{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Giam doc{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+</div>
+</body>
+</html>

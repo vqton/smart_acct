@@ -459,7 +459,7 @@ When requirements are unclear, ask about:
 - **Tests**: 153 tests (68 domain + 85 integration) covering all 15 use cases + edge cases; all passing
 - **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026). Allocation engine supports direct/percentage/proportional methods. Cost center dimension on GL lines deferred to Phase 2 (UC-CC-09).
 
-### GL Journals & Subsidiary Ledger Module — Completed (Phase 1-3, 44 new tests)
+### GL Journals & Subsidiary Ledger Module — Completed (Phase 1-3, Reporting Engine)
 - **BRD**: `docs/brd/accounting_journals_and_ledgers.md` (1600 lines) — full spec: 10 modules, 7 use cases, 42 TT99 templates, GL posting matrix, data model, implementation roadmap
 - **JournalType enum** (11 types): GENERAL(JV), SALES(SJ), PURCHASE(PJ), CASH_RECEIPT(CR), CASH_PAYMENT(CP), PAYROLL(PR), INVENTORY(IV), FIXED_ASSET(FA), ADJUSTMENT(AD), OPENING(OP), CLOSING(CL) — `domain/gl.py`
 - **CorrectionMethod enum**: RED_STORNO, ADDITIONAL — for TT99 Art.18 correction entries
@@ -467,19 +467,21 @@ When requirements are unclear, ask about:
 - **JournalTypeSequence**: Auto-numbering per journal type per fiscal year — `get_next_journal_number()` generates `{PREFIX}{YEAR}{SEQ6}` format
 - **Journal entry fields added**: `journal_type`, `approved_by`, `is_approved`, `approval_date`, `correction_method`, `ref_journal_number` — domain + model + migration `f5a6b7c8d9e1`
 - **SubsidiaryLedger**: Unified sub-ledger with `SubsidiaryType` enum (AR/AP/INVENTORY/FA/COST/PREPAID/LOAN), running balance computation, per-entity summaries — `domain/gl.py`, `SubsidiaryLedgerModel` in `gl_models.py`, `subsidiary_ledger` table in migration
-- **GLRepository updates**: `_entry_to_domain`/`_entry_to_model` for all new fields, `get_or_create_sequence`, `get_next_journal_number`, `get_journal_sequence`, `list_journal_sequences`, `create_subsidiary_entry`, `post_to_subsidiary_ledger`, `get_subsidiary_ledger`, `get_subsidiary_summary` (raw SQL aggregation), `update_entry` allowed fields expanded
-- **Use cases**: `GLUseCases` — `create_entry` accepts `journal_type`/`auto_number`/`approved_by`/`ref_journal_number`, `get_next_journal_number`, `get_journal_sequence`, `list_journal_sequences`, `post_to_subsidiary`, `get_subsidiary_ledger`, `get_subsidiary_summary`, `reverse_entry` (RED_STORNO/ADDITIONAL per TT99 Art.18), `post_entry` extended with optional `subsidiary_type`/`entity_id`/`entity_name`/`doc_ref`/`doc_type` for auto-posting to subsidiary ledger
-- **Routes** (`presentation/gl/`): `entries.py` (updated for journal_type), `sequences.py` (list/get/next-number), `subsidiary.py` (list/post/summary), `reports.py` (journal/S01/subsidiary template generation with JSON+HTML output)
+- **GLRepository updates**: `_entry_to_domain`/`_entry_to_model` for all new fields, `get_or_create_sequence`, `get_next_journal_number`, `get_journal_sequence`, `list_journal_sequences`, `create_subsidiary_entry`, `post_to_subsidiary_ledger`, `get_subsidiary_ledger`, `get_subsidiary_summary` (raw SQL aggregation), `update_entry` allowed fields expanded; `generate_trial_balance` (account-level aggregation with opening/closing balances), `generate_cash_flow` (direct method by journal type)
+- **Use cases**: `GLUseCases` — `create_entry` accepts `journal_type`/`auto_number`/`approved_by`/`ref_journal_number`, `get_next_journal_number`, `get_journal_sequence`, `list_journal_sequences`, `post_to_subsidiary`, `get_subsidiary_ledger`, `get_subsidiary_summary`, `reverse_entry` (RED_STORNO/ADDITIONAL per TT99 Art.18), `post_entry` extended with optional `subsidiary_type`/`entity_id`/`entity_name`/`doc_ref`/`doc_type` for auto-posting to subsidiary ledger; `generate_trial_balance`, `generate_cash_flow`, `generate_balance_sheet`, `generate_income_statement`
+- **Routes** (`presentation/gl/`): `entries.py` (updated for journal_type), `sequences.py` (list/get/next-number), `subsidiary.py` (list/post/summary), `reports.py` (journal/S01/subsidiary template generation + trial balance + cash flow + balance sheet + income statement + PDF export)
 - **TT99 templates**: `S03c-DN` / `S03a1-DN` / `S03a2-DN` / `S03b1-DN` / `S03b2-DN` journal formats (specialized variants with counterparty column: Payer/Receiver/Supplier/Customer), `S01-DN` General Ledger, `S05-DN` AP Subsidiary, `S06-DN` AR Subsidiary — Jinja2 templates in `templates/s03_dn_journal.html`, `templates/s01_dn_general_ledger.html`, `templates/s05_s06_dn_subsidiary.html` with `{% trans %}` i18n blocks
-- **Tests**: 58 new integration tests (105 total in `tests/test_gl_integration.py`) — journal type validation, prefix mismatch, auto-numbering, sequence CRUD, subsidiary CRUD, running balance, sub-ledger summary, template generation, auto-subsidiary post (4 tests), reversal/correction entries (6 tests), specialized journal templates (4 tests)
-- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), TT 133/2016. GL posting matrix documented in BRD §13.
+- **Reporting Engine**: Trial Balance (Bảng cân đối số phát sinh) — 6-column opening/period/closing with debit/credit; Cash Flow B03-DN (direct method) — operating/investing/financing sections; Balance Sheet (B01-DN) — assets/liabilities/equity; Income Statement (B02-DN) — revenue/expenses/net income; HTML via `?format=html`, PDF export via `GET /reports/export/<type>/<period>?format=pdf`
+- **Templates**: `templates/trial_balance.html`, `templates/cash_flow.html` — Jinja2 with `{% trans %}` i18n blocks
+- **Tests**: 112 integration tests in `tests/test_gl_integration.py` — journal type (7), sequence (7), use case (5), subsidiary CRUD (9), templates (12), auto-subsidiary post (4), reversal/correction (6), specialized templates (4), reporting engine (7: trial balance basic/empty, cash flow empty/cash/indirect, balance sheet, income statement)
+- **Status**: ✅ Production-ready per TT 99/2025 (eff. 01/01/2026), TT 133/2016. Reporting Engine supports 4 financial statements + 8 TT99 journal templates + PDF export.
 
-### Test count: 1805 passing (all tests)
+### Test count: 1819 passing (all tests)
 
 
 - Treasury: 166 (domain 92 + integration 74)
 - COA: 87 (domain 21, import 14, export 6, versioning 8, IFRS 10, usage 6, compliance 7, template 7, integration 8)
-- GL: 105 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4, journal type 7, sequence 7, use case 5, subsidiary 9, templates 12, auto-post 4, reversal 6, specialized 4)
+- GL: 112 (repository 6, posting 4, use cases 6, balances 1, period close 14, audit log 5, financial statements 3, carry forward 4, miscellaneous 4, journal type 7, sequence 7, use case 5, subsidiary 9, templates 12, auto-post 4, reversal 6, specialized 4, reporting 7)
 - Tax: 134 (domain 33, integration 46, edge cases 55)
 - Cash: 111 (receipt 7, payment 7, bank account 5, bank reconciliation 7, petty cash 6, cash transfer 4, daily count 4, cheque 4, edge cases 6, balance 5, cash book report 3, cash count report 5, bank statements 8, cheque lifecycle 13, bank balance 4, bank book 4, reconciliation report 4, Flask routes 19)
 - AP: 64 (domain 26, integration 38)
@@ -499,11 +501,21 @@ When requirements are unclear, ask about:
 - `presentation/ar/routes.py` — 30+ REST endpoints for AR module
 - `tests/test_ar_domain.py` — 38 domain unit tests for all AR entities
 - `tests/test_ar_integration.py` — 76 integration tests covering all use cases + edge cases
-- `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements)
-- `infrastructure/repositories/gl_repository.py` — `_count_unposted_entries`, `_has_unbalanced_entries`, `_has_tax_declarations_blocking_reopen`, `_log_audit`, `_auto_create_period`, `carry_forward`, `_period_to_dict`
+- `use_cases/gl/__init__.py` — GLUseCases (period close/reopen/create/get_current/get_audit_log/carry_forward, financial statements, reverse_entry, post_to_subsidiary, generate_trial_balance, generate_cash_flow, generate_balance_sheet, generate_income_statement)
+- `use_cases/gl/templates.py` — JOURNAL_TYPE_TEMPLATE_MAP, COUNTERPARTY_LABELS, generate_journal_template (8 TT99 templates)
+- `infrastructure/repositories/gl_repository.py` — `_count_unposted_entries`, `_has_unbalanced_entries`, `_has_tax_declarations_blocking_reopen`, `_log_audit`, `_auto_create_period`, `carry_forward`, `_period_to_dict`, `generate_trial_balance`, `generate_cash_flow`, `post_to_subsidiary_ledger`
 - `infrastructure/models/gl_models.py` — `AccountingPeriodModel` (upgraded), `PeriodAuditLogModel`
-- `presentation/gl_routes.py` — `POST/GET /periods`, `POST .../close`, `POST .../reopen`, `GET .../audit-log`, `POST .../carry-forward`
-- `tests/test_gl_integration.py` — 47 tests covering all period operations
+- `presentation/gl/__init__.py` — GL blueprint + routes/ subpackage
+- `presentation/gl/entries.py` — journal entry CRUD + post + reverse
+- `presentation/gl/sequences.py` — journal type sequences
+- `presentation/gl/subsidiary.py` — subsidiary ledger list/post/summary
+- `presentation/gl/reports.py` — template generation + reporting engine (trial balance, cash flow, balance sheet, income statement, export)
+- `templates/s03_dn_journal.html` — S03c/S03a1/S03a2/S03b1/S03b2 journal templates
+- `templates/s01_dn_general_ledger.html` — S01-DN general ledger
+- `templates/s05_s06_dn_subsidiary.html` — S05-DN/S06-DN subsidiary
+- `templates/trial_balance.html` — Trial balance (Bảng CĐSPS)
+- `templates/cash_flow.html` — Cash flow B03-DN
+- `tests/test_gl_integration.py` — 112 tests covering all period + journal + subsidiary + reporting operations
 - `domain/__init__.py` — All domain entities (COA, GL, Tax, Cash, Bank)
 - `infrastructure/repositories/cash_repository.py` — Cash CRUD + balance + book + cheque lifecycle
 - `use_cases/cash/__init__.py` — CashUseCases (UC-CASH-01 through UC-CASH-11)

@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional, Any
 from datetime import date, datetime, timezone
 from decimal import Decimal
+import re
 
 from domain import (
     FinancialStatement, FSLineItem, FSStatus, FinancialStatementType,
@@ -20,6 +21,7 @@ def _vnd(v: Decimal) -> Decimal:
 
 _BS_SUBTOTALS = {
     "100": {"children": ["110", "120", "130", "140", "150"], "formula": "110+120+130+140+150"},
+    "110": {"children": ["111", "112"], "formula": "111+112"},
     "200": {"children": ["210", "220", "230", "240", "250", "260"], "formula": "210+220+230+240+250+260"},
     "270": {"children": ["100", "200"], "formula": "100+200"},
     "300": {"children": ["310", "330"], "formula": "310+330"},
@@ -37,21 +39,22 @@ _IS_SUBTOTALS = {
 
 
 _B01_ACCOUNT_MAP: Dict[str, List[str]] = {
-    "110": ["111", "112"],
     "111": ["1111", "1112", "1113"],
     "112": ["1121", "1122", "1123"],
     "120": ["121", "128"],
-    "130": ["131", "133", "136", "137", "138", "141"],
+    "130": ["131", "136", "137", "138"],
     "140": ["151", "152", "153", "154", "155", "156", "157"],
-    "150": ["242", "331", "333", "334", "335", "336", "338"],
+    "150": ["133", "141", "242"],
     "210": ["211", "212", "213", "218"],
     "220": ["221", "222", "223", "224", "227"],
     "230": ["231", "237"],
-    "240": ["241", "242"],
+    "240": ["241"],
     "250": ["251", "258"],
     "260": ["261", "262", "268"],
-    "310": ["311", "312", "313", "314", "315", "318", "319", "321", "322", "323", "337"],
-    "330": ["331", "332", "333", "334", "335", "336", "337", "338", "339"],
+    "310": ["311", "312", "313", "314", "315", "318", "319",
+            "321", "322", "323", "337",
+            "331", "332", "333", "334", "335", "336", "338", "339"],
+    "330": ["341", "342", "343", "347", "348", "349"],
     "410": ["4111", "4112"],
     "420": ["412"],
     "430": ["421"],
@@ -96,7 +99,8 @@ class FSUseCases:
     def _build_line_items(self, account_map: Dict[str, List[str]],
                            trial_balance: Dict[str, Decimal],
                            template_items: List[Dict[str, Any]],
-                           prior_lines: Optional[Dict[str, Decimal]] = None) -> List[FSLineItem]:
+                           prior_lines: Optional[Dict[str, Decimal]] = None,
+                           statement_type: Optional[FinancialStatementType] = None) -> List[FSLineItem]:
         item_map: Dict[str, Decimal] = {}
         for fs_ma_so, account_codes in account_map.items():
             total = Decimal("0")
@@ -116,10 +120,17 @@ class FSUseCases:
                 is_subtotal=tmpl.get("subtotal", False),
             ))
 
-        subtotals_map = _BS_SUBTOTALS if "B01" in template_items[0]["ma_so"] else _IS_SUBTOTALS
-        for line in lines:
-            if line.is_subtotal and line.ma_so in subtotals_map:
-                formula = subtotals_map[line.ma_so]["formula"]
+        subtotals_map = _BS_SUBTOTALS if statement_type in (
+            FinancialStatementType.BALANCE_SHEET_GC,
+            FinancialStatementType.BALANCE_SHEET_NGC,
+        ) else _IS_SUBTOTALS
+        active = {k for k in subtotals_map if any(l.ma_so == k and l.is_subtotal for l in lines)}
+        while active:
+            for k in list(active):
+                children = set(subtotals_map[k]["children"])  # type: ignore[arg-type]
+                if children & active:
+                    continue
+                formula = subtotals_map[k]["formula"]
                 parts = formula.split("+") if "+" in formula else [formula]
                 total = Decimal("0")
                 for part in parts:
@@ -137,8 +148,12 @@ class FSUseCases:
                         total += val
                     else:
                         total -= val
-                line.current_year = _vnd(total)
-                line.is_calculated = True
+                for l in lines:
+                    if l.ma_so == k and l.is_subtotal:
+                        l.current_year = _vnd(total)
+                        l.is_calculated = True
+                        break
+                active.remove(k)
 
         return lines
 
@@ -168,9 +183,6 @@ class FSUseCases:
     def generate_b09_dn(self, period: str, entity_id: int = 1,
                          generated_by: Optional[str] = None) -> Result:
         try:
-            if self.repo.is_period_closed(period) and False:
-                return Result.failure(ValidationError(ErrorCodes.FS_GEN_PERIOD_CLOSED, period=period))
-
             fs = FinancialStatement(
                 entity_id=entity_id, period=period,
                 statement_type=FinancialStatementType.NOTES_GC,
@@ -209,6 +221,13 @@ class FSUseCases:
                       entity_id: int, generated_by: Optional[str],
                       cash_flow_method: Optional[FSCashFlowMethod] = None) -> Result:
         try:
+            if not re.match(r"^\d{4}(-\d{2})?$", period):
+                return Result.failure(ValidationError(ErrorCodes.PERIOD_FS_FORMAT, period=period))
+            if len(period) == 7:
+                month = int(period.split("-")[1])
+                if not (1 <= month <= 12):
+                    return Result.failure(ValidationError(ErrorCodes.PERIOD_FS_MONTH, month=month))
+
             trial_balance = self.repo.get_trial_balance(period)
             if not trial_balance:
                 return Result.failure(ValidationError(ErrorCodes.FS_GEN_NO_DATA, period=period))
@@ -219,14 +238,16 @@ class FSUseCases:
                 for line in prior_fs.lines:
                     prior_line_values[line.ma_so] = line.current_year
 
-            if statement_type == FinancialStatementType.BALANCE_SHEET_GC:
+            if statement_type in (FinancialStatementType.BALANCE_SHEET_GC, FinancialStatementType.BALANCE_SHEET_NGC):
                 lines = self._build_line_items(
                     _B01_ACCOUNT_MAP, trial_balance,
-                    FinancialStatement.B01_DN_LINE_ITEMS, prior_line_values)
-            elif statement_type == FinancialStatementType.INCOME_STATEMENT_GC:
+                    FinancialStatement.B01_DN_LINE_ITEMS, prior_line_values,
+                    statement_type=statement_type)
+            elif statement_type in (FinancialStatementType.INCOME_STATEMENT_GC, FinancialStatementType.INCOME_STATEMENT_NGC):
                 lines = self._build_line_items(
                     _B02_ACCOUNT_MAP, trial_balance,
-                    FinancialStatement.B02_DN_LINE_ITEMS, prior_line_values)
+                    FinancialStatement.B02_DN_LINE_ITEMS, prior_line_values,
+                    statement_type=statement_type)
             elif statement_type in (FinancialStatementType.CASH_FLOW_GC,):
                 lines = self._generate_cash_flow_lines(period, trial_balance,
                                                         cash_flow_method or FSCashFlowMethod.DIRECT)

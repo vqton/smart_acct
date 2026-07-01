@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head><meta charset="utf-8">
+<title>BẢNG CÂN ĐỐI SỐ PHÁT SINH</title>
+<style>
+    body { font-family: 'Times New Roman', serif; font-size: 10px; }
+    h1 { text-align: center; font-size: 14px; margin-bottom: 2px; }
+    h2 { text-align: center; font-size: 12px; margin-top: 2px; font-weight: normal; }
+    .header { text-align: center; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin: 5px 0; font-size: 9px; }
+    th, td { border: 1px solid #000; padding: 2px 3px; vertical-align: top; }
+    th { text-align: center; font-weight: bold; background: #f0f0f0; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .total-row { font-weight: bold; background: #f9f9f9; }
+    .signature { float: left; width: 30%; text-align: center; margin-top: 40px; }
+    .signatures { overflow: hidden; }
+</style></head>
+<body>
+<div class="header">
+    <h1>BẢNG CÂN ĐỐI SỐ PHÁT SINH</h1>
+    <h2>(Trial Balance)</h2>
+    <p><strong>{% trans %}Ky:{% endtrans %}</strong> {{ period }}</p>
+</div>
+<table>
+<thead><tr>
+    <th>{% trans %}TK{% endtrans %}</th>
+    <th>{% trans %}Ten TK{% endtrans %}</th>
+    <th colspan="2">{% trans %}So du dau ky{% endtrans %}</th>
+    <th colspan="2">{% trans %}Phat sinh trong ky{% endtrans %}</th>
+    <th colspan="2">{% trans %}So du cuoi ky{% endtrans %}</th>
+</tr>
+<tr>
+    <th colspan="2"></th>
+    <th>{% trans %}No{% endtrans %}</th>
+    <th>{% trans %}Co{% endtrans %}</th>
+    <th>{% trans %}No{% endtrans %}</th>
+    <th>{% trans %}Co{% endtrans %}</th>
+    <th>{% trans %}No{% endtrans %}</th>
+    <th>{% trans %}Co{% endtrans %}</th>
+</tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+    <td class="center">{{ r.account_code }}</td>
+    <td>{{ r.account_name }}</td>
+    <td class="right">{{ r.opening_debit }}</td>
+    <td class="right">{{ r.opening_credit }}</td>
+    <td class="right">{{ r.period_debit }}</td>
+    <td class="right">{{ r.period_credit }}</td>
+    <td class="right">{{ r.closing_debit }}</td>
+    <td class="right">{{ r.closing_credit }}</td>
+</tr>
+{% else %}
+<tr><td colspan="8" class="center">{% trans %}Khong co du lieu{% endtrans %}</td></tr>
+{% endfor %}
+</tbody>
+<tfoot>
+<tr class="total-row">
+    <td colspan="2" class="right">{% trans %}Cong{% endtrans %}</td>
+    <td class="right">{{ total_opening_debit }}</td>
+    <td class="right">{{ total_opening_credit }}</td>
+    <td class="right">{{ total_period_debit }}</td>
+    <td class="right">{{ total_period_credit }}</td>
+    <td class="right">{{ total_closing_debit }}</td>
+    <td class="right">{{ total_closing_credit }}</td>
+</tr>
+</tfoot>
+</table>
+<p><em>{% trans %}Ngay{% endtrans %} {{ period }}</em></p>
+<div class="signatures">
+    <div class="signature">{% trans %}Nguoi lap{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Ke toan truong{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+    <div class="signature">{% trans %}Giam doc{% endtrans %}<br>({% trans %}Ky, ho ten{% endtrans %})</div>
+</div>
+</body>
+</html>

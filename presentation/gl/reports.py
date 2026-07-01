@@ -1,5 +1,7 @@
 from datetime import date
-from flask import request, jsonify, render_template
+from flask import request, jsonify, render_template, send_file
+from decimal import Decimal
+from io import BytesIO
 
 from presentation import resolve_error
 from presentation.gl import gl_bp, _get_session
@@ -111,6 +113,96 @@ def generate_subsidiary_report(subsidiary_type, period):
     if format == "html":
         return render_template("s05_s06_dn_subsidiary.html", **data)
     return jsonify(data)
+
+
+@gl_bp.route("/reports/balance-sheet/<period>", methods=["GET"])
+def balance_sheet_report(period):
+    format = request.args.get("format", "json")
+    session = _get_session()
+    try:
+        uc = GLUseCases(session)
+        data = uc.generate_balance_sheet(period)
+    finally:
+        session.close()
+    if format == "html":
+        return render_template("trial_balance.html", **data)
+    return jsonify(data)
+
+
+@gl_bp.route("/reports/income-statement/<period>", methods=["GET"])
+def income_statement_report(period):
+    format = request.args.get("format", "json")
+    session = _get_session()
+    try:
+        uc = GLUseCases(session)
+        data = uc.generate_income_statement(period)
+    finally:
+        session.close()
+    return jsonify(data)
+
+
+@gl_bp.route("/reports/trial-balance/<period>", methods=["GET"])
+def trial_balance_report(period):
+    format = request.args.get("format", "json")
+    session = _get_session()
+    try:
+        uc = GLUseCases(session)
+        data = uc.generate_trial_balance(period)
+    finally:
+        session.close()
+    if format == "html":
+        return render_template("trial_balance.html", **data)
+    return jsonify(data)
+
+
+@gl_bp.route("/reports/cash-flow/<period>", methods=["GET"])
+def cash_flow_report(period):
+    method = request.args.get("method", "direct")
+    format = request.args.get("format", "json")
+    session = _get_session()
+    try:
+        uc = GLUseCases(session)
+        data = uc.generate_cash_flow(period, method)
+    finally:
+        session.close()
+    if format == "html":
+        return render_template("cash_flow.html", **data)
+    return jsonify(data)
+
+
+@gl_bp.route("/reports/export/<report_type>/<period>", methods=["GET"])
+def export_report(report_type, period):
+    export_format = request.args.get("format", "pdf")
+    session = _get_session()
+    try:
+        uc = GLUseCases(session)
+        if report_type == "trial-balance":
+            data = uc.generate_trial_balance(period)
+            html = render_template("trial_balance.html", **data)
+        elif report_type == "cash-flow":
+            method = request.args.get("method", "direct")
+            data = uc.generate_cash_flow(period, method)
+            html = render_template("cash_flow.html", **data)
+        elif report_type == "balance-sheet":
+            data = uc.generate_balance_sheet(period)
+            html = render_template("trial_balance.html", **data)
+        else:
+            return jsonify({"error": f"Unknown report type: {report_type}"}), 400
+
+        if export_format == "pdf":
+            from weasyprint import HTML
+            pdf_bytes = HTML(string=html).write_pdf()
+            return send_file(
+                BytesIO(pdf_bytes),
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=f"{report_type}_{period}.pdf",
+            )
+        return html
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        session.close()
 
 
 @gl_bp.route("/reports/templates", methods=["GET"])

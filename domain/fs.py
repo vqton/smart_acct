@@ -144,7 +144,7 @@ class FinancialStatement(BaseModel):
 
     B01_DN_LINE_ITEMS: ClassVar[List[Dict[str, Any]]] = [
         {"ma_so": "100", "ten": "TÀI SẢN NGẮN HẠN", "subtotal": True},
-        {"ma_so": "110", "ten": "Tiền và các khoản tương đương tiền", "parent": "100"},
+        {"ma_so": "110", "ten": "Tiền và các khoản tương đương tiền", "parent": "100", "subtotal": True},
         {"ma_so": "111", "ten": "Tiền", "parent": "110"},
         {"ma_so": "112", "ten": "Các khoản tương đương tiền", "parent": "110"},
         {"ma_so": "120", "ten": "Đầu tư tài chính ngắn hạn", "parent": "100"},

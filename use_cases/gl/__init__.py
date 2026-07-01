@@ -320,3 +320,9 @@ class GLUseCases:
 
     def generate_income_statement(self, period: str) -> dict:
         return self.repo.generate_income_statement(period)
+
+    def generate_trial_balance(self, period: str) -> dict:
+        return self.repo.generate_trial_balance(period)
+
+    def generate_cash_flow(self, period: str, method: str = "direct") -> dict:
+        return self.repo.generate_cash_flow(period, method)
