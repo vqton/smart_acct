@@ -54,3 +54,4 @@ def init_app(app):
     from presentation.fa import fa_bp
     app.register_blueprint(fa_bp)
     babel.init_app(app, default_locale="vi", default_domain="messages", locale_selector=get_locale)
+    app.jinja_env.globals["get_locale"] = get_locale
