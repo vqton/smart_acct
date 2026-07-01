@@ -1,0 +1,119 @@
+{% extends 'layout/base.html' %}
+{% block title %}Phiếu thu - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <h1><i class="fas fa-arrow-down"></i> Phiếu thu</h1>
+    </div>
+    <div class="level-right">
+      <button class="button is-small is-info" onclick="showToast('Chức năng đang phát triển', 'info')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+  <p>Danh sách phiếu thu tiền mặt</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.cash_receipts') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="draft" {% if status == 'draft' %}selected{% endif %}>Nháp</option>
+                <option value="approved" {% if status == 'approved' %}selected{% endif %}>Đã duyệt</option>
+                <option value="paid" {% if status == 'paid' %}selected{% endif %}>Đã thu</option>
+                <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.cash_receipts') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if receipts %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số CT</th>
+            <th>Ngày</th>
+            <th>Loại thu</th>
+            <th class="is-vnd">Số tiền</th>
+            <th>Người nộp</th>
+            <th>Diễn giải</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in receipts %}
+          <tr class="is-clickable" onclick="window.location='/cash/receipts/{{ r.id }}'">
+            <td class="mono">{{ r.receipt_number }}</td>
+            <td>{{ r.receipt_date.strftime('%d/%m/%Y') if r.receipt_date else '' }}</td>
+            <td>{{ r.receipt_type.value }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(r.amount|float) }}</td>
+            <td>{{ r.payer_name }}</td>
+            <td>{{ r.description[:60] }}{% if r.description and r.description|length > 60 %}...{% endif %}</td>
+            <td>
+              {% if r.status.value == 'draft' %}
+              <span class="tag is-draft">Nháp</span>
+              {% elif r.status.value == 'approved' %}
+              <span class="tag is-approved">Đã duyệt</span>
+              {% elif r.status.value == 'paid' %}
+              <span class="tag is-posted">Đã thu</span>
+              {% elif r.status.value == 'cancelled' %}
+              <span class="tag is-cancelled">Đã hủy</span>
+              {% else %}
+              <span class="tag is-draft">{{ r.status.value }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="/cash/receipts/{{ r.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+      <i class="fas fa-arrow-down" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có phiếu thu nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="level" style="margin-top:12px;">
+  <div class="level-left">
+    <div class="pagination-info">Trang {{ page }} | {{ receipts|length }} bản ghi</div>
+  </div>
+  <div class="level-right">
+    <nav class="pagination is-small">
+      {% if page > 1 %}
+      <a href="{{ url_for('views.cash_receipts', status=status, page=page-1) }}" class="pagination-previous">Trước</a>
+      {% endif %}
+      {% if has_more %}
+      <a href="{{ url_for('views.cash_receipts', status=status, page=page+1) }}" class="pagination-next">Sau</a>
+      {% endif %}
+    </nav>
+  </div>
+</div>
+{% endblock %}

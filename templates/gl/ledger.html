@@ -1,0 +1,85 @@
+{% extends 'layout/base.html' %}
+{% block title %}Sổ cái - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-book"></i> Sổ cái</h1>
+  <p>Xem chi tiết phát sinh theo tài khoản</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.gl_ledger') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Kỳ</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Tài khoản</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="account_code" value="{{ account_code }}" placeholder="1111">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Xem</button>
+            <a href="{{ url_for('views.gl_ledger') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if account_code %}
+<div class="card" style="margin-top:16px;">
+  <div class="card-header" style="padding:12px 16px;">
+    <span>Tài khoản: <strong>{{ account_code }}</strong>{% if account_name %} - {{ account_name }}{% endif %}</span>
+    <span class="pagination-info" style="margin-left:auto;">Kỳ: {{ period }}</span>
+  </div>
+  <div class="card-content" style="padding:0;">
+    {% if lines %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số CT</th>
+            <th>Ngày</th>
+            <th>Diễn giải</th>
+            <th class="is-vnd">Phát sinh Nợ</th>
+            <th class="is-vnd">Phát sinh Có</th>
+            <th class="is-vnd">Số dư</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in lines %}
+          <tr>
+            <td class="mono">{{ line.journal_number }}</td>
+            <td>{{ line.transaction_date.strftime('%d/%m/%Y') if line.transaction_date else '' }}</td>
+            <td>{{ line.description[:80] }}{% if line.description and line.description|length > 80 %}...{% endif %}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(line.debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(line.credit|float) }}</td>
+            <td class="is-vnd"><strong>{{ "{:,.0f}".format(line.balance|float) }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-search" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Nhập mã tài khoản và kỳ để xem sổ cái</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="has-text-centered" style="padding:60px 20px; color:#90a4ae;">
+  <i class="fas fa-search" style="font-size:48px; margin-bottom:12px;"></i>
+  <p>Nhập mã tài khoản và chọn kỳ để xem sổ cái chi tiết</p>
+</div>
+{% endif %}
+{% endblock %}

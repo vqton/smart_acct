@@ -1,0 +1,145 @@
+{% extends 'layout/base.html' %}
+{% block title %}Loại TSCĐ - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <div>
+        <h1><i class="fas fa-tags"></i> Loại TSCĐ</h1>
+        <p>Danh mục loại tài sản cố định</p>
+      </div>
+    </div>
+    <div class="level-right">
+      <button class="button is-primary is-small" onclick="openModal('addCategoryModal')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-content" style="padding:0;">
+    {% if categories %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã loại</th>
+            <th>Tên loại TSCĐ</th>
+            <th>Phương pháp KH</th>
+            <th>Số năm SD</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat in categories %}
+          <tr>
+            <td class="mono">{{ cat.code }}</td>
+            <td>{{ cat.name }}</td>
+            <td>{{ cat.depreciation_method.value if cat.depreciation_method else '' }}</td>
+            <td>{{ cat.useful_life_min or '—' }} - {{ cat.useful_life_max or '—' }}</td>
+            <td>
+              {% if cat.status %}
+              <span class="tag is-posted">Hoạt động</span>
+              {% else %}
+              <span class="tag is-cancelled">Ngừng</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="button is-small is-light" onclick="showToast('Chức năng đang phát triển', 'info')"><i class="fas fa-edit"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Chưa có dữ liệu loại TSCĐ</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal" id="addCategoryModal">
+  <div class="modal-background" onclick="closeModal('addCategoryModal')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Thêm loại TSCĐ</p>
+      <button class="delete" onclick="closeModal('addCategoryModal')"></button>
+    </header>
+    <section class="modal-card-body">
+      <form id="addCategoryForm" method="POST" action="/api/v1/fa/categories">
+        <div class="field">
+          <label class="label">Mã loại</label>
+          <div class="control">
+            <input class="input" name="code" type="text" required maxlength="20">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Tên loại TSCĐ</label>
+          <div class="control">
+            <input class="input" name="name" type="text" required maxlength="200">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Phương pháp khấu hao</label>
+          <div class="control">
+            <div class="select is-fullwidth">
+              <select name="depreciation_method" required>
+                <option value="straight_line">Đường thẳng</option>
+                <option value="declining_balance">Số dư giảm dần</option>
+                <option value="units_of_production">Theo sản lượng</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Số năm sử dụng tối thiểu</label>
+          <div class="control">
+            <input class="input" name="useful_life_min" type="number" min="1" value="1">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Số năm sử dụng tối đa</label>
+          <div class="control">
+            <input class="input" name="useful_life_max" type="number" min="1" value="10">
+          </div>
+        </div>
+      </form>
+    </section>
+    <footer class="modal-card-foot">
+      <button class="button is-primary" onclick="document.getElementById('addCategoryForm').submit()">Lưu</button>
+      <button class="button" onclick="closeModal('addCategoryModal')">Hủy</button>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('addCategoryForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  const json = {};
+  data.forEach((v, k) => { json[k] = v; });
+  try {
+    const r = await fetch(form.action, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(json) });
+    if (r.ok) {
+      showToast('Thêm loại TSCĐ thành công', 'success');
+      closeModal('addCategoryModal');
+      location.reload();
+    } else {
+      const err = await r.json();
+      showToast(err.message || 'Lỗi khi thêm loại TSCĐ', 'danger');
+    }
+  } catch(e) {
+    showToast('Lỗi kết nối', 'danger');
+  }
+});
+</script>
+{% endblock %}

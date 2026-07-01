@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() or 'vi' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SmartACCT{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  {# ── Sidebar ── #}
+  {% set nav_items = [
+    {'label': 'Tổng quan', 'icon': 'fa-chart-pie', 'path': '/dashboard'},
+    {'label': 'Hệ thống TK', 'icon': 'fa-book', 'path': '/coa'},
+    {'label': 'Kế toán tổng hợp', 'icon': 'fa-file-invoice', 'path': '/gl/journal', 'children': [
+      {'label': 'Nhật ký chung', 'path': '/gl/journal'},
+      {'label': 'Sổ cái', 'path': '/gl/ledger'},
+      {'label': 'CĐ số phát sinh', 'path': '/gl/trial-balance'},
+      {'label': 'Kỳ kế toán', 'path': '/gl/periods'},
+      {'label': 'BCTC', 'path': '/gl/reports'},
+    ]},
+    {'label': 'Công nợ phải thu', 'icon': 'fa-hand-holding-usd', 'path': '/ar/customers', 'children': [
+      {'label': 'Khách hàng', 'path': '/ar/customers'},
+      {'label': 'Hóa đơn bán hàng', 'path': '/ar/invoices'},
+      {'label': 'Báo cáo công nợ', 'path': '/ar/aging'},
+    ]},
+    {'label': 'Công nợ phải trả', 'icon': 'fa-credit-card', 'path': '/ap/vendors', 'children': [
+      {'label': 'Nhà cung cấp', 'path': '/ap/vendors'},
+      {'label': 'Hóa đơn mua hàng', 'path': '/ap/invoices'},
+      {'label': 'Báo cáo công nợ', 'path': '/ap/aging'},
+    ]},
+    {'label': 'Tiền mặt & NH', 'icon': 'fa-university', 'path': '/cash/receipts', 'children': [
+      {'label': 'Phiếu thu', 'path': '/cash/receipts'},
+      {'label': 'Phiếu chi', 'path': '/cash/payments'},
+      {'label': 'Ngân hàng', 'path': '/cash/bank'},
+      {'label': 'Quỹ tạm ứng', 'path': '/cash/petty'},
+    ]},
+    {'label': 'Thuế', 'icon': 'fa-file-invoice-dollar', 'path': '/tax/vat', 'children': [
+      {'label': 'Khai thuế GTGT', 'path': '/tax/vat'},
+      {'label': 'Hóa đơn điện tử', 'path': '/tax/einvoice'},
+    ]},
+    {'label': 'TSCĐ', 'icon': 'fa-industry', 'path': '/fa/assets', 'children': [
+      {'label': 'Danh mục TSCĐ', 'path': '/fa/assets'},
+      {'label': 'Khấu hao', 'path': '/fa/depreciation'},
+    ]},
+    {'label': 'Hàng tồn kho', 'icon': 'fa-boxes', 'path': '/inv/items', 'children': [
+      {'label': 'Danh mục vật tư', 'path': '/inv/items'},
+      {'label': 'Nhập kho', 'path': '/inv/receipts'},
+      {'label': 'Xuất kho', 'path': '/inv/issues'},
+      {'label': 'Thẻ kho', 'path': '/inv/stock-cards'},
+    ]},
+    {'label': 'Tiền lương', 'icon': 'fa-users', 'path': '/payroll/employees', 'children': [
+      {'label': 'Nhân viên', 'path': '/payroll/employees'},
+      {'label': 'Bảng lương', 'path': '/payroll/runs'},
+      {'label': 'Thuế TNCN', 'path': '/payroll/pit'},
+    ]},
+    {'label': 'Giá thành', 'icon': 'fa-ruler', 'path': '/costing'},
+    {'label': 'Ngân sách', 'icon': 'fa-clipboard-list', 'path': '/budget'},
+    {'label': 'Đầu tư', 'icon': 'fa-chart-line', 'path': '/treasury'},
+    {'label': 'Báo cáo TC', 'icon': 'fa-file-alt', 'path': '/fs'},
+    {'label': 'CCDC', 'icon': 'fa-tools', 'path': '/ccdc'},
+    {'label': 'Người dùng', 'icon': 'fa-user-shield', 'path': '/admin/users'},
+    {'label': 'Kiểm toán', 'icon': 'fa-search', 'path': '/admin/audit'},
+  ] %}
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon"><i class="fas fa-calculator"></i></span>
+      <div>
+        <div class="brand-text">SmartACCT</div>
+        <div class="brand-sub">ERP Kế toán Việt Nam</div>
+      </div>
+    </div>
+    <div style="flex:1; overflow-y: auto;">
+      {% for item in nav_items %}
+        {% if item.children %}
+          <div class="sidebar-section">{{ item.label }}</div>
+          {% for child in item.children %}
+            <a href="{{ child.path }}" class="sidebar-item sidebar-child {% if request.path.startswith(child.path) %}active{% endif %}">
+              <span class="icon"><i class="fas fa-circle" style="font-size:6px; color:#546e7a;"></i></span>
+              <span>{{ child.label }}</span>
+            </a>
+          {% endfor %}
+        {% else %}
+          <a href="{{ item.path }}" class="sidebar-item {% if request.path == item.path %}active{% endif %}">
+            <span class="icon"><i class="fas {{ item.icon }}"></i></span>
+            <span>{{ item.label }}</span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </nav>
+
+  {# ── Main Area ── #}
+  <div class="main-area" id="main-area">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="sidebar-toggle" onclick="toggleSidebar()" title="Thu gọn menu">
+          <i class="fas fa-bars"></i>
+        </span>
+        {% block breadcrumb %}{% endblock %}
+      </div>
+      <div class="topbar-right">
+        {% if session.get('period') %}
+          <span class="topbar-period"><i class="fas fa-calendar-alt"></i> {{ session.get('period') }}</span>
+        {% endif %}
+        <span class="topbar-user">
+          <i class="fas fa-user-circle" style="font-size:18px;"></i>
+          {{ session.get('username', 'anonymous') }}
+        </span>
+        <a href="/logout" class="button is-small is-light"><i class="fas fa-sign-out-alt"></i></a>
+      </div>
+    </div>
+    <div class="content-area">
+      <div class="toast-container" id="toast-container"></div>
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <script>
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('is-collapsed');
+    }
+    function showToast(message, type) {
+      type = type || 'success';
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = 'toast is-' + type;
+      t.textContent = message;
+      container.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+    }
+    function openModal(id) { document.getElementById(id).classList.add('is-active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('is-active'); }
+    function closeAllModals() { document.querySelectorAll('.modal.is-active').forEach(m => m.classList.remove('is-active')); }
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeAllModals(); });
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,100 @@
+{% extends 'layout/base.html' %}
+{% block title %}Ngân hàng - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <h1><i class="fas fa-university"></i> Tài khoản ngân hàng</h1>
+    </div>
+    <div class="level-right">
+      <button class="button is-small is-info" onclick="showToast('Chức năng đang phát triển', 'info')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+  <p>Danh sách tài khoản ngân hàng</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.cash_bank') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Hoạt động</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng HĐ</option>
+                <option value="frozen" {% if status == 'frozen' %}selected{% endif %}>Đóng băng</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.cash_bank') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if accounts %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số TK</th>
+            <th>Ngân hàng</th>
+            <th>Chủ tài khoản</th>
+            <th>Loại tiền</th>
+            <th>Trạng thái</th>
+            <th class="is-vnd">Số dư hiện tại</th>
+            <th>Lần ĐC cuối</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in accounts %}
+          <tr class="is-clickable" onclick="window.location='/cash/bank/{{ a.id }}'">
+            <td class="mono"><strong>{{ a.account_number }}</strong></td>
+            <td>{{ a.bank_name }}</td>
+            <td>{{ a.account_holder }}</td>
+            <td>{{ a.currency }}</td>
+            <td>
+              {% if a.status.value == 'active' %}
+              <span class="tag is-active">Hoạt động</span>
+              {% elif a.status.value == 'inactive' %}
+              <span class="tag is-inactive">Ngừng HĐ</span>
+              {% elif a.status.value == 'frozen' %}
+              <span class="tag is-cancelled">Đóng băng</span>
+              {% else %}
+              <span class="tag is-draft">{{ a.status.value }}</span>
+              {% endif %}
+            </td>
+            <td class="is-vnd">{{ "{:,.0f}".format(a.opening_balance|float) }}</td>
+            <td>{{ a.last_reconciled_period or '-' }}</td>
+            <td>
+              <a href="/cash/bank/{{ a.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+      <i class="fas fa-university" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có tài khoản ngân hàng nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "layout/base.html" %}
+{% block title %}Khoản mục đầu tư - SmartACCT{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Khoản mục đầu tư</h1>
+  <p>Quản lý đầu tư & vay</p>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="label">Tổng tiền mặt</div>
+    <div class="value">{{ total_cash|vnd }} <span class="currency">VND</span></div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Tổng tiền gửi</div>
+    <div class="value">{{ total_deposits|vnd }} <span class="currency">VND</span></div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Đầu tư</div>
+    <div class="value">{{ total_investments|vnd }} <span class="currency">VND</span></div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Vay</div>
+    <div class="value">{{ total_loans|vnd }} <span class="currency">VND</span></div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Vị thế ròng</div>
+    <div class="value {% if net_position >= 0 %}is-up{% else %}is-down{% endif %}">
+      {{ net_position|vnd }} <span class="currency">VND</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabs is-boxed">
+  <ul>
+    <li class="is-active" data-tab="investments"><a>Đầu tư</a></li>
+    <li data-tab="loans"><a>Vay</a></li>
+    <li data-tab="fx"><a>FX</a></li>
+    <li data-tab="ic"><a>IC</a></li>
+  </ul>
+</div>
+
+<div id="tab-investments" class="tab-content">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Danh sách đầu tư</p></header>
+    <div class="card-content">
+      {% if investments %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã đầu tư</th>
+            <th>Loại</th>
+            <th class="text-right">Gốc</th>
+            <th class="text-right">Lãi suất</th>
+            <th>Đáo hạn</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in investments %}
+          <tr>
+            <td class="mono">{{ inv.investment_code if hasattr(inv, 'investment_code') else inv.get('investment_code', '') }}</td>
+            <td>{{ inv.investment_type.value if hasattr(inv, 'investment_type') and hasattr(inv.investment_type, 'value') else inv.get('investment_type', '') }}</td>
+            <td class="is-vnd">{{ (inv.total_cost if hasattr(inv, 'total_cost') else inv.get('total_cost', 0))|vnd }}</td>
+            <td class="text-right">{{ inv.interest_rate if hasattr(inv, 'interest_rate') else inv.get('interest_rate', 0) }}%</td>
+            <td>{{ inv.maturity_date if hasattr(inv, 'maturity_date') else inv.get('maturity_date', '') }}</td>
+            <td>
+              <span class="tag {% if (inv.status if hasattr(inv, 'status') else inv.get('status', '')) == 'active' %}is-active{% else %}is-info{% endif %}">
+                {{ inv.status.value if hasattr(inv, 'status') and hasattr(inv.status, 'value') else inv.get('status', '') }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có khoản đầu tư nào.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div id="tab-loans" class="tab-content" style="display:none">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Danh sách vay</p></header>
+    <div class="card-content">
+      {% if loans %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số hợp đồng</th>
+            <th>Loại</th>
+            <th class="text-right">Gốc</th>
+            <th class="text-right">Dư nợ</th>
+            <th class="text-right">Lãi suất</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for loan in loans %}
+          <tr>
+            <td class="mono">{{ loan.loan_code if hasattr(loan, 'loan_code') else loan.get('loan_code', '') }}</td>
+            <td>{{ loan.loan_type.value if hasattr(loan, 'loan_type') and hasattr(loan.loan_type, 'value') else loan.get('loan_type', '') }}</td>
+            <td class="is-vnd">{{ (loan.principal if hasattr(loan, 'principal') else loan.get('principal', 0))|vnd }}</td>
+            <td class="is-vnd">{{ (loan.outstanding if hasattr(loan, 'outstanding') else loan.get('outstanding', 0))|vnd }}</td>
+            <td class="text-right">{{ loan.interest_rate if hasattr(loan, 'interest_rate') else loan.get('interest_rate', 0) }}%</td>
+            <td>
+              <span class="tag {% if (loan.status if hasattr(loan, 'status') else loan.get('status', '')) == 'active' %}is-active{% else %}is-info{% endif %}">
+                {{ loan.status.value if hasattr(loan, 'status') and hasattr(loan.status, 'value') else loan.get('status', '') }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có khoản vay nào.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div id="tab-fx" class="tab-content" style="display:none">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Trạng thái ngoại tệ</p></header>
+    <div class="card-content">
+      {% if fx_exposures %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Ngoại tệ</th>
+            <th class="text-right">Phải thu</th>
+            <th class="text-right">Phải trả</th>
+            <th class="text-right">Ròng</th>
+            <th class="text-right">Tỷ giá</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fx in fx_exposures %}
+          <tr>
+            <td>{{ fx.currency if hasattr(fx, 'currency') else fx.get('currency', '') }}</td>
+            <td class="is-vnd">{{ (fx.total_receivable if hasattr(fx, 'total_receivable') else fx.get('total_receivable', 0))|vnd }}</td>
+            <td class="is-vnd">{{ (fx.total_payable if hasattr(fx, 'total_payable') else fx.get('total_payable', 0))|vnd }}</td>
+            <td class="is-vnd">
+              <span class="tag {% if ((fx.net_exposure if hasattr(fx, 'net_exposure') else fx.get('net_exposure', 0))) >= 0 %}is-success{% else %}is-danger{% endif %}">
+                {{ (fx.net_exposure if hasattr(fx, 'net_exposure') else fx.get('net_exposure', 0))|vnd }}
+              </span>
+            </td>
+            <td class="text-right mono">{{ fx.fx_rate if hasattr(fx, 'fx_rate') else fx.get('fx_rate', 0) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có dữ liệu ngoại tệ.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div id="tab-ic" class="tab-content" style="display:none">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Vay nội bộ</p></header>
+    <div class="card-content">
+      {% if ic_loans %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số hợp đồng</th>
+            <th>Bên cho vay</th>
+            <th>Bên vay</th>
+            <th class="text-right">Gốc</th>
+            <th class="text-right">Dư nợ</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ic in ic_loans %}
+          <tr>
+            <td class="mono">{{ ic.loan_code if hasattr(ic, 'loan_code') else ic.get('loan_code', '') }}</td>
+            <td>{{ ic.lender_entity_name if hasattr(ic, 'lender_entity_name') else ic.get('from_entity', ic.get('lender_entity_id', '')) }}</td>
+            <td>{{ ic.borrower_entity_name if hasattr(ic, 'borrower_entity_name') else ic.get('to_entity', ic.get('borrower_entity_id', '')) }}</td>
+            <td class="is-vnd">{{ (ic.principal if hasattr(ic, 'principal') else ic.get('principal', 0))|vnd }}</td>
+            <td class="is-vnd">{{ (ic.outstanding if hasattr(ic, 'outstanding') else ic.get('outstanding', 0))|vnd }}</td>
+            <td>
+              <span class="tag {% if (ic.status if hasattr(ic, 'status') else ic.get('status', '')) == 'active' %}is-active{% else %}is-info{% endif %}">
+                {{ ic.status.value if hasattr(ic, 'status') and hasattr(ic.status, 'value') else ic.get('status', '') }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có khoản vay nội bộ nào.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.tabs li').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tabs li').forEach(function(t) { t.classList.remove('is-active'); });
+      this.classList.add('is-active');
+      document.querySelectorAll('.tab-content').forEach(function(tc) { tc.style.display = 'none'; });
+      var target = this.getAttribute('data-tab');
+      document.getElementById('tab-' + target).style.display = 'block';
+    });
+  });
+});
+</script>
+{% endblock %}

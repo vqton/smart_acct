@@ -1,0 +1,135 @@
+{% extends 'layout/base.html' %}
+{% block title %}Nhà cung cấp - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <h1><i class="fas fa-credit-card"></i> Nhà cung cấp</h1>
+    </div>
+    <div class="level-right">
+      <button class="button is-small is-info" onclick="openModal('addVendorModal')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+  <p>Danh sách nhà cung cấp</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.ap_vendors') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Tìm kiếm</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="search" value="{{ search }}" placeholder="Mã NCC, tên NCC...">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Hoạt động</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+                <option value="suspended" {% if status == 'suspended' %}selected{% endif %}>Tạm ngưng</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.ap_vendors') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if vendors %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã NCC</th>
+            <th>Tên nhà cung cấp</th>
+            <th>Mã số thuế</th>
+            <th>Điện thoại</th>
+            <th>Email</th>
+            <th>Trạng thái</th>
+            <th>Hạn mức</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vendors %}
+          <tr class="is-clickable" onclick="window.location='/ap/vendors/{{ v.id }}'">
+            <td class="mono"><strong>{{ v.vendor_code }}</strong></td>
+            <td>{{ v.vendor_name }}</td>
+            <td>{{ v.tax_code or '' }}</td>
+            <td>{{ v.phone or '' }}</td>
+            <td>{{ v.email or '' }}</td>
+            <td>
+              {% if v.status.value == 'active' %}
+              <span class="tag is-active">Hoạt động</span>
+              {% elif v.status.value == 'inactive' %}
+              <span class="tag is-inactive">Ngừng HĐ</span>
+              {% elif v.status.value == 'suspended' %}
+              <span class="tag is-cancelled">Tạm ngưng</span>
+              {% else %}
+              <span class="tag is-draft">{{ v.status.value }}</span>
+              {% endif %}
+            </td>
+            <td class="is-vnd">{{ "{:,.0f}".format(v.credit_limit|float) }}</td>
+            <td>
+              <a href="/ap/vendors/{{ v.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+      <i class="fas fa-building" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có nhà cung cấp nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="level" style="margin-top:12px;">
+  <div class="level-left">
+    <div class="pagination-info">Trang {{ page }} | {{ vendors|length }} bản ghi</div>
+  </div>
+  <div class="level-right">
+    <nav class="pagination is-small">
+      {% if page > 1 %}
+      <a href="{{ url_for('views.ap_vendors', search=search, status=status, page=page-1) }}" class="pagination-previous">Trước</a>
+      {% endif %}
+      {% if has_more %}
+      <a href="{{ url_for('views.ap_vendors', search=search, status=status, page=page+1) }}" class="pagination-next">Sau</a>
+      {% endif %}
+    </nav>
+  </div>
+</div>
+
+<div class="modal" id="addVendorModal">
+  <div class="modal-background" onclick="closeModal('addVendorModal')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Thêm nhà cung cấp mới</p>
+      <button class="delete" onclick="closeModal('addVendorModal')"></button>
+    </header>
+    <section class="modal-card-body">
+      <p style="color:#78909c;">Chức năng đang phát triển. Vui lòng sử dụng API.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

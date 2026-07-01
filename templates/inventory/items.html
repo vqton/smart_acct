@@ -1,0 +1,189 @@
+{% extends 'layout/base.html' %}
+{% block title %}Danh mục vật tư - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <div>
+        <h1><i class="fas fa-boxes"></i> Danh mục vật tư</h1>
+        <p>Danh sách vật tư, hàng hóa tồn kho</p>
+      </div>
+    </div>
+    <div class="level-right">
+      <button class="button is-primary is-small" onclick="openModal('addItemModal')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.inv_items') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Đang KD</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng KD</option>
+                <option value="discontinued" {% if status == 'discontinued' %}selected{% endif %}>Ngừng SX</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Loại vật tư</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="category_id">
+                <option value="">-- Tất cả --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if category_id|string == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Tìm kiếm</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="search" value="{{ search }}" placeholder="Mã, tên vật tư">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.inv_items') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if items %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã vật tư</th>
+            <th>Tên vật tư</th>
+            <th>Loại</th>
+            <th>ĐVT</th>
+            <th>Tồn kho</th>
+            <th>Đơn giá</th>
+            <th>Giá trị</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="mono">{{ item.item_code }}</td>
+            <td>{{ item.item_name }}</td>
+            <td>{{ item.category_name }}</td>
+            <td>{{ item.unit }}</td>
+            <td class="has-text-right">{{ '{:,.0f}'.format(item.stock_quantity|float) }}</td>
+            <td class="is-vnd">{{ item.unit_cost|vnd }}</td>
+            <td class="is-vnd">{{ (item.stock_quantity * item.unit_cost)|vnd }}</td>
+            <td>
+              {% if item.status == 'active' %}
+              <span class="tag is-posted">Đang KD</span>
+              {% elif item.status == 'inactive' %}
+              <span class="tag is-cancelled">Ngừng KD</span>
+              {% elif item.status == 'discontinued' %}
+              <span class="tag is-pending">Ngừng SX</span>
+              {% else %}
+              <span class="tag">{{ item.status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="/api/v1/inv/items/{{ item.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Chưa có dữ liệu vật tư</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal" id="addItemModal">
+  <div class="modal-background" onclick="closeModal('addItemModal')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Thêm vật tư mới</p>
+      <button class="delete" onclick="closeModal('addItemModal')"></button>
+    </header>
+    <section class="modal-card-body">
+      <form id="addItemForm" method="POST" action="/api/v1/inv/items">
+        <div class="field">
+          <label class="label">Mã vật tư</label>
+          <div class="control">
+            <input class="input" name="item_code" type="text" required>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Tên vật tư</label>
+          <div class="control">
+            <input class="input" name="item_name" type="text" required>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Đơn vị tính</label>
+          <div class="control">
+            <input class="input" name="unit" type="text" placeholder="Cái, kg, mét...">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Đơn giá nhập</label>
+          <div class="control">
+            <input class="input" name="unit_cost" type="number" step="0.01" min="0">
+          </div>
+        </div>
+      </form>
+    </section>
+    <footer class="modal-card-foot">
+      <button class="button is-primary" onclick="document.getElementById('addItemForm').submit()">Lưu</button>
+      <button class="button" onclick="closeModal('addItemModal')">Hủy</button>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('addItemForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const data = new FormData(e.target);
+  const json = {};
+  data.forEach((v, k) => { json[k] = v; });
+  try {
+    const r = await fetch(e.target.action, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(json) });
+    if (r.ok) {
+      showToast('Thêm vật tư thành công', 'success');
+      closeModal('addItemModal');
+      location.reload();
+    } else {
+      const err = await r.json();
+      showToast(err.message || 'Lỗi khi thêm vật tư', 'danger');
+    }
+  } catch(e) {
+    showToast('Lỗi kết nối', 'danger');
+  }
+});
+</script>
+{% endblock %}

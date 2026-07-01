@@ -1,0 +1,186 @@
+{% extends 'layout/base.html' %}
+{% block title %}Nhân viên - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <div>
+        <h1><i class="fas fa-users"></i> Nhân viên</h1>
+        <p>Danh sách nhân viên</p>
+      </div>
+    </div>
+    <div class="level-right">
+      <button class="button is-primary is-small" onclick="openModal('addEmployeeModal')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.payroll_employees') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Đang làm</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Nghỉ việc</option>
+                <option value="terminated" {% if status == 'terminated' %}selected{% endif %}>Đã chấm dứt</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Tìm kiếm</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="search" value="{{ search }}" placeholder="Mã NV, tên NV">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.payroll_employees') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if employees %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã NV</th>
+            <th>Họ tên</th>
+            <th>Phòng ban</th>
+            <th>Chức vụ</th>
+            <th>Trạng thái</th>
+            <th>Điện thoại</th>
+            <th>Email</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for emp in employees %}
+          <tr>
+            <td class="mono">{{ emp.employee_code }}</td>
+            <td>{{ emp.full_name }}</td>
+            <td>{{ emp.department_name or '—' }}</td>
+            <td>{{ emp.position or '—' }}</td>
+            <td>
+              {% if emp.status.value == 'active' %}
+              <span class="tag is-posted">Đang làm</span>
+              {% elif emp.status.value == 'inactive' %}
+              <span class="tag is-pending">Nghỉ việc</span>
+              {% elif emp.status.value == 'terminated' %}
+              <span class="tag is-cancelled">Đã chấm dứt</span>
+              {% else %}
+              <span class="tag">{{ emp.status.value }}</span>
+              {% endif %}
+            </td>
+            <td>{{ emp.phone or '—' }}</td>
+            <td>{{ emp.email or '—' }}</td>
+            <td>
+              <a href="/api/v1/payroll/employees/{{ emp.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Chưa có dữ liệu nhân viên</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal" id="addEmployeeModal">
+  <div class="modal-background" onclick="closeModal('addEmployeeModal')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Thêm nhân viên</p>
+      <button class="delete" onclick="closeModal('addEmployeeModal')"></button>
+    </header>
+    <section class="modal-card-body">
+      <form id="addEmployeeForm" method="POST" action="/api/v1/payroll/employees">
+        <div class="field">
+          <label class="label">Mã nhân viên</label>
+          <div class="control">
+            <input class="input" name="employee_code" type="text" required maxlength="20">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Họ tên</label>
+          <div class="control">
+            <input class="input" name="full_name" type="text" required maxlength="100">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Ngày sinh</label>
+          <div class="control">
+            <input class="input" name="date_of_birth" type="date">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Phòng ban</label>
+          <div class="control">
+            <input class="input" name="department_name" type="text">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Chức vụ</label>
+          <div class="control">
+            <input class="input" name="position" type="text">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Ngày bắt đầu</label>
+          <div class="control">
+            <input class="input" name="start_date" type="date" required>
+          </div>
+        </div>
+      </form>
+    </section>
+    <footer class="modal-card-foot">
+      <button class="button is-primary" onclick="document.getElementById('addEmployeeForm').submit()">Lưu</button>
+      <button class="button" onclick="closeModal('addEmployeeModal')">Hủy</button>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('addEmployeeForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const data = new FormData(e.target);
+  const json = {};
+  data.forEach((v, k) => { json[k] = v; });
+  try {
+    const r = await fetch(e.target.action, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(json) });
+    if (r.ok) {
+      showToast('Thêm nhân viên thành công', 'success');
+      closeModal('addEmployeeModal');
+      location.reload();
+    } else {
+      const err = await r.json();
+      showToast(err.message || 'Lỗi khi thêm nhân viên', 'danger');
+    }
+  } catch(e) {
+    showToast('Lỗi kết nối', 'danger');
+  }
+});
+</script>
+{% endblock %}

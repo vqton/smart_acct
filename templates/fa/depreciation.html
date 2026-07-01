@@ -1,0 +1,112 @@
+{% extends 'layout/base.html' %}
+{% block title %}Khấu hao TSCĐ - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-chart-line"></i> Khấu hao TSCĐ</h1>
+  <p>Chạy khấu hao và xem lịch sử khấu hao tài sản cố định</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.fa_depreciation') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Kỳ khấu hao</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Xem</button>
+            <button class="button is-small is-primary" type="button" onclick="runDepreciation()">
+              <i class="fas fa-play"></i> Chạy khấu hao
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-header" style="padding:12px 16px;">
+    <span><strong>Kỳ: {{ period or '—' }}</strong></span>
+    <span class="pagination-info" style="margin-left:auto;">Số bản ghi: {{ records|length }}</span>
+  </div>
+  <div class="card-content" style="padding:0;">
+    {% if records %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã TSCĐ</th>
+            <th>Kỳ</th>
+            <th>Số khấu hao</th>
+            <th>Lũy kế sau KH</th>
+            <th>Giá trị còn lại</th>
+            <th>Ngày chạy</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr>
+            <td class="mono">{{ r.asset_id }}</td>
+            <td>{{ r.period }}</td>
+            <td class="is-vnd">{{ r.depreciation_amount|vnd }}</td>
+            <td class="is-vnd">{{ r.accumulated_total|vnd }}</td>
+            <td class="is-vnd">{{ r.nbv|vnd }}</td>
+            <td>{{ r.created_at.strftime('%d/%m/%Y') if r.created_at else '' }}</td>
+            <td>
+              <a href="/api/v1/fa/depreciation/{{ r.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif period %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Chưa có dữ liệu khấu hao cho kỳ {{ period }}</p>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:60px 20px; color:#90a4ae;">
+      <i class="fas fa-search" style="font-size:48px; margin-bottom:12px;"></i>
+      <p>Chọn kỳ để xem bảng khấu hao</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function runDepreciation() {
+  const period = document.querySelector('input[name="period"]')?.value;
+  if (!period) {
+    showToast('Vui lòng nhập kỳ khấu hao', 'warning');
+    return;
+  }
+  if (!confirm('Xác nhận chạy khấu hao cho kỳ ' + period + '?')) return;
+  try {
+    const r = await fetch('/api/v1/fa/depreciation/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({period: period}),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      showToast('Đã chạy khấu hao: ' + (data.count || 0) + ' tài sản, tổng ' + (data.total_amount || '0') + ' VND', 'success');
+      location.reload();
+    } else {
+      showToast(data.message || data.error || 'Lỗi khi chạy khấu hao', 'danger');
+    }
+  } catch(e) {
+    showToast('Lỗi kết nối', 'danger');
+  }
+}
+</script>
+{% endblock %}

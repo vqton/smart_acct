@@ -1,0 +1,77 @@
+{% extends 'layout/base.html' %}
+{% block title %}Công nợ phải trả - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-clock"></i> Báo cáo công nợ phải trả</h1>
+  <p>Phân tích tuổi nợ AP theo ngày hiện tại</p>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if aging %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable is-bordered" style="font-size:12px;">
+        <thead>
+          <tr>
+            <th>Nhà cung cấp</th>
+            <th class="is-vnd">Chưa đến hạn</th>
+            <th class="is-vnd">1-30 ngày</th>
+            <th class="is-vnd">31-60 ngày</th>
+            <th class="is-vnd">61-90 ngày</th>
+            <th class="is-vnd">91-180 ngày</th>
+            <th class="is-vnd">181-365 ngày</th>
+            <th class="is-vnd">Trên 365 ngày</th>
+            <th class="is-vnd">Tổng cộng</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in aging %}
+          <tr>
+            <td><strong>{{ entry.vendor_name }}</strong></td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.current|float) if entry.buckets.current > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.bucket_1_30|float) if entry.buckets.bucket_1_30 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.bucket_31_60|float) if entry.buckets.bucket_31_60 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.bucket_61_90|float) if entry.buckets.bucket_61_90 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.bucket_91_180|float) if entry.buckets.bucket_91_180 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.bucket_181_365|float) if entry.buckets.bucket_181_365 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(entry.buckets.bucket_365_plus|float) if entry.buckets.bucket_365_plus > 0 else '-' }}</td>
+            <td class="is-vnd"><strong>{{ "{:,.0f}".format(entry.total_outstanding|float) }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700; background:#f5f7fa;">
+            <td>Tổng cộng</td>
+            {% set totals = {'current': 0, 'b1': 0, 'b2': 0, 'b3': 0, 'b4': 0, 'b5': 0, 'b6': 0, 'total': 0} %}
+            {% for entry in aging %}
+              {% if totals.update({'current': totals.current + (entry.buckets.current|float)}) %}{% endif %}
+              {% if totals.update({'b1': totals.b1 + (entry.buckets.bucket_1_30|float)}) %}{% endif %}
+              {% if totals.update({'b2': totals.b2 + (entry.buckets.bucket_31_60|float)}) %}{% endif %}
+              {% if totals.update({'b3': totals.b3 + (entry.buckets.bucket_61_90|float)}) %}{% endif %}
+              {% if totals.update({'b4': totals.b4 + (entry.buckets.bucket_91_180|float)}) %}{% endif %}
+              {% if totals.update({'b5': totals.b5 + (entry.buckets.bucket_181_365|float)}) %}{% endif %}
+              {% if totals.update({'b6': totals.b6 + (entry.buckets.bucket_365_plus|float)}) %}{% endif %}
+              {% if totals.update({'total': totals.total + (entry.total_outstanding|float)}) %}{% endif %}
+            {% endfor %}
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.current) if totals.current > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.b1) if totals.b1 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.b2) if totals.b2 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.b3) if totals.b3 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.b4) if totals.b4 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.b5) if totals.b5 > 0 else '-' }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(totals.b6) if totals.b6 > 0 else '-' }}</td>
+            <td class="is-vnd"><strong>{{ "{:,.0f}".format(totals.total) }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+      <i class="fas fa-check-circle" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có công nợ phải trả nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

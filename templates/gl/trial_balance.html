@@ -1,0 +1,98 @@
+{% extends 'layout/base.html' %}
+{% block title %}Cân đối số phát sinh - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-balance-scale"></i> Bảng cân đối số phát sinh</h1>
+  <p>Bảng CĐSPS kỳ {{ period }}</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.gl_trial_balance') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Kỳ</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Xem</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if data and data.rows %}
+<div class="card" style="margin-top:16px;">
+  <div class="card-header" style="padding:12px 16px;">
+    <span>Kỳ: <strong>{{ data.period }}</strong></span>
+    <span class="pagination-info" style="margin-left:auto;">Số tài khoản: {{ data.account_count }}</span>
+  </div>
+  <div class="card-content" style="padding:0;">
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable is-bordered" style="font-size:12px;">
+        <thead>
+          <tr>
+            <th rowspan="2">TK</th>
+            <th rowspan="2">Tên tài khoản</th>
+            <th colspan="2" class="has-text-centered">Số dư đầu kỳ</th>
+            <th colspan="2" class="has-text-centered">Phát sinh trong kỳ</th>
+            <th colspan="2" class="has-text-centered">Số dư cuối kỳ</th>
+          </tr>
+          <tr>
+            <th class="is-vnd">Nợ</th>
+            <th class="is-vnd">Có</th>
+            <th class="is-vnd">Nợ</th>
+            <th class="is-vnd">Có</th>
+            <th class="is-vnd">Nợ</th>
+            <th class="is-vnd">Có</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data.rows %}
+          {% if row.period_debit != '0' or row.period_credit != '0' or row.opening_debit != '0' or row.opening_credit != '0' or row.closing_debit != '0' or row.closing_credit != '0' %}
+          <tr>
+            <td class="mono">{{ row.account_code }}</td>
+            <td>{{ row.account_name }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(row.opening_debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(row.opening_credit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(row.period_debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(row.period_credit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(row.closing_debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(row.closing_credit|float) }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700; background:#f5f7fa;">
+            <td colspan="2">Tổng cộng</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(data.total_opening_debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(data.total_opening_credit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(data.total_period_debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(data.total_period_credit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(data.total_closing_debit|float) }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(data.total_closing_credit|float) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% elif period %}
+<div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+  <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+  <p>Không có dữ liệu cho kỳ {{ period }}</p>
+</div>
+{% else %}
+<div class="has-text-centered" style="padding:60px 20px; color:#90a4ae;">
+  <i class="fas fa-search" style="font-size:48px; margin-bottom:12px;"></i>
+  <p>Chọn kỳ để xem bảng cân đối số phát sinh</p>
+</div>
+{% endif %}
+{% endblock %}

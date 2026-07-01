@@ -1,0 +1,73 @@
+{% extends "layout/base.html" %}
+{% block title %}Ngân sách - SmartACCT{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Ngân sách</h1>
+  <p>Quản lý ngân sách và dự toán</p>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="label">Tổng ngân sách</div>
+    <div class="value">{{ total_budget|vnd }} <span class="currency">VND</span></div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Thực hiện</div>
+    <div class="value">{{ total_actual|vnd }} <span class="currency">VND</span></div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Chênh lệch</div>
+    <div class="value {% if total_variance >= 0 %}is-up{% else %}is-down{% endif %}">
+      {{ total_variance|vnd }} <span class="currency">VND</span>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Tỷ lệ</div>
+    <div class="value">{{ variance_pct }}%</div>
+  </div>
+</div>
+
+<div class="card">
+  <header class="card-header">
+    <p class="card-header-title">Tình hình thực hiện ngân sách</p>
+  </header>
+  <div class="card-content">
+    {% if execution_data %}
+    <table class="table is-fullwidth is-hoverable">
+      <thead>
+        <tr>
+          <th>Chỉ tiêu</th>
+          <th class="text-right">Ngân sách</th>
+          <th class="text-right">Thực hiện</th>
+          <th class="text-right">Chênh lệch</th>
+          <th class="text-right">Tỷ lệ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in execution_data %}
+        <tr>
+          <td>{{ row.category_name }}</td>
+          <td class="is-vnd">{{ row.budget_amount|vnd }}</td>
+          <td class="is-vnd">{{ row.actual_amount|vnd }}</td>
+          <td class="is-vnd">
+            <span class="tag {% if row.variance >= 0 %}is-success{% else %}is-danger{% endif %}">
+              {{ row.variance|vnd }}
+            </span>
+          </td>
+          <td class="text-right">
+            <span class="tag {% if row.variance_pct <= 5 %}is-success{% elif row.variance_pct <= 15 %}is-warning{% else %}is-danger{% endif %}">
+              {{ row.variance_pct }}%
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="notification is-info is-light">Chưa có dữ liệu ngân sách cho kỳ này.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

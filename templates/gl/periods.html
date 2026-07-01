@@ -1,0 +1,102 @@
+{% extends 'layout/base.html' %}
+{% block title %}Kỳ kế toán - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-calendar-alt"></i> Kỳ kế toán</h1>
+  <p>Quản lý các kỳ kế toán</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.gl_periods') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="open" {% if status == 'open' %}selected{% endif %}>Đang mở</option>
+                <option value="closed" {% if status == 'closed' %}selected{% endif %}>Đã khóa</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.gl_periods') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if periods %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Kỳ</th>
+            <th>Ngày bắt đầu</th>
+            <th>Ngày kết thúc</th>
+            <th>Loại</th>
+            <th>Trạng thái</th>
+            <th>Hiện tại</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods %}
+          <tr>
+            <td class="mono"><strong>{{ p.period }}</strong></td>
+            <td>{{ p.start_date }}</td>
+            <td>{{ p.end_date }}</td>
+            <td>
+              {% if p.type == 'monthly' %}Tháng
+              {% elif p.type == 'quarterly' %}Quý
+              {% elif p.type == 'yearly' %}Năm
+              {% else %}{{ p.type }}
+              {% endif %}
+            </td>
+            <td>
+              {% if p.is_closed %}
+              <span class="tag is-cancelled">Đã khóa</span>
+              {% else %}
+              <span class="tag is-posted">Đang mở</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.is_current %}
+              <span class="tag is-active">Hiện tại</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.is_closed %}
+              <button class="button is-small is-warning" onclick="showToast('Chức năng đang phát triển', 'info')">
+                <i class="fas fa-unlock"></i> Mở lại
+              </button>
+              {% else %}
+              <button class="button is-small is-danger" onclick="showToast('Chức năng đang phát triển', 'info')">
+                <i class="fas fa-lock"></i> Khóa
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+      <i class="fas fa-calendar" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có kỳ kế toán nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

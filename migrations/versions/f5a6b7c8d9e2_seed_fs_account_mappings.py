@@ -7,6 +7,7 @@ Create Date: 2026-07-01 20:00:00.000000
 """
 from typing import Sequence, Union
 from alembic import op
+from sqlalchemy import text
 
 revision: str = 'f5a6b7c8d9e2'
 down_revision: Union[str, None] = 'f5a6b7c8d9e1'
@@ -63,15 +64,18 @@ _B02_MAPPINGS = [
 
 
 def _seed(st: str, mappings: list) -> None:
+    conn = op.get_bind()
     for fs_ma_so, account_code, direction in mappings:
-        op.execute(
-            "INSERT INTO fs_account_mappings "
-            "(fs_ma_so, account_code, weight, direction, statement_type) "
-            "SELECT :ms, :ac, 1.0, :dir, :st "
-            "WHERE NOT EXISTS ("
-            "  SELECT 1 FROM fs_account_mappings "
-            "  WHERE account_code = :ac2 AND fs_ma_so = :ms2 AND statement_type = :st2"
-            ")",
+        conn.execute(
+            text(
+                "INSERT INTO fs_account_mappings "
+                "(fs_ma_so, account_code, weight, direction, statement_type) "
+                "SELECT :ms, :ac, 1.0, :dir, :st "
+                "WHERE NOT EXISTS ("
+                "  SELECT 1 FROM fs_account_mappings "
+                "  WHERE account_code = :ac2 AND fs_ma_so = :ms2 AND statement_type = :st2"
+                ")"
+            ),
             {
                 "ms": fs_ma_so, "ac": account_code, "dir": direction,
                 "st": st,
@@ -86,15 +90,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    conn = op.get_bind()
     for fs_ma_so, account_code, direction in _B01_MAPPINGS:
-        op.execute(
-            "DELETE FROM fs_account_mappings "
-            "WHERE account_code = :ac AND fs_ma_so = :ms AND statement_type = :st",
+        conn.execute(
+            text(
+                "DELETE FROM fs_account_mappings "
+                "WHERE account_code = :ac AND fs_ma_so = :ms AND statement_type = :st"
+            ),
             {"ac": account_code, "ms": fs_ma_so, "st": "B01_DN"},
         )
     for fs_ma_so, account_code, direction in _B02_MAPPINGS:
-        op.execute(
-            "DELETE FROM fs_account_mappings "
-            "WHERE account_code = :ac AND fs_ma_so = :ms AND statement_type = :st",
+        conn.execute(
+            text(
+                "DELETE FROM fs_account_mappings "
+                "WHERE account_code = :ac AND fs_ma_so = :ms AND statement_type = :st"
+            ),
             {"ac": account_code, "ms": fs_ma_so, "st": "B02_DN"},
         )

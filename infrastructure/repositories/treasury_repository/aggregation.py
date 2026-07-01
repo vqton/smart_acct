@@ -49,18 +49,18 @@ class AggregationMixin:
             select(func.coalesce(func.sum(CashPaymentModel.total_amount), Decimal("0")))
             .where(CashPaymentModel.status == "posted")
         ).scalar_one()
-        return _vnd(total_in - total_out)
+        return _quantize_vnd(total_in - total_out)
 
     def get_total_bank_balance(self) -> Decimal:
         from infrastructure.models.cash_models import BankAccountModel
         result = self.session.execute(
             select(func.coalesce(func.sum(BankAccountModel.balance), Decimal("0")))
         ).scalar_one()
-        return _vnd(result)
+        return _quantize_vnd(result)
 
     def get_blocked_amount(self) -> Decimal:
         from infrastructure.models.cash_models import BankAccountModel
         result = self.session.execute(
             select(func.coalesce(func.sum(BankAccountModel.blocked_amount), Decimal("0")))
         ).scalar_one()
-        return _vnd(result)
+        return _quantize_vnd(result)

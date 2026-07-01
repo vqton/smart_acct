@@ -8,22 +8,24 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 
 ```
 /home/projects/smart_acct/
-├── config.py              # Pydantic config, env vars, connection pooling
 ├── run.py                 # Flask entry point
 ├── alembic.ini            # Alembic config (reads DATABASE_URL from .env)
 ├── CHANGELOG.md           # Release notes
 ├── domain/                # Pure domain models (Pydantic v2, no framework deps)
 │   └── __init__.py        # All domain entities + enums (TT99/2025, TT133/2016)
 ├── infrastructure/
-│   ├── database.py        # DB manager, JWT auth, formatters
+│   ├── database.py        # DB manager (delegates config to db_config.py)
+│   ├── db_config.py       # Pydantic config: DatabaseSettings, JWTSettings, AppSettings
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── coa_models.py         # SQLAlchemy models for COA
 │   │   └── tax_models.py         # SQLAlchemy models for tax (8 tables)
 │   └── repositories/
 │       ├── __init__.py
-│       ├── coa_repository.py     # COA CRUD repo (domain↔DB mapping)
-│       └── tax_repository.py     # Tax CRUD repo (7 entity types)
+│   ├── coa_repository.py     # COA CRUD repo (domain↔DB mapping)
+│   ├── tax_repository.py     # Tax CRUD repo (7 entity types)
+│   ├── payroll_repository/   # Package: EmployeeMixin, ContractMixin, … (12 mixins)
+│   └── treasury_repository/  # Package: CashInTransitMixin, InvestmentMixin, … (15 mixins)
 ├── use_cases/
 │   ├── __init__.py               # Re-exports all use case classes
 │   ├── coa/                      # 8 modules: use_cases, validate, import, export, versioning, ifrs, usage, template
@@ -59,7 +61,7 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 └── requirements.txt
 ```
 
-**Tech Stack**: Flask 3.0, SQLAlchemy 2.0, PostgreSQL 16, PyJWT, Casbin, openpyxl, WeasyPrint, pytest.
+**Tech Stack**: Flask 3.0, SQLAlchemy 2.0, PostgreSQL 16 (Windows host), PyJWT, Casbin, openpyxl, WeasyPrint, pytest.
 
 ---
 
@@ -67,7 +69,8 @@ Vietnamese ERP (Flask + SQLAlchemy + PostgreSQL 16). Flattened structure — no 
 
 ### Environment Variables
 ```bash
-DATABASE_URL=postgresql+psycopg2://smartacct:smartacct123@localhost:5432/smartacct
+# PostgreSQL 16 runs on a Windows host — connect via LAN IP
+DATABASE_URL=postgresql+psycopg2://erp_admin:Erp%40dmin%231@172.21.208.1:5432/acct_erp
 SECRET_KEY=dev-secret-key-change-in-production
 JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production
 FLASK_DEBUG=false
@@ -83,7 +86,8 @@ PORT=5000
 
 ### Database Pooling
 - Pool size: 20, max overflow: 30, recycle: 3600s
-- PostgreSQL 16 required (Docker recommended)
+- PostgreSQL 16 required — runs on **Windows host** at `172.21.208.1:5432`
+- No local PostgreSQL server; connect from dev container to Windows host via LAN
 - Never create separate `SQLAlchemy` instances — use `infrastructure/database.py` manager
 - Dispose connections in teardown
 

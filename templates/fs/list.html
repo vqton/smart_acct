@@ -1,0 +1,100 @@
+{% extends "layout/base.html" %}
+{% block title %}Báo cáo tài chính - SmartACCT{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Báo cáo tài chính</h1>
+  <p>B01-DN, B02-DN, B03-DN</p>
+</div>
+
+<div class="action-bar">
+  <button class="button is-primary" onclick="openModal('createModal')">
+    <span class="icon"><i class="fas fa-plus"></i></span>
+    <span>Tạo báo cáo</span>
+  </button>
+</div>
+
+{% if statements %}
+<table class="table is-fullwidth is-hoverable">
+  <thead>
+    <tr>
+      <th>Loại báo cáo</th>
+      <th>Kỳ</th>
+      <th>Trạng thái</th>
+      <th>Ngày tạo</th>
+      <th>Thao tác</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for stmt in statements %}
+    <tr>
+      <td>{{ stmt.statement_type.value if hasattr(stmt.statement_type, 'value') else stmt.statement_type }}</td>
+      <td>{{ stmt.period }}</td>
+      <td>
+        {% set s = stmt.status.value if hasattr(stmt.status, 'value') else stmt.status %}
+        <span class="tag
+          {% if s == 'draft' or s == 'DRAFT' %}is-draft
+          {% elif s == 'submitted' or s == 'SUBMITTED' %}is-pending
+          {% elif s == 'approved' or s == 'APPROVED' %}is-approved
+          {% elif s == 'signed' or s == 'SIGNED' %}is-posted
+          {% else %}is-info{% endif %}">
+          {{ s }}
+        </span>
+      </td>
+      <td>{{ stmt.generated_at.strftime('%d/%m/%Y') if hasattr(stmt, 'generated_at') and stmt.generated_at else stmt.created_at.strftime('%d/%m/%Y') if hasattr(stmt, 'created_at') and stmt.created_at else '' }}</td>
+      <td>
+        <div class="field is-grouped">
+          <button class="button is-small is-link" onclick="showToast('Đang gửi trình duyệt...', 'success')">Trình duyệt</button>
+          <button class="button is-small is-success" onclick="showToast('Đã phê duyệt', 'success')">Phê duyệt</button>
+          <button class="button is-small is-info" onclick="showToast('Đang xuất...', 'info')">Xuất</button>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="notification is-info is-light">Chưa có báo cáo tài chính nào.</div>
+{% endif %}
+
+{# Create Modal #}
+<div class="modal" id="createModal">
+  <div class="modal-background" onclick="closeModal('createModal')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Tạo báo cáo tài chính</p>
+      <button class="delete" onclick="closeModal('createModal')"></button>
+    </header>
+    <section class="modal-card-body">
+      <form method="POST" action="/api/v1/fs/generate">
+        <div class="field">
+          <label class="label">Loại báo cáo</label>
+          <div class="control">
+            <div class="select is-fullwidth">
+              <select name="statement_type" required>
+                <option value="">-- Chọn loại --</option>
+                <option value="B01_DN">B01-DN - Bảng cân đối kế toán</option>
+                <option value="B02_DN">B02-DN - Báo cáo kết quả KD</option>
+                <option value="B03_DN">B03-DN - Báo cáo lưu chuyển TT</option>
+                <option value="B09_DN">B09-DN - Thuyết minh BCTC</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Kỳ</label>
+          <div class="control">
+            <input class="input" type="text" name="period" placeholder="YYYY-MM" value="{{ period or '' }}" required>
+          </div>
+        </div>
+        <div class="field" style="margin-top:16px">
+          <div class="control">
+            <button type="submit" class="button is-primary is-fullwidth">Tạo báo cáo</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+
+{% endblock %}

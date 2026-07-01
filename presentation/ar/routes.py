@@ -560,7 +560,7 @@ def reject_write_off(request_id):
 
 # ── E-Invoice Submission ──────────────────────────────────────────
 
-@ar_bp.route("/invoices/<int:invoice_id}/e-invoice/submit", methods=["POST"])
+@ar_bp.route("/invoices/<int:invoice_id>/e-invoice/submit", methods=["POST"])
 def submit_einvoice(invoice_id):
     session = _get_session()
     try:

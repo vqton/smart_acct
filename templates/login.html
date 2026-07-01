@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập - SmartACCT</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    html, body { height: 100%; }
+    body { font-family: Tahoma, 'Segoe UI', sans-serif; background: var(--bulma-body-background-color); }
+    .hero.is-fullheight { min-height: 100vh; }
+    .login-card {
+      max-width: 400px; width: 100%; margin: 0 auto;
+      border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .login-card .card-header {
+      background: var(--bulma-scheme-main); border-radius: 8px 8px 0 0;
+      padding: 32px 24px 24px; text-align: center; display: block;
+      border-bottom: 1px solid var(--bulma-border);
+    }
+    .login-card .brand-icon { font-size: 36px; color: var(--bulma-link); }
+    .login-card .brand-text { font-size: 20px; font-weight: 700; color: var(--bulma-text-strong); margin-top: 8px; }
+    .login-card .brand-sub { font-size: 12px; color: var(--bulma-text-light); margin-top: 2px; }
+    .login-card .card-content { padding: 32px 24px; }
+    .login-error {
+      background: var(--bulma-danger-light); color: var(--bulma-danger-dark); padding: 10px 16px;
+      border-radius: 6px; font-size: 13px; margin-bottom: 16px;
+      border-left: 4px solid var(--bulma-danger);
+    }
+  </style>
+</head>
+<body>
+  <section class="hero is-fullheight">
+    <div class="hero-body" style="justify-content:center;">
+      <div class="login-card card">
+        <header class="card-header">
+          <div class="brand-icon"><i class="fas fa-calculator"></i></div>
+          <div class="brand-text">SmartACCT</div>
+          <div class="brand-sub">ERP Kế toán Việt Nam</div>
+        </header>
+        <div class="card-content">
+          {% if error %}
+          <div class="login-error">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+          </div>
+          {% endif %}
+          <form method="POST">
+            <div class="field">
+              <label class="label">Tên đăng nhập</label>
+              <div class="control has-icons-left">
+                <input class="input" type="text" name="username" placeholder="username" required autofocus>
+                <span class="icon is-small is-left"><i class="fas fa-user"></i></span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="label">Mật khẩu</label>
+              <div class="control has-icons-left">
+                <input class="input" type="password" name="password" placeholder="••••••••" required>
+                <span class="icon is-small is-left"><i class="fas fa-lock"></i></span>
+              </div>
+            </div>
+            <div class="field" style="margin-top:24px;">
+              <div class="control">
+                <button type="submit" class="button is-primary is-fullwidth" style="height:44px; font-size:15px;">
+                  <span class="icon"><i class="fas fa-sign-in-alt"></i></span>
+                  <span>Đăng nhập</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

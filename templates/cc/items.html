@@ -1,0 +1,159 @@
+{% extends "layout/base.html" %}
+{% block title %}Công cụ dụng cụ - SmartACCT{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Công cụ dụng cụ</h1>
+  <p>Quản lý CCDC</p>
+</div>
+
+<div class="filter-bar">
+  <div class="field">
+    <label class="label is-small">Trạng thái</label>
+    <div class="control">
+      <div class="select">
+        <select name="status" onchange="window.location.href='?status='+this.value+(document.querySelector('[name=category_id]')?.value ? '&category_id='+document.querySelector('[name=category_id]').value : '')">
+          <option value="">Tất cả</option>
+          <option value="in_stock" {% if selected_status == 'in_stock' %}selected{% endif %}>Trong kho</option>
+          <option value="in_use" {% if selected_status == 'in_use' %}selected{% endif %}>Đang sử dụng</option>
+          <option value="transferred" {% if selected_status == 'transferred' %}selected{% endif %}>Đã điều chuyển</option>
+          <option value="disposed" {% if selected_status == 'disposed' %}selected{% endif %}>Đã thanh lý</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="field">
+    <label class="label is-small">Danh mục</label>
+    <div class="control">
+      <div class="select">
+        <select name="category_id" onchange="window.location.href='?category_id='+this.value+(document.querySelector('[name=status]')?.value ? '&status='+document.querySelector('[name=status]').value : '')">
+          <option value="">Tất cả</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id if hasattr(cat, 'id') else cat.get('id', '') }}" {% if selected_category == (cat.id if hasattr(cat, 'id') else cat.get('id', '')) %}selected{% endif %}>
+            {{ cat.name if hasattr(cat, 'name') else cat.get('name', '') }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="field" style="margin-left:auto">
+    <button class="button is-primary" onclick="openModal('createModal')">
+      <span class="icon"><i class="fas fa-plus"></i></span>
+      <span>Thêm mới</span>
+    </button>
+  </div>
+</div>
+
+{% if items %}
+<table class="table is-fullwidth is-hoverable">
+  <thead>
+    <tr>
+      <th>Mã CCDC</th>
+      <th>Tên CCDC</th>
+      <th>Danh mục</th>
+      <th>ĐVT</th>
+      <th class="text-right">SL</th>
+      <th class="text-right">Đơn giá</th>
+      <th class="text-right">Tổng giá trị</th>
+      <th>Trạng thái</th>
+      <th>Phòng ban</th>
+      <th>Thao tác</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td class="mono">{{ item.code if hasattr(item, 'code') else item.get('code', '') }}</td>
+      <td>{{ item.name if hasattr(item, 'name') else item.get('name', '') }}</td>
+      <td>{{ item.category_name if hasattr(item, 'category_name') else item.get('category_name', '') }}</td>
+      <td>{{ item.unit if hasattr(item, 'unit') else item.get('unit', '') }}</td>
+      <td class="text-right">{{ item.quantity if hasattr(item, 'quantity') else item.get('quantity', 0) }}</td>
+      <td class="is-vnd">{{ (item.unit_price if hasattr(item, 'unit_price') else item.get('unit_price', 0))|vnd }}</td>
+      <td class="is-vnd">{{ (item.total_cost if hasattr(item, 'total_cost') else item.get('total_cost', 0))|vnd }}</td>
+      <td>
+        {% set s = item.status.value if hasattr(item, 'status') and hasattr(item.status, 'value') else item.status if hasattr(item, 'status') else item.get('status', '') %}
+        <span class="tag
+          {% if s == 'in_stock' %}is-active
+          {% elif s == 'in_use' %}is-warning
+          {% elif s == 'disposed' %}is-danger
+          {% else %}is-info{% endif %}">
+          {% if s == 'in_stock' %}Trong kho{% elif s == 'in_use' %}Đang SD{% elif s == 'disposed' %}Đã thanh lý{% else %}{{ s }}{% endif %}
+        </span>
+      </td>
+      <td>{{ item.department_name if hasattr(item, 'department_name') else item.get('department_name', '') }}</td>
+      <td>
+        <button class="button is-small is-link" onclick="showToast('Xem chi tiết', 'info')">
+          <i class="fas fa-eye"></i>
+        </button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="notification is-info is-light">Chưa có công cụ dụng cụ nào.</div>
+{% endif %}
+
+{# Create Modal #}
+<div class="modal" id="createModal">
+  <div class="modal-background" onclick="closeModal('createModal')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Thêm CCDC mới</p>
+      <button class="delete" onclick="closeModal('createModal')"></button>
+    </header>
+    <section class="modal-card-body">
+      <form method="POST" action="/api/v1/cc/items">
+        <div class="field">
+          <label class="label">Mã CCDC</label>
+          <div class="control"><input class="input" name="code" required></div>
+        </div>
+        <div class="field">
+          <label class="label">Tên CCDC</label>
+          <div class="control"><input class="input" name="name" required></div>
+        </div>
+        <div class="field">
+          <label class="label">Danh mục</label>
+          <div class="control">
+            <div class="select is-fullwidth">
+              <select name="category_id" required>
+                <option value="">-- Chọn --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id if hasattr(cat, 'id') else cat.get('id', '') }}">
+                  {{ cat.name if hasattr(cat, 'name') else cat.get('name', '') }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="columns">
+          <div class="column">
+            <div class="field">
+              <label class="label">ĐVT</label>
+              <div class="control"><input class="input" name="unit"></div>
+            </div>
+          </div>
+          <div class="column">
+            <div class="field">
+              <label class="label">Số lượng</label>
+              <div class="control"><input class="input" type="number" name="quantity" value="1"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Đơn giá</label>
+          <div class="control"><input class="input" type="number" name="unit_price" step="0.01"></div>
+        </div>
+        <div class="field" style="margin-top:16px">
+          <div class="control">
+            <button type="submit" class="button is-primary is-fullwidth">Lưu</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+
+{% endblock %}

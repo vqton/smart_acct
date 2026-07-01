@@ -20,6 +20,7 @@ from presentation.budget import budget_bp
 from presentation.costing_center import ccost_bp
 from presentation.fs import fs_bp
 from presentation.auth import auth_bp
+from views import views_bp
 
 _start_time = time()
 
@@ -53,6 +54,21 @@ def _get_user_from_jwt() -> str:
         return "anonymous"
 
 
+def _vnd_format(value) -> str:
+    if value is None:
+        return "0"
+    try:
+        num = float(value)
+        sign = "-" if num < 0 else ""
+        num = abs(num)
+        int_part = int(num)
+        dec_part = int(round((num - int_part) * 100))
+        int_str = f"{int_part:,}".replace(",", ".")
+        return f"{sign}{int_str}.{dec_part:02d}"
+    except (ValueError, TypeError):
+        return str(value)
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
@@ -60,6 +76,8 @@ def create_app() -> Flask:
     app.config["BABEL_DEFAULT_LOCALE"] = "vi"
     app.config["BABEL_DEFAULT_DOMAIN"] = "messages"
     is_debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+
+    app.jinja_env.filters["vnd"] = _vnd_format
 
     init_babel(app)
 
@@ -127,6 +145,7 @@ def create_app() -> Flask:
     app.register_blueprint(ccost_bp)
     app.register_blueprint(fs_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(views_bp)
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

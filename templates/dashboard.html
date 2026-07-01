@@ -1,0 +1,104 @@
+{% extends 'layout/base.html' %}
+{% block title %}Tổng quan - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="title is-4">Tổng quan</h1>
+  <p class="subtitle is-6">Bảng điều khiển kế toán</p>
+</div>
+
+{# ── KPI Cards ── #}
+<div class="columns is-multiline is-variable is-3">
+  <div class="column is-3">
+    <div class="card kpi-card">
+      <div class="card-content">
+        <p class="label">Tiền mặt</p>
+        <p class="value">{{ cash_balance|vnd }} <span class="currency">₫</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="column is-3">
+    <div class="card kpi-card">
+      <div class="card-content">
+        <p class="label">Tiền gửi ngân hàng</p>
+        <p class="value">{{ bank_balance|vnd }} <span class="currency">₫</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="column is-3">
+    <div class="card kpi-card" style="border-left: 4px solid #2e7d32;">
+      <div class="card-content">
+        <p class="label">Doanh thu tháng này</p>
+        <p class="value">{{ revenue_current_month|vnd }} <span class="currency">₫</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="column is-3">
+    <div class="card kpi-card" style="border-left: 4px solid #c62828;">
+      <div class="card-content">
+        <p class="label">Chi phí tháng này</p>
+        <p class="value">{{ expense_current_month|vnd }} <span class="currency">₫</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="column is-3">
+    <div class="card kpi-card">
+      <div class="card-content">
+        <p class="label">Kỳ kế toán</p>
+        <p class="value" style="font-size:18px;">{{ current_period or 'N/A' }}</p>
+        <p class="change is-up"><span class="tag is-{{ 'success' if period_status == 'open' else 'warning' }}">{{ 'Đang mở' if period_status == 'open' else 'Đã đóng' }}</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="column is-3">
+    <div class="card kpi-card">
+      <div class="card-content">
+        <p class="label">Chứng từ chưa ghi sổ</p>
+        <p class="value">{{ unposted_count }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="columns">
+  <div class="column is-6">
+    <div class="card">
+      <header class="card-header">
+        <p class="card-header-title">Truy cập nhanh</p>
+      </header>
+      <div class="card-content">
+        <div class="buttons are-small">
+          <a href="/coa" class="button is-light"><i class="fas fa-book mr-1"></i> Hệ thống TK</a>
+          <a href="/gl/journal" class="button is-light"><i class="fas fa-file-invoice mr-1"></i> Nhật ký chung</a>
+          <a href="/gl/trial-balance" class="button is-light"><i class="fas fa-balance-scale mr-1"></i> CĐ số phát sinh</a>
+          <a href="/ar/invoices" class="button is-light"><i class="fas fa-hand-holding-usd mr-1"></i> HĐ bán hàng</a>
+          <a href="/ap/invoices" class="button is-light"><i class="fas fa-credit-card mr-1"></i> HĐ mua hàng</a>
+          <a href="/gl/periods" class="button is-light"><i class="fas fa-calendar-alt mr-1"></i> Kỳ kế toán</a>
+          <a href="/tax/vat" class="button is-light"><i class="fas fa-file-invoice-dollar mr-1"></i> Thuế GTGT</a>
+          <a href="/payroll/runs" class="button is-light"><i class="fas fa-users mr-1"></i> Bảng lương</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="column is-6">
+    <div class="card">
+      <header class="card-header">
+        <p class="card-header-title">Kỳ kế toán hiện tại</p>
+      </header>
+      <div class="card-content">
+        {% if current_period %}
+          <p>Kỳ: <strong>{{ current_period }}</strong></p>
+          <p>Trạng thái: <span class="tag is-{{ 'success' if period_status == 'open' else 'warning' }}">{{ 'Đang mở' if period_status == 'open' else 'Đã đóng' }}</span></p>
+          <p style="margin-top:12px;">
+            <a href="/gl/trial-balance?period={{ current_period }}" class="button is-small is-primary is-light">
+              <i class="fas fa-balance-scale mr-1"></i> Xem CĐ số phát sinh
+            </a>
+          </p>
+        {% else %}
+          <p>Chưa có kỳ kế toán nào được tạo.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

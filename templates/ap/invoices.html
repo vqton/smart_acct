@@ -1,0 +1,134 @@
+{% extends 'layout/base.html' %}
+{% block title %}Hóa đơn mua hàng - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <h1><i class="fas fa-file-invoice-dollar"></i> Hóa đơn mua hàng</h1>
+    </div>
+    <div class="level-right">
+      <button class="button is-small is-info" onclick="showToast('Chức năng đang phát triển', 'info')">
+        <i class="fas fa-plus"></i> Thêm mới
+      </button>
+    </div>
+  </div>
+  <p>Danh sách hóa đơn mua hàng (AP)</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.ap_invoices') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Kỳ</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="draft" {% if status == 'draft' %}selected{% endif %}>Bản nháp</option>
+                <option value="submitted" {% if status == 'submitted' %}selected{% endif %}>Đã trình</option>
+                <option value="approved" {% if status == 'approved' %}selected{% endif %}>Đã duyệt</option>
+                <option value="paid_full" {% if status == 'paid_full' %}selected{% endif %}>Đã thanh toán</option>
+                <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Đã hủy</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.ap_invoices') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if invoices %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số HĐ</th>
+            <th>Ngày</th>
+            <th>Nhà cung cấp</th>
+            <th class="is-vnd">Tổng tiền</th>
+            <th>Ngày đến hạn</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr class="is-clickable" onclick="window.location='/ap/invoices/{{ inv.id }}'">
+            <td class="mono">{{ inv.invoice_number }}</td>
+            <td>{{ inv.invoice_date.strftime('%d/%m/%Y') if inv.invoice_date else '' }}</td>
+            <td>{{ inv.vendor_name }}</td>
+            <td class="is-vnd">{{ "{:,.0f}".format(inv.total_amount|float) }}</td>
+            <td>{{ inv.due_date.strftime('%d/%m/%Y') if inv.due_date else '' }}</td>
+            <td>
+              {% if inv.status.value == 'draft' %}
+              <span class="tag is-draft">Nháp</span>
+              {% elif inv.status.value == 'submitted' %}
+              <span class="tag is-pending">Đã trình</span>
+              {% elif inv.status.value == 'matched' %}
+              <span class="tag is-approved">Đã đối soát</span>
+              {% elif inv.status.value == 'approved' %}
+              <span class="tag is-approved">Đã duyệt</span>
+              {% elif inv.status.value == 'paid_full' %}
+              <span class="tag is-posted">Đã TT đủ</span>
+              {% elif inv.status.value == 'paid_partial' %}
+              <span class="tag is-pending">TT 1 phần</span>
+              {% elif inv.status.value == 'overdue' %}
+              <span class="tag is-cancelled">Quá hạn</span>
+              {% elif inv.status.value == 'cancelled' %}
+              <span class="tag is-cancelled">Đã hủy</span>
+              {% elif inv.status.value == 'rejected' %}
+              <span class="tag is-cancelled">Từ chối</span>
+              {% else %}
+              <span class="tag is-draft">{{ inv.status.value }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="/ap/invoices/{{ inv.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px; color:#90a4ae;">
+      <i class="fas fa-file-invoice-dollar" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có hóa đơn nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="level" style="margin-top:12px;">
+  <div class="level-left">
+    <div class="pagination-info">Trang {{ page }} | {{ invoices|length }} bản ghi</div>
+  </div>
+  <div class="level-right">
+    <nav class="pagination is-small">
+      {% if page > 1 %}
+      <a href="{{ url_for('views.ap_invoices', period=period, status=status, page=page-1) }}" class="pagination-previous">Trước</a>
+      {% endif %}
+      {% if has_more %}
+      <a href="{{ url_for('views.ap_invoices', period=period, status=status, page=page+1) }}" class="pagination-next">Sau</a>
+      {% endif %}
+    </nav>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends 'layout/base.html' %}
+{% block title %}Tờ khai thuế TNCN - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="level">
+    <div class="level-left">
+      <div>
+        <h1><i class="fas fa-file-invoice"></i> Tờ khai thuế TNCN</h1>
+        <p>Danh sách tờ khai thuế thu nhập cá nhân</p>
+      </div>
+    </div>
+    <div class="level-right">
+      <div class="field has-addons" style="margin-bottom:0;">
+        <div class="control">
+          <input class="input is-small" type="text" id="pitPeriod" value="{{ period }}" placeholder="YYYY-MM" style="width:120px;">
+        </div>
+        <div class="control">
+          <button class="button is-primary is-small" onclick="createPIT()">
+            <i class="fas fa-plus"></i> Tạo tờ khai
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.payroll_pit') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Kỳ</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.payroll_pit') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if declarations %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số tờ khai</th>
+            <th>Kỳ</th>
+            <th>Số lượng NV</th>
+            <th>Tổng thu nhập</th>
+            <th>Thuế TNCN</th>
+            <th>Trạng thái</th>
+            <th>Ngày tạo</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in declarations %}
+          <tr>
+            <td class="mono">{{ d.declaration_number if d.declaration_number else d.id }}</td>
+            <td>{{ d.period }}</td>
+            <td class="has-text-right">{{ d.total_employees }}</td>
+            <td class="is-vnd">{{ d.total_income|vnd }}</td>
+            <td class="is-vnd">{{ d.total_pit|vnd }}</td>
+            <td>
+              {% if d.status.value == 'draft' %}
+              <span class="tag is-draft">Bản nháp</span>
+              {% elif d.status.value == 'submitted' %}
+              <span class="tag is-pending">Đã nộp</span>
+              {% elif d.status.value == 'accepted' %}
+              <span class="tag is-posted">Đã chấp nhận</span>
+              {% elif d.status.value == 'rejected' %}
+              <span class="tag is-cancelled">Từ chối</span>
+              {% else %}
+              <span class="tag">{{ d.status.value }}</span>
+              {% endif %}
+            </td>
+            <td>{{ d.created_at.strftime('%d/%m/%Y %H:%M') if d.created_at else '' }}</td>
+            <td>
+              <a href="/api/v1/payroll/pit/{{ d.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Chưa có dữ liệu tờ khai thuế TNCN</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function createPIT() {
+  const period = document.getElementById('pitPeriod')?.value;
+  if (!period || !period.match(/^\d{4}-\d{2}$/)) {
+    showToast('Vui lòng nhập kỳ (YYYY-MM)', 'warning');
+    return;
+  }
+  const parts = period.split('-');
+  try {
+    const r = await fetch('/api/v1/payroll/pit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({month: parseInt(parts[1]), year: parseInt(parts[0]), declaration_type: 'monthly'}),
+    });
+    if (r.ok) {
+      showToast('Tạo tờ khai thuế TNCN thành công', 'success');
+      location.reload();
+    } else {
+      const err = await r.json();
+      showToast(err.message || 'Lỗi tạo tờ khai', 'danger');
+    }
+  } catch(e) {
+    showToast('Lỗi kết nối', 'danger');
+  }
+}
+</script>
+{% endblock %}

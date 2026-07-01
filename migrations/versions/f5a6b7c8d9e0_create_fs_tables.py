@@ -1,7 +1,7 @@
 """create_fs_tables
 
 Revision ID: f5a6b7c8d9e0
-Revises: 3fa4b5c6d7e8
+Revises: 4fa5b6c7d8f0
 Create Date: 2026-06-30 20:00:00.000000
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ENUM
 
 revision: str = 'f5a6b7c8d9e0'
-down_revision: Union[str, None] = '3fa4b5c6d7e8'
+down_revision: Union[str, None] = '4fa5b6c7d8f0'
 branch_labels: Union[str, None] = None
 depends_on: Union[str, None] = None
 

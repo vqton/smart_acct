@@ -1,0 +1,120 @@
+{% extends 'layout/base.html' %}
+{% block title %}Nhật ký chung - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-book"></i> Nhật ký chung</h1>
+  <p>Danh sách các chứng từ ghi sổ nhật ký chung</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.gl_journal') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Kỳ</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Loại chứng từ</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="journal_type">
+                <option value="">-- Tất cả --</option>
+                {% for jt in journal_types %}
+                <option value="{{ jt }}" {% if journal_type == jt %}selected{% endif %}>{{ jt|upper }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Trạng thái</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="status">
+                <option value="">-- Tất cả --</option>
+                <option value="draft" {% if status == 'draft' %}selected{% endif %}>Bản nháp</option>
+                <option value="posted" {% if status == 'posted' %}selected{% endif %}>Đã ghi sổ</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Lọc</button>
+            <a href="{{ url_for('views.gl_journal') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if entries %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Số chứng từ</th>
+            <th>Ngày</th>
+            <th>Diễn giải</th>
+            <th>Loại</th>
+            <th>Trạng thái</th>
+            <th>Ngày tạo</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+          <tr class="is-clickable" onclick="window.location='/gl/journal/{{ e.id }}'">
+            <td class="mono">{{ e.journal_number }}</td>
+            <td>{{ e.transaction_date.strftime('%d/%m/%Y') if e.transaction_date else '' }}</td>
+            <td>{{ e.description[:60] }}{% if e.description and e.description|length > 60 %}...{% endif %}</td>
+            <td><span class="tag">{{ e.journal_type.value|upper if e.journal_type else 'GV' }}</span></td>
+            <td>
+              {% if e.is_posted %}
+              <span class="tag is-posted">Đã ghi sổ</span>
+              {% else %}
+              <span class="tag is-draft">Bản nháp</span>
+              {% endif %}
+            </td>
+            <td>{{ e.created_at.strftime('%d/%m/%Y %H:%M') if e.created_at else '' }}</td>
+            <td>
+              <a href="/gl/journal/{{ e.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Không có chứng từ nào</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="level" style="margin-top:12px;">
+  <div class="level-left">
+    <div class="pagination-info">Trang {{ page }} | {{ entries|length }} bản ghi</div>
+  </div>
+  <div class="level-right">
+    <nav class="pagination is-small">
+      {% if page > 1 %}
+      <a href="{{ url_for('views.gl_journal', period=period, journal_type=journal_type, status=status, page=page-1) }}" class="pagination-previous">Trước</a>
+      {% endif %}
+      {% if has_more %}
+      <a href="{{ url_for('views.gl_journal', period=period, journal_type=journal_type, status=status, page=page+1) }}" class="pagination-next">Sau</a>
+      {% endif %}
+    </nav>
+  </div>
+</div>
+
+{% endblock %}

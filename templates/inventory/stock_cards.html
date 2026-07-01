@@ -1,0 +1,110 @@
+{% extends 'layout/base.html' %}
+{% block title %}Thẻ kho - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-address-card"></i> Thẻ kho</h1>
+  <p>Theo dõi nhập xuất tồn theo từng vật tư</p>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <form method="GET" action="{{ url_for('views.inv_stock_cards') }}">
+      <div class="filter-bar">
+        <div class="field">
+          <label class="label is-small">Vật tư</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="item_id">
+                <option value="">-- Tất cả --</option>
+                {% for item in items %}
+                <option value="{{ item.id }}" {% if item_id|string == item.id|string %}selected{% endif %}>{{ item.item_code }} - {{ item.item_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Kho</label>
+          <div class="control">
+            <div class="select is-small">
+              <select name="warehouse_id">
+                <option value="">-- Tất cả --</option>
+                {% for wh in warehouses %}
+                <option value="{{ wh.id }}" {% if warehouse_id|string == wh.id|string %}selected{% endif %}>{{ wh.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label is-small">Kỳ</label>
+          <div class="control">
+            <input class="input is-small" type="text" name="period" value="{{ period }}" placeholder="YYYY-MM">
+          </div>
+        </div>
+        <div class="field" style="margin-top:22px;">
+          <div class="control">
+            <button class="button is-small is-info" type="submit"><i class="fas fa-search"></i> Xem</button>
+            <a href="{{ url_for('views.inv_stock_cards') }}" class="button is-small is-light">Xóa lọc</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="card-content" style="padding:0;">
+    {% if cards %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-hoverable is-bordered" style="font-size:12px;">
+        <thead>
+          <tr>
+            <th rowspan="2">Vật tư</th>
+            <th rowspan="2">Kho</th>
+            <th rowspan="2">Kỳ</th>
+            <th colspan="2" class="has-text-centered">Tồn đầu kỳ</th>
+            <th colspan="2" class="has-text-centered">Nhập trong kỳ</th>
+            <th colspan="2" class="has-text-centered">Xuất trong kỳ</th>
+            <th colspan="2" class="has-text-centered">Tồn cuối kỳ</th>
+          </tr>
+          <tr>
+            <th class="has-text-right">SL</th>
+            <th class="is-vnd">Giá trị</th>
+            <th class="has-text-right">SL</th>
+            <th class="is-vnd">Giá trị</th>
+            <th class="has-text-right">SL</th>
+            <th class="is-vnd">Giá trị</th>
+            <th class="has-text-right">SL</th>
+            <th class="is-vnd">Giá trị</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cards %}
+          <tr>
+            <td class="mono">{{ c.item_id }}</td>
+            <td>{{ c.warehouse_id }}</td>
+            <td>{{ c.period }}</td>
+            <td class="has-text-right">{{ '{:,.0f}'.format(c.opening_quantity|float) }}</td>
+            <td class="is-vnd">{{ c.opening_value|vnd }}</td>
+            <td class="has-text-right">{{ '{:,.0f}'.format(c.receipt_quantity|float) }}</td>
+            <td class="is-vnd">{{ c.receipt_value|vnd }}</td>
+            <td class="has-text-right">{{ '{:,.0f}'.format(c.issue_quantity|float) }}</td>
+            <td class="is-vnd">{{ c.issue_value|vnd }}</td>
+            <td class="has-text-right">{{ '{:,.0f}'.format(c.closing_quantity|float) }}</td>
+            <td class="is-vnd">{{ c.closing_value|vnd }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="has-text-centered" style="padding:40px 20px; color:#90a4ae;">
+      <i class="fas fa-inbox" style="font-size:40px; margin-bottom:12px;"></i>
+      <p>Chưa có dữ liệu thẻ kho</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

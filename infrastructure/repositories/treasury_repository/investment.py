@@ -150,7 +150,7 @@ class InvestmentMixin:
             select(func.coalesce(func.sum(SecurityInvestmentModel.total_cost), Decimal("0")))
             .where(SecurityInvestmentModel.status == "active")
         ).scalar_one()
-        return _vnd(result)
+        return _quantize_vnd(result)
 
     def get_maturing_investments(self, as_of: date, days: int = 30) -> List[SecurityInvestment]:
         cutoff = as_of.__class__(as_of.year, as_of.month, as_of.day)

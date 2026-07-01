@@ -21,35 +21,35 @@ depends_on: Union[str, Sequence[str], None] = None
 
 CUSTOMER_TYPE_ENUM = ENUM(
     'individual', 'enterprise', 'government', 'foreign',
-    name='customertypedb', create_type=True,
+    name='customertypedb', create_type=False,
 )
 CUSTOMER_GROUP_ENUM = ENUM(
     'domestic', 'export', 'govt', 'vip',
-    name='customergroupdb', create_type=True,
+    name='customergroupdb', create_type=False,
 )
 CUSTOMER_STATUS_ENUM = ENUM(
     'active', 'suspended', 'blocked', 'archived',
-    name='customerstatusdb', create_type=True,
+    name='customerstatusdb', create_type=False,
 )
 INVOICE_TYPE_ENUM = ENUM(
     'sales', 'credit_note', 'debit_note',
-    name='invoicetypedb', create_type=True,
+    name='invoicetypedb', create_type=False,
 )
 INVOICE_STATUS_ENUM = ENUM(
     'draft', 'issued', 'partially_paid', 'paid', 'overdue', 'cancelled', 'written_off',
-    name='invoicestatusdb', create_type=True,
+    name='invoicestatusdb', create_type=False,
 )
 PAYMENT_METHOD_ENUM = ENUM(
     'cash', 'bank_transfer', 'cheque', 'credit_card', 'offline',
-    name='paymentmethoddb', create_type=True,
+    name='paymentmethoddb', create_type=False,
 )
 ALLOCATION_STATUS_ENUM = ENUM(
     'pending', 'allocated', 'partial', 'reversed',
-    name='allocationstatusdb', create_type=True,
+    name='allocationstatusdb', create_type=False,
 )
 DUNNING_LEVEL_ENUM = ENUM(
     'level_1', 'level_2', 'level_3', 'legal',
-    name='dunningleveldb', create_type=True,
+    name='dunningleveldb', create_type=False,
 )
 
 INDEXES = [
@@ -66,7 +66,28 @@ INDEXES = [
 ]
 
 
+def _create_safe_enum(name: str, values: list) -> None:
+    op.execute(f"""
+        DO $$ BEGIN
+            CREATE TYPE {name} AS ENUM ({','.join(f"'{v}'" for v in values)});
+        EXCEPTION
+            WHEN duplicate_object THEN NULL;
+        END $$;
+    """)
+
 def upgrade() -> None:
+    # Create ENUM types safely (ignore if already exists)
+    for enum_name, values in [
+        ('customertypedb', ['individual', 'enterprise', 'government', 'foreign']),
+        ('customergroupdb', ['domestic', 'export', 'govt', 'vip']),
+        ('customerstatusdb', ['active', 'suspended', 'blocked', 'archived']),
+        ('invoicetypedb', ['sales', 'credit_note', 'debit_note']),
+        ('invoicestatusdb', ['draft', 'issued', 'partially_paid', 'paid', 'overdue', 'cancelled', 'written_off']),
+        ('paymentmethoddb', ['cash', 'bank_transfer', 'cheque', 'credit_card', 'offline']),
+        ('allocationstatusdb', ['pending', 'allocated', 'partial', 'reversed']),
+        ('dunningleveldb', ['level_1', 'level_2', 'level_3', 'legal']),
+    ]:
+        _create_safe_enum(enum_name, values)
     op.create_table(
         'customers',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -122,7 +143,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='RESTRICT'),
-        sa.ForeignKeyConstraint(['einvoice_id'], ['e_invoices.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['einvoice_id'], ['einvoices.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('invoice_number'),
         sa.Index('ix_ar_invoices_customer_id', 'customer_id', unique=False),
@@ -165,13 +186,29 @@ def upgrade() -> None:
         sa.Index('ix_ar_payments_invoice_id', 'invoice_id', unique=False),
     )
 
-    for idx in INDEXES:
-        op.create_index(idx.name, idx.table.name, [c.name for c in idx.columns])
+    op.create_index('ix_customers_code', 'customers', ['customer_code'], unique=True)
+    op.create_index('ix_customers_tax_code', 'customers', ['tax_code'])
+    op.create_index('ix_ar_invoices_number', 'ar_invoices', ['invoice_number'], unique=True)
+    op.create_index('ix_ar_invoices_customer_code', 'ar_invoices', ['customer_code'])
+    op.create_index('ix_ar_invoices_due_date', 'ar_invoices', ['due_date'])
+    op.create_index('ix_ar_invoices_period', 'ar_invoices', ['period'])
+    op.create_index('ix_ar_invoices_einvoice', 'ar_invoices', ['einvoice_id'])
+    op.create_index('ix_ar_payments_number', 'ar_payments', ['payment_number'], unique=True)
+    op.create_index('ix_ar_payments_date', 'ar_payments', ['payment_date'])
+    op.create_index('ix_ar_payments_method', 'ar_payments', ['payment_method'])
 
 
 def downgrade() -> None:
-    for idx in reversed(INDEXES):
-        op.drop_index(idx.name, table_name=idx.table.name if hasattr(idx, 'table') else None)
+    op.drop_index('ix_ar_payments_method', table_name='ar_payments')
+    op.drop_index('ix_ar_payments_date', table_name='ar_payments')
+    op.drop_index('ix_ar_payments_number', table_name='ar_payments')
+    op.drop_index('ix_ar_invoices_einvoice', table_name='ar_invoices')
+    op.drop_index('ix_ar_invoices_period', table_name='ar_invoices')
+    op.drop_index('ix_ar_invoices_due_date', table_name='ar_invoices')
+    op.drop_index('ix_ar_invoices_customer_code', table_name='ar_invoices')
+    op.drop_index('ix_ar_invoices_number', table_name='ar_invoices')
+    op.drop_index('ix_customers_tax_code', table_name='customers')
+    op.drop_index('ix_customers_code', table_name='customers')
 
     op.drop_table('ar_payments')
     op.drop_table('ar_invoice_lines')

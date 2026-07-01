@@ -152,5 +152,5 @@ class LoanMixin:
             select(func.coalesce(func.sum(LoanModel.outstanding_balance), Decimal("0")))
             .where(LoanModel.status.in_(["active", "refinanced"]))
         ).scalar_one()
-        return _vnd(result)
+        return _quantize_vnd(result)
 

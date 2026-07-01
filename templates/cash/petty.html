@@ -1,0 +1,125 @@
+{% extends 'layout/base.html' %}
+{% block title %}Quỹ tạm ứng - SmartACCT{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-hand-holding-usd"></i> Quỹ tạm ứng & Tạm ứng</h1>
+  <p>Quản lý quỹ tạm ứng (TK 141) và các khoản tạm ứng</p>
+</div>
+
+<div class="form-section">
+  <div class="form-section-title">Quỹ tạm ứng</div>
+  <div class="card">
+    <div class="card-content" style="padding:0;">
+      {% if funds %}
+      <div class="table-container">
+        <table class="table is-fullwidth is-hoverable">
+          <thead>
+            <tr>
+              <th>Mã quỹ</th>
+              <th>Thủ quỹ</th>
+              <th class="is-vnd">Hạn mức</th>
+              <th class="is-vnd">Số dư</th>
+              <th>Loại tiền</th>
+              <th>Ngày lập</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in funds %}
+            <tr>
+              <td class="mono"><strong>{{ f.fund_code }}</strong></td>
+              <td>{{ f.custodian }}</td>
+              <td class="is-vnd">{{ "{:,.0f}".format(f.limit_amount|float) }}</td>
+              <td class="is-vnd"><strong>{{ "{:,.0f}".format(f.current_balance|float) }}</strong></td>
+              <td>{{ f.currency }}</td>
+              <td>{{ f.established_date.strftime('%d/%m/%Y') if f.established_date else '' }}</td>
+              <td>
+                {% if f.status.value == 'active' %}
+                <span class="tag is-active">Hoạt động</span>
+                {% elif f.status.value == 'inactive' %}
+                <span class="tag is-inactive">Ngừng HĐ</span>
+                {% elif f.status.value == 'frozen' %}
+                <span class="tag is-cancelled">Đóng băng</span>
+                {% else %}
+                <span class="tag is-draft">{{ f.status.value }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="/cash/petty/{{ f.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="has-text-centered" style="padding:30px; color:#90a4ae;">
+        <i class="fas fa-piggy-bank" style="font-size:36px; margin-bottom:8px;"></i>
+        <p>Không có quỹ tạm ứng nào</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="form-section">
+  <div class="form-section-title">Tạm ứng (TK 141)</div>
+  <div class="card">
+    <div class="card-content" style="padding:0;">
+      {% if advances %}
+      <div class="table-container">
+        <table class="table is-fullwidth is-hoverable">
+          <thead>
+            <tr>
+              <th>Nhân viên</th>
+              <th class="is-vnd">Số tiền</th>
+              <th>Ngày tạm ứng</th>
+              <th>Mục đích</th>
+              <th>Hạn thanh toán</th>
+              <th class="is-vnd">Đã thanh toán</th>
+              <th class="is-vnd">Còn lại</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in advances %}
+            <tr>
+              <td><strong>{{ a.employee_name }}</strong></td>
+              <td class="is-vnd">{{ "{:,.0f}".format(a.amount|float) }}</td>
+              <td>{{ a.advance_date.strftime('%d/%m/%Y') if a.advance_date else '' }}</td>
+              <td>{{ a.purpose[:60] }}{% if a.purpose and a.purpose|length > 60 %}...{% endif %}</td>
+              <td>{{ a.settlement_deadline.strftime('%d/%m/%Y') if a.settlement_deadline else '' }}</td>
+              <td class="is-vnd">{{ "{:,.0f}".format(a.settlement_amount|float) }}</td>
+              <td class="is-vnd"><strong>{{ "{:,.0f}".format(a.remaining_balance|float) }}</strong></td>
+              <td>
+                {% if a.status == 'pending' %}
+                <span class="tag is-pending">Chờ TT</span>
+                {% elif a.status == 'settled' %}
+                <span class="tag is-posted">Đã TT</span>
+                {% elif a.status == 'partial' %}
+                <span class="tag is-approved">TT 1 phần</span>
+                {% else %}
+                <span class="tag is-draft">{{ a.status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="/cash/advances/{{ a.id }}" class="button is-small is-light"><i class="fas fa-eye"></i></a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="has-text-centered" style="padding:30px; color:#90a4ae;">
+        <i class="fas fa-coins" style="font-size:36px; margin-bottom:8px;"></i>
+        <p>Không có khoản tạm ứng nào</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

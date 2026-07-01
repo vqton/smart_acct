@@ -1,0 +1,205 @@
+{% extends "layout/base.html" %}
+{% block title %}Giá thành - SmartACCT{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Giá thành</h1>
+  <p>Quản lý giá thành và phân bổ</p>
+</div>
+
+<div class="tabs is-boxed">
+  <ul>
+    <li class="is-active" data-tab="cost-centers"><a>Trung tâm chi phí</a></li>
+    <li data-tab="allocation"><a>Phân bổ</a></li>
+    <li data-tab="accumulated"><a>Tích lũy</a></li>
+    <li data-tab="variance"><a>Chênh lệch</a></li>
+  </ul>
+</div>
+
+{# Tab 1: Cost Centers #}
+<div id="tab-cost-centers" class="tab-content">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Trung tâm chi phí</p></header>
+    <div class="card-content">
+      {% if cost_centers %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>Loại</th>
+            <th>Trạng thái</th>
+            <th>Người phụ trách</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cc in cost_centers %}
+          <tr>
+            <td class="mono">{{ cc.code if hasattr(cc, 'code') else cc.get('code', '') }}</td>
+            <td>{{ cc.name if hasattr(cc, 'name') else cc.get('name', '') }}</td>
+            <td>{{ cc.cost_center_type.value if hasattr(cc, 'cost_center_type') and hasattr(cc.cost_center_type, 'value') else cc.get('cost_center_type', cc.get('type', '')) }}</td>
+            <td>
+              <span class="tag {% if (cc.is_active if hasattr(cc, 'is_active') else cc.get('is_active', True)) %}is-active{% else %}is-inactive{% endif %}">
+                {% if (cc.is_active if hasattr(cc, 'is_active') else cc.get('is_active', True)) %}Hoạt động{% else %}Ngừng{% endif %}
+              </span>
+            </td>
+            <td>{{ cc.manager_name if hasattr(cc, 'manager_name') else cc.get('manager_name', '') }}</td>
+            <td>
+              <button class="button is-small is-link" onclick="showToast('Xem chi tiết', 'info')">
+                <i class="fas fa-eye"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có trung tâm chi phí nào.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# Tab 2: Allocation Runs #}
+<div id="tab-allocation" class="tab-content" style="display:none">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Phân bổ</p></header>
+    <div class="card-content">
+      {% if allocation_runs %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Mã phân bổ</th>
+            <th>Kỳ</th>
+            <th>Phương pháp</th>
+            <th class="text-right">Tổng tiền</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in allocation_runs %}
+          <tr>
+            <td class="mono">{{ run.run_code if hasattr(run, 'run_code') else run.get('run_code', run.get('run_number', '')) }}</td>
+            <td>{{ run.period_key if hasattr(run, 'period_key') else run.get('period_key', '') }}</td>
+            <td>{{ run.method if hasattr(run, 'method') else run.get('method', '') }}</td>
+            <td class="is-vnd">{{ (run.total_allocated_amount if hasattr(run, 'total_allocated_amount') else run.get('total_amount', 0))|vnd }}</td>
+            <td>
+              {% set s = run.status.value if hasattr(run, 'status') and hasattr(run.status, 'value') else run.status if hasattr(run, 'status') else run.get('status', '') %}
+              <span class="tag
+                {% if s == 'draft' or s == 'DRAFT' %}is-draft
+                {% elif s == 'posted' or s == 'POSTED' %}is-posted
+                {% else %}is-info{% endif %}">
+                {{ s }}
+              </span>
+            </td>
+            <td>
+              <button class="button is-small is-success" onclick="showToast('Đang ghi sổ...', 'success')">
+                <i class="fas fa-check"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có đợt phân bổ nào.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# Tab 3: Accumulated #}
+<div id="tab-accumulated" class="tab-content" style="display:none">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Chi phí tích lũy</p></header>
+    <div class="card-content">
+      {% if accumulated %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Trung tâm chi phí</th>
+            <th class="text-right">Chi phí trực tiếp</th>
+            <th class="text-right">Chi phí gián tiếp</th>
+            <th class="text-right">Tổng cộng</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for acc in accumulated %}
+          <tr>
+            <td>{{ acc.cost_center_name if hasattr(acc, 'cost_center_name') else acc.get('cost_center_name', '') }}</td>
+            <td class="is-vnd">{{ (acc.direct_cost if hasattr(acc, 'direct_cost') else acc.get('direct_cost', 0))|vnd }}</td>
+            <td class="is-vnd">{{ (acc.indirect_cost if hasattr(acc, 'indirect_cost') else acc.get('indirect_cost', 0))|vnd }}</td>
+            <td class="is-vnd"><strong>{{ (acc.total_cost if hasattr(acc, 'total_cost') else acc.get('total_cost', 0))|vnd }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có dữ liệu tích lũy.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# Tab 4: Variance #}
+<div id="tab-variance" class="tab-content" style="display:none">
+  <div class="card">
+    <header class="card-header"><p class="card-header-title">Chênh lệch dự toán</p></header>
+    <div class="card-content">
+      {% if variance_data %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>Trung tâm chi phí</th>
+            <th class="text-right">Dự toán</th>
+            <th class="text-right">Thực tế</th>
+            <th class="text-right">Chênh lệch</th>
+            <th class="text-right">Tỷ lệ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in variance_data %}
+          <tr>
+            <td>{{ v.cost_center_name }}</td>
+            <td class="is-vnd">{{ v.budget|vnd }}</td>
+            <td class="is-vnd">{{ v.actual|vnd }}</td>
+            <td class="is-vnd">
+              <span class="tag {% if v.variance >= 0 %}is-success{% else %}is-danger{% endif %}">
+                {{ v.variance|vnd }}
+              </span>
+            </td>
+            <td class="text-right">
+              <span class="tag {% if v.variance_pct <= 5 %}is-success{% elif v.variance_pct <= 15 %}is-warning{% else %}is-danger{% endif %}">
+                {{ v.variance_pct }}%
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-info is-light">Chưa có dữ liệu chênh lệch.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.tabs li').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tabs li').forEach(function(t) { t.classList.remove('is-active'); });
+      this.classList.add('is-active');
+      document.querySelectorAll('.tab-content').forEach(function(tc) { tc.style.display = 'none'; });
+      var target = this.getAttribute('data-tab');
+      document.getElementById('tab-' + target).style.display = 'block';
+    });
+  });
+});
+</script>
+{% endblock %}
