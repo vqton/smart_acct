@@ -58,3 +58,8 @@ instance/
 
 # obsidian-mind (agent persistent memory vault)
 .obsidian-mind/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
