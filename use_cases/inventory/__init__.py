@@ -447,6 +447,48 @@ class InventoryUseCases:
         new_cost = _vnd(total_value / total_qty)
         return Result.success({"unit_cost": new_cost, "total_quantity": total_qty, "total_value": _vnd(total_value)})
 
+    def compute_standard_cost_variance(self, item_id: int, receipt_line_id: int) -> Result:
+        item = self.repo.get_item(item_id)
+        if not item:
+            return Result.failure(AccountError(ErrorCodes.INV_ITEM_NOT_FOUND, item_id=item_id))
+        if not item.valuation_method or item.valuation_method != ValuationMethod.STANDARD:
+            return Result.failure(AccountError(ErrorCodes.INV_NOT_STANDARD_COST, item_id=item_id))
+        if item.cost_price is None or item.cost_price <= 0:
+            return Result.failure(AccountError(ErrorCodes.INV_STANDARD_COST_NOT_SET, item_id=item_id))
+        receipt_line = self.repo.get_receipt_line(receipt_line_id)
+        if not receipt_line:
+            return Result.failure(AccountError(ErrorCodes.INV_RECEIPT_LINE_NOT_FOUND, receipt_line_id=receipt_line_id))
+        standard_cost = item.cost_price
+        actual_cost = receipt_line.unit_price
+        qty = receipt_line.quantity
+        purchase_price_variance = _vnd((actual_cost - standard_cost) * qty)
+        return Result.success({
+            "item_id": item_id,
+            "item_code": item.code,
+            "item_name": item.name,
+            "standard_cost": standard_cost,
+            "actual_cost": actual_cost,
+            "quantity": qty,
+            "purchase_price_variance": purchase_price_variance,
+            "variance_type": "unfavorable" if purchase_price_variance > 0 else "favorable",
+        })
+
+    def compute_issue_standard_cost(self, item_id: int, quantity: Decimal) -> Result:
+        item = self.repo.get_item(item_id)
+        if not item:
+            return Result.failure(AccountError(ErrorCodes.INV_ITEM_NOT_FOUND, item_id=item_id))
+        if not item.valuation_method or item.valuation_method != ValuationMethod.STANDARD:
+            return Result.failure(AccountError(ErrorCodes.INV_NOT_STANDARD_COST, item_id=item_id))
+        if item.cost_price is None or item.cost_price <= 0:
+            return Result.failure(AccountError(ErrorCodes.INV_STANDARD_COST_NOT_SET, item_id=item_id))
+        cost_amount = _vnd(item.cost_price * quantity)
+        return Result.success({
+            "item_id": item_id,
+            "standard_cost": item.cost_price,
+            "quantity": quantity,
+            "cost_amount": cost_amount,
+        })
+
     def revalue_item(self, item_id: int, new_unit_price: Decimal) -> Result:
         item = self.repo.get_item(item_id)
         if not item:
@@ -470,18 +512,51 @@ class InventoryUseCases:
             accounts = self.repo.get_item_gl_accounts(line.item_id)
             if not accounts:
                 continue
-            entries.append({
-                "account_code": accounts.get("gl_inventory_account", "152"),
-                "debit": _vnd(line.total_amount),
-                "credit": Decimal("0"),
-                "description": f"Nhập kho {line.item_id} PN {receipt.receipt_code}",
-            })
-            entries.append({
-                "account_code": accounts.get("gl_receipt_account", "331"),
-                "debit": Decimal("0"),
-                "credit": _vnd(line.total_amount),
-                "description": f"Phải trả NCC {line.item_id} PN {receipt.receipt_code}",
-            })
+            item = self.repo.get_item(line.item_id)
+            is_standard = item and item.valuation_method == ValuationMethod.STANDARD and item.cost_price is not None and item.cost_price > 0
+            if is_standard:
+                standard_amount = _vnd(line.quantity * item.cost_price)
+                variance_amount = _vnd(line.total_amount - standard_amount)
+                entries.append({
+                    "account_code": accounts.get("gl_inventory_account", "152"),
+                    "debit": standard_amount,
+                    "credit": Decimal("0"),
+                    "description": f"Nhập kho (giá chuẩn) {line.item_id} PN {receipt.receipt_code}",
+                })
+                variance_acct = accounts.get("gl_variance_account", "6321")
+                if variance_amount >= 0:
+                    entries.append({
+                        "account_code": variance_acct,
+                        "debit": variance_amount,
+                        "credit": Decimal("0"),
+                        "description": f"Chênh lệch giá NVL {line.item_id} PN {receipt.receipt_code}",
+                    })
+                else:
+                    entries.append({
+                        "account_code": variance_acct,
+                        "debit": Decimal("0"),
+                        "credit": abs(variance_amount),
+                        "description": f"Chênh lệch giá NVL {line.item_id} PN {receipt.receipt_code}",
+                    })
+                entries.append({
+                    "account_code": accounts.get("gl_receipt_account", "331"),
+                    "debit": Decimal("0"),
+                    "credit": _vnd(line.total_amount),
+                    "description": f"Phải trả NCC {line.item_id} PN {receipt.receipt_code}",
+                })
+            else:
+                entries.append({
+                    "account_code": accounts.get("gl_inventory_account", "152"),
+                    "debit": _vnd(line.total_amount),
+                    "credit": Decimal("0"),
+                    "description": f"Nhập kho {line.item_id} PN {receipt.receipt_code}",
+                })
+                entries.append({
+                    "account_code": accounts.get("gl_receipt_account", "331"),
+                    "debit": Decimal("0"),
+                    "credit": _vnd(line.total_amount),
+                    "description": f"Phải trả NCC {line.item_id} PN {receipt.receipt_code}",
+                })
         return Result.success(entries)
 
     def build_issue_gl_entries(self, issue_id: int) -> Result:

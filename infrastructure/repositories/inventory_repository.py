@@ -668,6 +668,11 @@ class InventoryRepository:
         m = self.session.get(InventoryReceiptModel, receipt_id)
         return self._receipt_to_domain(m) if m else None
 
+    def get_receipt_line(self, receipt_line_id: int) -> Optional[InventoryReceiptLine]:
+        from infrastructure.models.inventory_models import InventoryReceiptLineModel
+        m = self.session.get(InventoryReceiptLineModel, receipt_line_id)
+        return self._receipt_line_to_domain(m) if m else None
+
     def list_receipts(self, warehouse_id: Optional[int] = None,
                       date_from: Optional[date] = None, date_to: Optional[date] = None,
                       is_posted: Optional[bool] = None,

@@ -127,6 +127,25 @@ def item(repo, category, warehouse):
 
 
 @pytest.fixture
+def std_category(repo):
+    data = _make_category_data(code="STD", name="Standard costing",
+                                valuation_method=ValuationMethod.STANDARD.value,
+                                gl_cost_of_sales="632")
+    cat = InventoryCategory(**data)
+    return repo.create_category(cat).get_data()
+
+
+@pytest.fixture
+def std_item(repo, std_category, warehouse):
+    data = _make_item_data(category_id=std_category.id, code="STD-001",
+                            name="Standard cost item",
+                            cost_price=Decimal("50000"))
+    data["valuation_method"] = ValuationMethod.STANDARD.value
+    it = InventoryItem(**data)
+    return repo.create_item(it).get_data()
+
+
+@pytest.fixture
 def batch(repo, item, warehouse):
     b = InventoryBatch(item_id=item.id, warehouse_id=warehouse.id,
                         batch_code="LÔ001",
@@ -747,6 +766,65 @@ class TestValuation:
     def test_revalue(self, uc, item):
         result = uc.revalue_item(item.id, Decimal("48000"))
         assert result.is_success()
+
+    def test_standard_cost_variance_favorable(self, uc, std_item, warehouse):
+        lines = [{"item_id": std_item.id, "warehouse_id": warehouse.id,
+                   "quantity": 100, "unit_price": 45000}]
+        result = uc.create_receipt(receipt_code="STD-FAV",
+                                    receipt_date=date(2026, 6, 15),
+                                    warehouse_id=warehouse.id, lines=lines)
+        receipt = result.get_data()
+        rline = receipt.lines[0]
+        result = uc.compute_standard_cost_variance(std_item.id, rline.id)
+        assert result.is_success()
+        data = result.get_data()
+        assert data["purchase_price_variance"] == Decimal("-500000.00")
+        assert data["variance_type"] == "favorable"
+
+    def test_standard_cost_variance_unfavorable(self, uc, std_item, warehouse):
+        lines = [{"item_id": std_item.id, "warehouse_id": warehouse.id,
+                   "quantity": 100, "unit_price": 55000}]
+        result = uc.create_receipt(receipt_code="STD-UNF",
+                                    receipt_date=date(2026, 6, 15),
+                                    warehouse_id=warehouse.id, lines=lines)
+        receipt = result.get_data()
+        rline = receipt.lines[0]
+        result = uc.compute_standard_cost_variance(std_item.id, rline.id)
+        assert result.is_success()
+        data = result.get_data()
+        assert data["purchase_price_variance"] == Decimal("500000.00")
+        assert data["variance_type"] == "unfavorable"
+
+    def test_compute_issue_standard_cost(self, uc, std_item):
+        result = uc.compute_issue_standard_cost(std_item.id, Decimal("10"))
+        assert result.is_success()
+        data = result.get_data()
+        assert data["cost_amount"] == Decimal("500000.00")
+
+    def test_standard_cost_variance_no_std_cost_raises(self, uc, item):
+        lines = [{"item_id": item.id, "warehouse_id": 1,
+                   "quantity": 10, "unit_price": 50000}]
+        result = uc.create_receipt(receipt_code="STD-NOSET",
+                                    receipt_date=date(2026, 6, 15),
+                                    warehouse_id=1, lines=lines)
+        receipt = result.get_data()
+        rline = receipt.lines[0]
+        result = uc.compute_standard_cost_variance(item.id, rline.id)
+        assert result.is_failure()
+
+    def test_build_receipt_gl_entries_standard_costing(self, uc, std_item, warehouse):
+        lines = [{"item_id": std_item.id, "warehouse_id": warehouse.id,
+                   "quantity": 100, "unit_price": 52000}]
+        result = uc.create_receipt(receipt_code="STD-GL",
+                                    receipt_date=date(2026, 6, 15),
+                                    warehouse_id=warehouse.id, lines=lines)
+        receipt = result.get_data()
+        result = uc.build_receipt_gl_entries(receipt.id)
+        assert result.is_success()
+        entries = result.get_data()
+        assert len(entries) >= 3
+        inventory_entry = next(e for e in entries if e["account_code"] == "152")
+        assert inventory_entry["debit"] == Decimal("5000000.00")
 
 
 # ═══════════════════════════════════════════════════════════════════
